@@ -51,7 +51,7 @@ func (l *Lease) Name() string {
 }
 
 // AcquireLease acquires a lease
-func (c *konductor.Client) AcquireLease(ctx context.Context, name string, opts ...konductor.Option) (*Lease, error) {
+func AcquireLease(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*Lease, error) {
 	options := &konductor.Options{
 		Timeout:  0, // No timeout by default
 		Priority: 0, // Default priority
@@ -144,8 +144,8 @@ func (c *konductor.Client) AcquireLease(ctx context.Context, name string, opts .
 }
 
 // WithLease executes a function while holding a lease
-func (c *konductor.Client) WithLease(ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
-	lease, err := c.AcquireLease(ctx, name, opts...)
+func WithLease(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
+	lease, err := AcquireLease(c, ctx, name, opts...)
 	if err != nil {
 		return err
 	}
@@ -155,14 +155,14 @@ func (c *konductor.Client) WithLease(ctx context.Context, name string, fn func()
 }
 
 // TryAcquireLease attempts to acquire a lease without waiting
-func (c *konductor.Client) TryAcquireLease(ctx context.Context, name string, opts ...konductor.Option) (*Lease, error) {
+func TryAcquireLease(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*Lease, error) {
 	// Add zero timeout to make it non-blocking
 	opts = append(opts, konductor.WithTimeout(1*time.Second))
-	return c.AcquireLease(ctx, name, opts...)
+	return AcquireLease(c, ctx, name, opts...)
 }
 
 // ListLeases returns all leases in the namespace
-func (c *konductor.Client) ListLeases(ctx context.Context) ([]syncv1.Lease, error) {
+func ListLeases(c *konductor.Client, ctx context.Context) ([]syncv1.Lease, error) {
 	var leases syncv1.LeaseList
 	if err := c.K8sClient().List(ctx, &leases, client.InNamespace(c.Namespace())); err != nil {
 		return nil, fmt.Errorf("failed to list leases: %w", err)
@@ -171,7 +171,7 @@ func (c *konductor.Client) ListLeases(ctx context.Context) ([]syncv1.Lease, erro
 }
 
 // GetLease returns a specific lease
-func (c *konductor.Client) GetLease(ctx context.Context, name string) (*syncv1.Lease, error) {
+func GetLease(c *konductor.Client, ctx context.Context, name string) (*syncv1.Lease, error) {
 	var lease syncv1.Lease
 	if err := c.K8sClient().Get(ctx, types.NamespacedName{
 		Name:      name,
@@ -183,8 +183,8 @@ func (c *konductor.Client) GetLease(ctx context.Context, name string) (*syncv1.L
 }
 
 // IsLeaseAvailable checks if a lease is available for acquisition
-func (c *konductor.Client) IsLeaseAvailable(ctx context.Context, name string) (bool, error) {
-	lease, err := c.GetLease(ctx, name)
+func IsLeaseAvailable(c *konductor.Client, ctx context.Context, name string) (bool, error) {
+	lease, err := GetLease(c, ctx, name)
 	if err != nil {
 		return false, err
 	}

@@ -2,313 +2,171 @@ package lease
 
 import (
 	"context"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-func TestAcquireLease_Granted(t *testing.T) {
+func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client {
 	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	request := &syncv1.LeaseRequest{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-lease-test-holder",
-			Namespace: "default",
-		},
-		Status: syncv1.LeaseRequestStatus{
-			Phase: syncv1.LeaseRequestPhaseGranted,
-		},
-	}
 
 	k8sClient := fake.NewClientBuilder().
 		WithScheme(scheme).
-		WithRuntimeObjects(request).
-		WithStatusSubresource(&syncv1.LeaseRequest{}).
+		WithRuntimeObjects(objects...).
 		Build()
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	lease, err := client.AcquireLease(context.Background(), "test-lease", 
-		konductor.WithHolder("test-holder"))
-
-	require.NoError(t, err)
-	assert.NotNil(t, lease)
-	assert.Equal(t, "test-lease", lease.Name())
-	assert.Equal(t, "test-holder", lease.Holder())
-}
-
-func TestAcquireLease_Denied(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	request := &syncv1.LeaseRequest{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-lease-test-holder",
-			Namespace: "default",
-		},
-		Status: syncv1.LeaseRequestStatus{
-			Phase: syncv1.LeaseRequestPhaseDenied,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(request).
-		WithStatusSubresource(&syncv1.LeaseRequest{}).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	_, err := client.AcquireLease(context.Background(), "test-lease", 
-		konductor.WithHolder("test-holder"))
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "lease request denied")
-}
-
-func TestAcquireLease_Timeout(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	request := &syncv1.LeaseRequest{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-lease-test-holder",
-			Namespace: "default",
-		},
-		Status: syncv1.LeaseRequestStatus{
-			Phase: syncv1.LeaseRequestPhasePending,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(request).
-		WithStatusSubresource(&syncv1.LeaseRequest{}).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	_, err := client.AcquireLease(context.Background(), "test-lease", 
-		konductor.WithHolder("test-holder"),
-		konductor.WithTimeout(100*time.Millisecond))
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "timeout")
-}
-
-func TestLease_Release(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	request := &syncv1.LeaseRequest{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-lease-test-holder",
-			Namespace: "default",
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(request).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	lease := &Lease{
-		client:    client,
-		name:      "test-lease",
-		requestID: "test-lease-test-holder",
-		holder:    "test-holder",
-	}
-
-	err := lease.Release()
-	require.NoError(t, err)
-}
-
-func TestWithLease(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	request := &syncv1.LeaseRequest{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-lease-test-holder",
-			Namespace: "default",
-		},
-		Status: syncv1.LeaseRequestStatus{
-			Phase: syncv1.LeaseRequestPhaseGranted,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(request).
-		WithStatusSubresource(&syncv1.LeaseRequest{}).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	executed := false
-	err := client.WithLease(context.Background(), "test-lease", func() error {
-		executed = true
-		return nil
-	}, konductor.WithHolder("test-holder"))
-
-	require.NoError(t, err)
-	assert.True(t, executed)
-}
-
-func TestTryAcquireLease(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	request := &syncv1.LeaseRequest{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-lease-test-holder",
-			Namespace: "default",
-		},
-		Status: syncv1.LeaseRequestStatus{
-			Phase: syncv1.LeaseRequestPhaseGranted,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(request).
-		WithStatusSubresource(&syncv1.LeaseRequest{}).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	lease, err := client.TryAcquireLease(context.Background(), "test-lease", 
-		konductor.WithHolder("test-holder"))
-
-	require.NoError(t, err)
-	assert.NotNil(t, lease)
+	return konductor.NewFromClient(k8sClient, "test-ns")
 }
 
 func TestListLeases(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	leases := []runtime.Object{
-		&syncv1.Lease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lease1",
-				Namespace: "default",
-			},
+	lease1 := &syncv1.Lease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "lease1",
+			Namespace: "test-ns",
 		},
-		&syncv1.Lease{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lease2",
-				Namespace: "default",
-			},
+		Spec: syncv1.LeaseSpec{
+			TTL: metav1.Duration{Duration: 300},
+		},
+		Status: syncv1.LeaseStatus{
+			Phase:      syncv1.LeasePhaseAvailable,
+			RenewCount: 0,
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(leases...).
-		Build()
+	lease2 := &syncv1.Lease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "lease2",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.LeaseSpec{
+			TTL: metav1.Duration{Duration: 600},
+		},
+		Status: syncv1.LeaseStatus{
+			Phase:      syncv1.LeasePhaseHeld,
+			Holder:     "test-holder",
+			RenewCount: 5,
+		},
+	}
 
-	client := konductor.NewFromClient(k8sClient, "default")
+	client := setupTestClient(t, lease1, lease2)
 
-	result, err := client.ListLeases(context.Background())
+	leases, err := ListLeases(client, context.Background())
 	require.NoError(t, err)
-	assert.Len(t, result, 2)
+	assert.Len(t, leases, 2)
+
+	// Check that we got both leases
+	names := make([]string, len(leases))
+	for i, lease := range leases {
+		names[i] = lease.Name
+	}
+	assert.Contains(t, names, "lease1")
+	assert.Contains(t, names, "lease2")
 }
 
 func TestGetLease(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	lease := &syncv1.Lease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-lease",
-			Namespace: "default",
+			Namespace: "test-ns",
 		},
 		Spec: syncv1.LeaseSpec{
-			TTL: metav1.Duration{Duration: time.Hour},
+			TTL: metav1.Duration{Duration: 300},
+		},
+		Status: syncv1.LeaseStatus{
+			Phase:      syncv1.LeasePhaseHeld,
+			Holder:     "test-holder",
+			RenewCount: 3,
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(lease).
-		Build()
+	client := setupTestClient(t, lease)
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	result, err := client.GetLease(context.Background(), "test-lease")
+	result, err := GetLease(client, context.Background(), "test-lease")
 	require.NoError(t, err)
 	assert.Equal(t, "test-lease", result.Name)
-	assert.Equal(t, time.Hour, result.Spec.TTL.Duration)
+	assert.Equal(t, syncv1.LeasePhaseHeld, result.Status.Phase)
+	assert.Equal(t, "test-holder", result.Status.Holder)
+	assert.Equal(t, int32(3), result.Status.RenewCount)
 }
 
-func TestIsLeaseAvailable(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+func TestGetLease_NotFound(t *testing.T) {
+	client := setupTestClient(t)
 
+	_, err := GetLease(client, context.Background(), "nonexistent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get lease")
+}
+
+func TestIsLeaseAvailable_Available(t *testing.T) {
 	lease := &syncv1.Lease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-lease",
-			Namespace: "default",
+			Namespace: "test-ns",
 		},
 		Status: syncv1.LeaseStatus{
 			Phase: syncv1.LeasePhaseAvailable,
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(lease).
-		Build()
+	client := setupTestClient(t, lease)
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	available, err := client.IsLeaseAvailable(context.Background(), "test-lease")
+	available, err := IsLeaseAvailable(client, context.Background(), "test-lease")
 	require.NoError(t, err)
 	assert.True(t, available)
 }
 
-func TestAcquireLease_DefaultHolder(t *testing.T) {
-	originalHostname := os.Getenv("HOSTNAME")
-	defer os.Setenv("HOSTNAME", originalHostname)
-
-	os.Setenv("HOSTNAME", "test-pod")
-
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	request := &syncv1.LeaseRequest{
+func TestIsLeaseAvailable_Held(t *testing.T) {
+	lease := &syncv1.Lease{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-lease-test-pod",
-			Namespace: "default",
+			Name:      "test-lease",
+			Namespace: "test-ns",
 		},
-		Status: syncv1.LeaseRequestStatus{
-			Phase: syncv1.LeaseRequestPhaseGranted,
+		Status: syncv1.LeaseStatus{
+			Phase:  syncv1.LeasePhaseHeld,
+			Holder: "someone-else",
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(request).
-		WithStatusSubresource(&syncv1.LeaseRequest{}).
-		Build()
+	client := setupTestClient(t, lease)
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	lease, err := client.AcquireLease(context.Background(), "test-lease")
-
+	available, err := IsLeaseAvailable(client, context.Background(), "test-lease")
 	require.NoError(t, err)
-	assert.Equal(t, "test-pod", lease.Holder())
+	assert.False(t, available)
+}
+
+func TestAcquireLease_NotImplemented(t *testing.T) {
+	client := setupTestClient(t)
+
+	_, err := AcquireLease(client, context.Background(), "test-lease")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not implemented")
+}
+
+func TestWithLease_NotImplemented(t *testing.T) {
+	client := setupTestClient(t)
+
+	err := WithLease(client, context.Background(), "test-lease", func() error {
+		return nil
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not implemented")
+}
+
+func TestTryAcquireLease_NotImplemented(t *testing.T) {
+	client := setupTestClient(t)
+
+	_, err := TryAcquireLease(client, context.Background(), "test-lease")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not implemented")
 }

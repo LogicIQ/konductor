@@ -15,7 +15,7 @@ import (
 )
 
 // WaitBarrier waits for a barrier to open
-func (c *konductor.Client) WaitBarrier(ctx context.Context, name string, opts ...konductor.Option) error {
+func WaitBarrier(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{
 		Timeout: 0, // No timeout by default
 	}
@@ -58,7 +58,7 @@ func (c *konductor.Client) WaitBarrier(ctx context.Context, name string, opts ..
 }
 
 // ArriveBarrier signals arrival at a barrier
-func (c *konductor.Client) ArriveBarrier(ctx context.Context, name string, opts ...konductor.Option) error {
+func ArriveBarrier(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{}
 
 	for _, opt := range opts {
@@ -97,17 +97,17 @@ func (c *konductor.Client) ArriveBarrier(ctx context.Context, name string, opts 
 }
 
 // WithBarrier executes a function and then signals arrival at a barrier
-func (c *konductor.Client) WithBarrier(ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
+func WithBarrier(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
 	if err := fn(); err != nil {
 		return err
 	}
-	return c.ArriveBarrier(ctx, name, opts...)
+	return ArriveBarrier(c, ctx, name, opts...)
 }
 
 // WaitAndArrive waits for a barrier to open, executes a function, then signals arrival at another barrier
-func (c *konductor.Client) WaitAndArrive(ctx context.Context, waitBarrier, arriveBarrier string, fn func() error, opts ...konductor.Option) error {
+func WaitAndArrive(c *konductor.Client, ctx context.Context, waitBarrier, arriveBarrier string, fn func() error, opts ...konductor.Option) error {
 	// Wait for the first barrier
-	if err := c.WaitBarrier(ctx, waitBarrier, opts...); err != nil {
+	if err := WaitBarrier(c, ctx, waitBarrier, opts...); err != nil {
 		return fmt.Errorf("failed to wait for barrier %s: %w", waitBarrier, err)
 	}
 
@@ -117,7 +117,7 @@ func (c *konductor.Client) WaitAndArrive(ctx context.Context, waitBarrier, arriv
 	}
 
 	// Signal arrival at second barrier
-	if err := c.ArriveBarrier(ctx, arriveBarrier, opts...); err != nil {
+	if err := ArriveBarrier(c, ctx, arriveBarrier, opts...); err != nil {
 		return fmt.Errorf("failed to arrive at barrier %s: %w", arriveBarrier, err)
 	}
 
@@ -125,7 +125,7 @@ func (c *konductor.Client) WaitAndArrive(ctx context.Context, waitBarrier, arriv
 }
 
 // ListBarriers returns all barriers in the namespace
-func (c *konductor.Client) ListBarriers(ctx context.Context) ([]syncv1.Barrier, error) {
+func ListBarriers(c *konductor.Client, ctx context.Context) ([]syncv1.Barrier, error) {
 	var barriers syncv1.BarrierList
 	if err := c.K8sClient().List(ctx, &barriers, client.InNamespace(c.Namespace())); err != nil {
 		return nil, fmt.Errorf("failed to list barriers: %w", err)
@@ -134,7 +134,7 @@ func (c *konductor.Client) ListBarriers(ctx context.Context) ([]syncv1.Barrier, 
 }
 
 // GetBarrier returns a specific barrier
-func (c *konductor.Client) GetBarrier(ctx context.Context, name string) (*syncv1.Barrier, error) {
+func GetBarrier(c *konductor.Client, ctx context.Context, name string) (*syncv1.Barrier, error) {
 	var barrier syncv1.Barrier
 	if err := c.K8sClient().Get(ctx, types.NamespacedName{
 		Name:      name,
@@ -146,8 +146,8 @@ func (c *konductor.Client) GetBarrier(ctx context.Context, name string) (*syncv1
 }
 
 // GetBarrierStatus returns the current status of a barrier
-func (c *konductor.Client) GetBarrierStatus(ctx context.Context, name string) (*syncv1.BarrierStatus, error) {
-	barrier, err := c.GetBarrier(ctx, name)
+func GetBarrierStatus(c *konductor.Client, ctx context.Context, name string) (*syncv1.BarrierStatus, error) {
+	barrier, err := GetBarrier(c, ctx, name)
 	if err != nil {
 		return nil, err
 	}

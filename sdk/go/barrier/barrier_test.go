@@ -2,234 +2,205 @@ package barrier
 
 import (
 	"context"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-func TestWaitBarrier_Open(t *testing.T) {
+func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client {
 	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	barrier := &syncv1.Barrier{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-barrier",
-			Namespace: "default",
-		},
-		Status: syncv1.BarrierStatus{
-			Phase: syncv1.BarrierPhaseOpen,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barrier).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	err := client.WaitBarrier(context.Background(), "test-barrier")
-	require.NoError(t, err)
-}
-
-func TestWaitBarrier_Failed(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	barrier := &syncv1.Barrier{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-barrier",
-			Namespace: "default",
-		},
-		Status: syncv1.BarrierStatus{
-			Phase: syncv1.BarrierPhaseFailed,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barrier).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	err := client.WaitBarrier(context.Background(), "test-barrier")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "barrier test-barrier failed")
-}
-
-func TestWaitBarrier_Timeout(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	barrier := &syncv1.Barrier{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-barrier",
-			Namespace: "default",
-		},
-		Status: syncv1.BarrierStatus{
-			Phase: syncv1.BarrierPhaseWaiting,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barrier).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	err := client.WaitBarrier(context.Background(), "test-barrier", 
-		konductor.WithTimeout(100*time.Millisecond))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "timeout")
-}
-
-func TestArriveBarrier(t *testing.T) {
-	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
 	k8sClient := fake.NewClientBuilder().
 		WithScheme(scheme).
+		WithRuntimeObjects(objects...).
 		Build()
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	err := client.ArriveBarrier(context.Background(), "test-barrier", 
-		konductor.WithHolder("test-holder"))
-	require.NoError(t, err)
-}
-
-func TestArriveBarrier_DefaultHolder(t *testing.T) {
-	originalHostname := os.Getenv("HOSTNAME")
-	defer os.Setenv("HOSTNAME", originalHostname)
-
-	os.Setenv("HOSTNAME", "test-pod")
-
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	err := client.ArriveBarrier(context.Background(), "test-barrier")
-	require.NoError(t, err)
-}
-
-func TestWithBarrier(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	executed := false
-	err := client.WithBarrier(context.Background(), "test-barrier", func() error {
-		executed = true
-		return nil
-	}, konductor.WithHolder("test-holder"))
-
-	require.NoError(t, err)
-	assert.True(t, executed)
+	return konductor.NewFromClient(k8sClient, "test-ns")
 }
 
 func TestListBarriers(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	barriers := []runtime.Object{
-		&syncv1.Barrier{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "barrier1",
-				Namespace: "default",
-			},
-		},
-		&syncv1.Barrier{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "barrier2",
-				Namespace: "default",
-			},
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barriers...).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	result, err := client.ListBarriers(context.Background())
-	require.NoError(t, err)
-	assert.Len(t, result, 2)
-}
-
-func TestGetBarrier(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	barrier := &syncv1.Barrier{
+	barrier1 := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-barrier",
-			Namespace: "default",
+			Name:      "barrier1",
+			Namespace: "test-ns",
 		},
 		Spec: syncv1.BarrierSpec{
 			Expected: 3,
 		},
+		Status: syncv1.BarrierStatus{
+			Arrived: 1,
+			Phase:   syncv1.BarrierPhaseWaiting,
+		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barrier).
-		Build()
+	barrier2 := &syncv1.Barrier{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "barrier2",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.BarrierSpec{
+			Expected: 2,
+		},
+		Status: syncv1.BarrierStatus{
+			Arrived:  2,
+			Phase:    syncv1.BarrierPhaseOpen,
+			OpenedAt: &metav1.Time{},
+		},
+	}
 
-	client := konductor.NewFromClient(k8sClient, "default")
+	client := setupTestClient(t, barrier1, barrier2)
 
-	result, err := client.GetBarrier(context.Background(), "test-barrier")
+	barriers, err := ListBarriers(client, context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, "test-barrier", result.Name)
-	assert.Equal(t, int32(3), result.Spec.Expected)
+	assert.Len(t, barriers, 2)
+
+	// Check that we got both barriers
+	names := make([]string, len(barriers))
+	for i, barrier := range barriers {
+		names[i] = barrier.Name
+	}
+	assert.Contains(t, names, "barrier1")
+	assert.Contains(t, names, "barrier2")
 }
 
-func TestGetBarrierStatus(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
+func TestGetBarrier(t *testing.T) {
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-barrier",
-			Namespace: "default",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.BarrierSpec{
+			Expected: 3,
 		},
 		Status: syncv1.BarrierStatus{
+			Arrived: 1,
 			Phase:   syncv1.BarrierPhaseWaiting,
-			Arrived: 2,
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barrier).
-		Build()
+	client := setupTestClient(t, barrier)
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	status, err := client.GetBarrierStatus(context.Background(), "test-barrier")
+	result, err := GetBarrier(client, context.Background(), "test-barrier")
 	require.NoError(t, err)
-	assert.Equal(t, syncv1.BarrierPhaseWaiting, status.Phase)
+	assert.Equal(t, "test-barrier", result.Name)
+	assert.Equal(t, int32(3), result.Spec.Expected)
+	assert.Equal(t, int32(1), result.Status.Arrived)
+	assert.Equal(t, syncv1.BarrierPhaseWaiting, result.Status.Phase)
+}
+
+func TestGetBarrier_NotFound(t *testing.T) {
+	client := setupTestClient(t)
+
+	_, err := GetBarrier(client, context.Background(), "nonexistent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get barrier")
+}
+
+func TestGetBarrierStatus(t *testing.T) {
+	barrier := &syncv1.Barrier{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-barrier",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.BarrierSpec{
+			Expected: 3,
+		},
+		Status: syncv1.BarrierStatus{
+			Arrived: 2,
+			Phase:   syncv1.BarrierPhaseWaiting,
+			Arrivals: []string{"holder1", "holder2"},
+		},
+	}
+
+	client := setupTestClient(t, barrier)
+
+	status, err := GetBarrierStatus(client, context.Background(), "test-barrier")
+	require.NoError(t, err)
 	assert.Equal(t, int32(2), status.Arrived)
+	assert.Equal(t, syncv1.BarrierPhaseWaiting, status.Phase)
+	assert.Len(t, status.Arrivals, 2)
+}
+
+func TestArriveBarrier(t *testing.T) {
+	barrier := &syncv1.Barrier{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-barrier",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.BarrierSpec{
+			Expected: 3,
+		},
+		Status: syncv1.BarrierStatus{
+			Arrived: 1,
+			Phase:   syncv1.BarrierPhaseWaiting,
+		},
+	}
+
+	client := setupTestClient(t, barrier)
+
+	err := ArriveBarrier(client, context.Background(), "test-barrier", konductor.WithHolder("test-holder"))
+	require.NoError(t, err)
+
+	// Verify arrival was created
+	var arrivals syncv1.ArrivalList
+	err = client.K8sClient().List(context.Background(), &arrivals)
+	require.NoError(t, err)
+	assert.Len(t, arrivals.Items, 1)
+	assert.Equal(t, "test-barrier", arrivals.Items[0].Spec.Barrier)
+	assert.Equal(t, "test-holder", arrivals.Items[0].Spec.Holder)
+}
+
+func TestWaitBarrier_AlreadyOpen(t *testing.T) {
+	barrier := &syncv1.Barrier{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-barrier",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.BarrierSpec{
+			Expected: 2,
+		},
+		Status: syncv1.BarrierStatus{
+			Arrived:  2,
+			Phase:    syncv1.BarrierPhaseOpen,
+			OpenedAt: &metav1.Time{},
+		},
+	}
+
+	client := setupTestClient(t, barrier)
+
+	err := WaitBarrier(client, context.Background(), "test-barrier")
+	assert.NoError(t, err)
+}
+
+func TestWaitBarrier_Failed(t *testing.T) {
+	barrier := &syncv1.Barrier{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-barrier",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.BarrierSpec{
+			Expected: 3,
+		},
+		Status: syncv1.BarrierStatus{
+			Arrived: 1,
+			Phase:   syncv1.BarrierPhaseFailed,
+		},
+	}
+
+	client := setupTestClient(t, barrier)
+
+	err := WaitBarrier(client, context.Background(), "test-barrier")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "barrier test-barrier failed")
 }

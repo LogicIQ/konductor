@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
@@ -16,6 +18,7 @@ import (
 
 func TestBarrierWaitCmd_Open(t *testing.T) {
 	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
 	barrier := &syncv1.Barrier{
@@ -53,6 +56,7 @@ func TestBarrierWaitCmd_Open(t *testing.T) {
 
 func TestBarrierWaitCmd_Failed(t *testing.T) {
 	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
 	barrier := &syncv1.Barrier{
@@ -85,6 +89,7 @@ func TestBarrierWaitCmd_Failed(t *testing.T) {
 
 func TestBarrierArriveCmd(t *testing.T) {
 	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
 	barrier := &syncv1.Barrier{
@@ -123,6 +128,7 @@ func TestBarrierArriveCmd(t *testing.T) {
 
 func TestBarrierListCmd(t *testing.T) {
 	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
 	barriers := []runtime.Object{
@@ -183,6 +189,7 @@ func TestBarrierCmd_DefaultHolder(t *testing.T) {
 	os.Setenv("HOSTNAME", "test-pod")
 
 	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
 	barrier := &syncv1.Barrier{

@@ -7,11 +7,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	syncv1 "github.com/LogicIQ/konductor/api/v1"
+	konductor "github.com/LogicIQ/konductor/sdk/go/client"
+	"github.com/LogicIQ/konductor/sdk/go/lease"
 )
 
 func newLeaseCmd() *cobra.Command {
@@ -44,65 +42,32 @@ func newLeaseAcquireCmd() *cobra.Command {
 			leaseName := args[0]
 			ctx := context.Background()
 
-			if holder == "" {
-				holder = os.Getenv("HOSTNAME")
-				if holder == "" {
-					holder = fmt.Sprintf("koncli-%d", time.Now().Unix())
-				}
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			// Build options
+			var opts []konductor.Option
+			if holder != "" {
+				opts = append(opts, konductor.WithHolder(holder))
 			}
-
-
-			request := &syncv1.LeaseRequest{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("%s-%s", leaseName, holder),
-					Namespace: namespace,
-					Labels: map[string]string{
-						"lease": leaseName,
-					},
-				},
-				Spec: syncv1.LeaseRequestSpec{
-					Lease:  leaseName,
-					Holder: holder,
-				},
-			}
-
 			if priority > 0 {
-				request.Spec.Priority = &priority
+				opts = append(opts, konductor.WithPriority(priority))
+			}
+			if timeout > 0 {
+				opts = append(opts, konductor.WithTimeout(timeout))
 			}
 
-			if err := k8sClient.Create(ctx, request); err != nil {
-				return fmt.Errorf("failed to create lease request: %w", err)
-			}
-
-			startTime := time.Now()
-			for {
-
-				if err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      request.Name,
-					Namespace: namespace,
-				}, request); err != nil {
-					return fmt.Errorf("failed to get lease request: %w", err)
+			// Acquire lease using SDK
+			leaseObj, err := lease.AcquireLease(client, ctx, leaseName, opts...)
+			if err != nil {
+				if !wait {
+					return fmt.Errorf("failed to acquire lease: %w", err)
 				}
-
-				switch request.Status.Phase {
-				case syncv1.LeaseRequestPhaseGranted:
-					fmt.Printf("✓ Acquired lease '%s' (holder: %s)\n", leaseName, holder)
-					return nil
-				case syncv1.LeaseRequestPhaseDenied:
-					return fmt.Errorf("lease request denied for '%s'", leaseName)
-				case syncv1.LeaseRequestPhasePending:
-					if !wait {
-						return fmt.Errorf("lease '%s' is not available", leaseName)
-					}
-
-					if timeout > 0 && time.Since(startTime) > timeout {
-						return fmt.Errorf("timeout waiting for lease '%s'", leaseName)
-					}
-
-					fmt.Printf("⏳ Waiting for lease '%s'...\n", leaseName)
-					time.Sleep(5 * time.Second)
-				}
+				return fmt.Errorf("failed to acquire lease: %w", err)
 			}
+
+			fmt.Printf("✓ Acquired lease '%s' (holder: %s)\n", leaseName, leaseObj.Holder())
+			return nil
 		},
 	}
 
@@ -132,17 +97,12 @@ func newLeaseReleaseCmd() *cobra.Command {
 				}
 			}
 
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
 
-			requestName := fmt.Sprintf("%s-%s", leaseName, holder)
-			request := &syncv1.LeaseRequest{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      requestName,
-					Namespace: namespace,
-				},
-			}
-
-			if err := k8sClient.Delete(ctx, request); err != nil {
-				return fmt.Errorf("failed to delete lease request: %w", err)
+			// Release lease using SDK
+			if err := client.ReleaseLease(ctx, leaseName, holder); err != nil {
+				return fmt.Errorf("failed to release lease: %w", err)
 			}
 
 			fmt.Printf("✓ Released lease '%s' (holder: %s)\n", leaseName, holder)
@@ -162,34 +122,38 @@ func newLeaseListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
-			var leases syncv1.LeaseList
-			if err := k8sClient.List(ctx, &leases, client.InNamespace(namespace)); err != nil {
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			// List leases using SDK
+			leases, err := lease.ListLeases(client, ctx)
+			if err != nil {
 				return fmt.Errorf("failed to list leases: %w", err)
 			}
 
-			if len(leases.Items) == 0 {
+			if len(leases) == 0 {
 				fmt.Println("No leases found")
 				return nil
 			}
 
 			fmt.Printf("%-20s %-20s %-10s %-15s %-10s\n", "NAME", "HOLDER", "PHASE", "ACQUIRED", "RENEWALS")
-			for _, lease := range leases.Items {
-				holder := lease.Status.Holder
+			for _, l := range leases {
+				holder := l.Status.Holder
 				if holder == "" {
 					holder = "N/A"
 				}
 
 				acquired := "N/A"
-				if lease.Status.AcquiredAt != nil {
-					acquired = lease.Status.AcquiredAt.Format("15:04:05")
+				if l.Status.AcquiredAt != nil {
+					acquired = l.Status.AcquiredAt.Format("15:04:05")
 				}
 
 				fmt.Printf("%-20s %-20s %-10s %-15s %-10d\n",
-					lease.Name,
+					l.Name,
 					holder,
-					lease.Status.Phase,
+					l.Status.Phase,
 					acquired,
-					lease.Status.RenewCount,
+					l.Status.RenewCount,
 				)
 			}
 

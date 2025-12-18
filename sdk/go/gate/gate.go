@@ -13,7 +13,7 @@ import (
 )
 
 // WaitGate waits for a gate to open (all conditions met)
-func (c *konductor.Client) WaitGate(ctx context.Context, name string, opts ...konductor.Option) error {
+func WaitGate(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{
 		Timeout: 0, // No timeout by default
 	}
@@ -56,7 +56,7 @@ func (c *konductor.Client) WaitGate(ctx context.Context, name string, opts ...ko
 }
 
 // CheckGate checks if a gate is open without waiting
-func (c *konductor.Client) CheckGate(ctx context.Context, name string) (bool, error) {
+func CheckGate(c *konductor.Client, ctx context.Context, name string) (bool, error) {
 	var gate syncv1.Gate
 	if err := c.K8sClient().Get(ctx, types.NamespacedName{
 		Name:      name,
@@ -69,7 +69,7 @@ func (c *konductor.Client) CheckGate(ctx context.Context, name string) (bool, er
 }
 
 // GetGateConditions returns the current status of all gate conditions
-func (c *konductor.Client) GetGateConditions(ctx context.Context, name string) ([]syncv1.GateConditionStatus, error) {
+func GetGateConditions(c *konductor.Client, ctx context.Context, name string) ([]syncv1.GateConditionStatus, error) {
 	var gate syncv1.Gate
 	if err := c.K8sClient().Get(ctx, types.NamespacedName{
 		Name:      name,
@@ -82,7 +82,7 @@ func (c *konductor.Client) GetGateConditions(ctx context.Context, name string) (
 }
 
 // WaitForConditions waits for specific conditions to be met
-func (c *konductor.Client) WaitForConditions(ctx context.Context, name string, conditionNames []string, opts ...konductor.Option) error {
+func WaitForConditions(c *konductor.Client, ctx context.Context, name string, conditionNames []string, opts ...konductor.Option) error {
 	options := &konductor.Options{
 		Timeout: 0, // No timeout by default
 	}
@@ -94,7 +94,7 @@ func (c *konductor.Client) WaitForConditions(ctx context.Context, name string, c
 	startTime := time.Now()
 
 	for {
-		conditions, err := c.GetGateConditions(ctx, name)
+		conditions, err := GetGateConditions(c, ctx, name)
 		if err != nil {
 			return err
 		}
@@ -138,15 +138,15 @@ func (c *konductor.Client) WaitForConditions(ctx context.Context, name string, c
 }
 
 // WithGate executes a function after waiting for a gate to open
-func (c *konductor.Client) WithGate(ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
-	if err := c.WaitGate(ctx, name, opts...); err != nil {
+func WithGate(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
+	if err := WaitGate(c, ctx, name, opts...); err != nil {
 		return err
 	}
 	return fn()
 }
 
 // ListGates returns all gates in the namespace
-func (c *konductor.Client) ListGates(ctx context.Context) ([]syncv1.Gate, error) {
+func ListGates(c *konductor.Client, ctx context.Context) ([]syncv1.Gate, error) {
 	var gates syncv1.GateList
 	if err := c.K8sClient().List(ctx, &gates, client.InNamespace(c.Namespace())); err != nil {
 		return nil, fmt.Errorf("failed to list gates: %w", err)
@@ -155,7 +155,7 @@ func (c *konductor.Client) ListGates(ctx context.Context) ([]syncv1.Gate, error)
 }
 
 // GetGate returns a specific gate
-func (c *konductor.Client) GetGate(ctx context.Context, name string) (*syncv1.Gate, error) {
+func GetGate(c *konductor.Client, ctx context.Context, name string) (*syncv1.Gate, error) {
 	var gate syncv1.Gate
 	if err := c.K8sClient().Get(ctx, types.NamespacedName{
 		Name:      name,
@@ -167,8 +167,8 @@ func (c *konductor.Client) GetGate(ctx context.Context, name string) (*syncv1.Ga
 }
 
 // GetGateStatus returns the current status of a gate
-func (c *konductor.Client) GetGateStatus(ctx context.Context, name string) (*syncv1.GateStatus, error) {
-	gate, err := c.GetGate(ctx, name)
+func GetGateStatus(c *konductor.Client, ctx context.Context, name string) (*syncv1.GateStatus, error) {
+	gate, err := GetGate(c, ctx, name)
 	if err != nil {
 		return nil, err
 	}

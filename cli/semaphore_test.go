@@ -2,12 +2,9 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

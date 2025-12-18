@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
+	konductor "github.com/LogicIQ/konductor/sdk/go/client"
+	"github.com/LogicIQ/konductor/sdk/go/gate"
 )
 
 func newGateCmd() *cobra.Command {
@@ -36,36 +36,22 @@ func newGateWaitCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := context.Background()
 
-			startTime := time.Now()
-			for {
-				var gate syncv1.Gate
-				if err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      gateName,
-					Namespace: namespace,
-				}, &gate); err != nil {
-					return fmt.Errorf("failed to get gate: %w", err)
-				}
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
 
-				switch gate.Status.Phase {
-				case syncv1.GatePhaseOpen:
-					fmt.Printf("✓ Gate '%s' is open! All conditions met.\n", gateName)
-					return nil
-				case syncv1.GatePhaseFailed:
-					fmt.Printf("❌ Gate '%s' failed (timeout or error)\n", gateName)
-					printGateConditions(gate)
-					return fmt.Errorf("gate '%s' failed", gateName)
-				case syncv1.GatePhaseWaiting:
-					if timeout > 0 && time.Since(startTime) > timeout {
-						fmt.Printf("⏰ Timeout waiting for gate '%s'\n", gateName)
-						printGateConditions(gate)
-						return fmt.Errorf("timeout waiting for gate '%s'", gateName)
-					}
-					
-					fmt.Printf("⏳ Waiting for gate '%s'...\n", gateName)
-					printGateConditions(gate)
-					time.Sleep(10 * time.Second)
-				}
+			// Build options
+			var opts []konductor.Option
+			if timeout > 0 {
+				opts = append(opts, konductor.WithTimeout(timeout))
 			}
+
+			// Wait for gate using SDK
+			if err := gate.WaitGate(client, ctx, gateName, opts...); err != nil {
+				return err
+			}
+
+			fmt.Printf("✓ Gate '%s' is open! All conditions met.\n", gateName)
+			return nil
 		},
 	}
 
@@ -81,40 +67,44 @@ func newGateListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
-			var gates syncv1.GateList
-			if err := k8sClient.List(ctx, &gates, client.InNamespace(namespace)); err != nil {
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			// List gates using SDK
+			gates, err := gate.ListGates(client, ctx)
+			if err != nil {
 				return fmt.Errorf("failed to list gates: %w", err)
 			}
 
-			if len(gates.Items) == 0 {
+			if len(gates) == 0 {
 				fmt.Println("No gates found")
 				return nil
 			}
 
 			fmt.Printf("%-20s %-10s %-10s %-15s\n", "NAME", "CONDITIONS", "PHASE", "OPENED")
-			for _, gate := range gates.Items {
+			for _, g := range gates {
 				opened := "N/A"
-				if gate.Status.OpenedAt != nil {
-					opened = gate.Status.OpenedAt.Format("15:04:05")
+				if g.Status.OpenedAt != nil {
+					opened = g.Status.OpenedAt.Format("15:04:05")
 				}
 
-				conditionCount := len(gate.Spec.Conditions)
+				conditionCount := len(g.Spec.Conditions)
 				metCount := 0
-				for _, status := range gate.Status.ConditionStatuses {
+				for _, status := range g.Status.ConditionStatuses {
 					if status.Met {
 						metCount++
 					}
 				}
 
 				fmt.Printf("%-20s %-10s %-10s %-15s\n",
-					gate.Name,
+					g.Name,
 					fmt.Sprintf("%d/%d", metCount, conditionCount),
-					gate.Status.Phase,
+					g.Status.Phase,
 					opened,
 				)
 
 				// Show condition details
-				for _, status := range gate.Status.ConditionStatuses {
+				for _, status := range g.Status.ConditionStatuses {
 					icon := "❌"
 					if status.Met {
 						icon = "✅"

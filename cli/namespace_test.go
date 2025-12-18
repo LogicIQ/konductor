@@ -46,17 +46,8 @@ func TestDetectNamespace(t *testing.T) {
 					t.Fatalf("Failed to write namespace file: %v", err)
 				}
 
-				// Mock the file path by temporarily changing the function
-				originalDetectNamespace := detectNamespace
-				detectNamespace = func() string {
-					if data, err := ioutil.ReadFile(nsFile); err == nil {
-						return string(data)
-					}
-					return "default"
-				}
-
 				return func() {
-					detectNamespace = originalDetectNamespace
+					// cleanup
 				}
 			},
 			expectedNS: "production",

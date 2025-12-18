@@ -3,15 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	syncv1 "github.com/LogicIQ/konductor/api/v1"
+	konductor "github.com/LogicIQ/konductor/sdk/go/client"
+	"github.com/LogicIQ/konductor/sdk/go/barrier"
 )
 
 func newBarrierCmd() *cobra.Command {
@@ -39,33 +36,28 @@ func newBarrierWaitCmd() *cobra.Command {
 			barrierName := args[0]
 			ctx := context.Background()
 
-			startTime := time.Now()
-			for {
-				var barrier syncv1.Barrier
-				if err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      barrierName,
-					Namespace: namespace,
-				}, &barrier); err != nil {
-					return fmt.Errorf("failed to get barrier: %w", err)
-				}
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
 
-				switch barrier.Status.Phase {
-				case syncv1.BarrierPhaseOpen:
-					fmt.Printf("✓ Barrier '%s' is open! (arrived: %d/%d)\n", 
-						barrierName, barrier.Status.Arrived, barrier.Spec.Expected)
-					return nil
-				case syncv1.BarrierPhaseFailed:
-					return fmt.Errorf("barrier '%s' failed (timeout or error)", barrierName)
-				case syncv1.BarrierPhaseWaiting:
-					if timeout > 0 && time.Since(startTime) > timeout {
-						return fmt.Errorf("timeout waiting for barrier '%s'", barrierName)
-					}
-					
-					fmt.Printf("⏳ Waiting for barrier '%s' (arrived: %d/%d)...\n", 
-						barrierName, barrier.Status.Arrived, barrier.Spec.Expected)
-					time.Sleep(5 * time.Second)
-				}
+			// Build options
+			var opts []konductor.Option
+			if timeout > 0 {
+				opts = append(opts, konductor.WithTimeout(timeout))
 			}
+
+			// Wait for barrier using SDK
+			if err := barrier.WaitBarrier(client, ctx, barrierName, opts...); err != nil {
+				return err
+			}
+
+			// Get barrier status to display info
+			barrierObj, _ := barrier.GetBarrier(client, ctx, barrierName)
+			if barrierObj != nil {
+				fmt.Printf("✓ Barrier '%s' is open! (arrived: %d/%d)\n", 
+					barrierName, barrierObj.Status.Arrived, barrierObj.Spec.Expected)
+			}
+
+			return nil
 		},
 	}
 
@@ -85,42 +77,27 @@ func newBarrierArriveCmd() *cobra.Command {
 			barrierName := args[0]
 			ctx := context.Background()
 
-			if holder == "" {
-				holder = os.Getenv("HOSTNAME")
-				if holder == "" {
-					holder = fmt.Sprintf("koncli-%d", time.Now().Unix())
-				}
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			// Build options
+			var opts []konductor.Option
+			if holder != "" {
+				opts = append(opts, konductor.WithHolder(holder))
 			}
 
-
-			arrival := &syncv1.Arrival{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("%s-%s", barrierName, holder),
-					Namespace: namespace,
-					Labels: map[string]string{
-						"barrier": barrierName,
-					},
-				},
-				Spec: syncv1.ArrivalSpec{
-					Barrier: barrierName,
-					Holder:  holder,
-				},
+			// Arrive at barrier using SDK
+			if err := barrier.ArriveBarrier(client, ctx, barrierName, opts...); err != nil {
+				return fmt.Errorf("failed to arrive at barrier: %w", err)
 			}
 
-			if err := k8sClient.Create(ctx, arrival); err != nil {
-				return fmt.Errorf("failed to create arrival: %w", err)
-			}
+			fmt.Printf("✓ Signaled arrival at barrier '%s'\n", barrierName)
 
-			fmt.Printf("✓ Signaled arrival at barrier '%s' (holder: %s)\n", barrierName, holder)
-
-
-			var barrier syncv1.Barrier
-			if err := k8sClient.Get(ctx, types.NamespacedName{
-				Name:      barrierName,
-				Namespace: namespace,
-			}, &barrier); err == nil {
+			// Get barrier status to display info
+			barrierObj, err := barrier.GetBarrier(client, ctx, barrierName)
+			if err == nil {
 				fmt.Printf("📊 Barrier status: %d/%d arrived, phase: %s\n", 
-					barrier.Status.Arrived, barrier.Spec.Expected, barrier.Status.Phase)
+					barrierObj.Status.Arrived, barrierObj.Spec.Expected, barrierObj.Status.Phase)
 			}
 
 			return nil
@@ -139,28 +116,32 @@ func newBarrierListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
-			var barriers syncv1.BarrierList
-			if err := k8sClient.List(ctx, &barriers, client.InNamespace(namespace)); err != nil {
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			// List barriers using SDK
+			barriers, err := barrier.ListBarriers(client, ctx)
+			if err != nil {
 				return fmt.Errorf("failed to list barriers: %w", err)
 			}
 
-			if len(barriers.Items) == 0 {
+			if len(barriers) == 0 {
 				fmt.Println("No barriers found")
 				return nil
 			}
 
 			fmt.Printf("%-20s %-10s %-10s %-10s %-15s\n", "NAME", "EXPECTED", "ARRIVED", "PHASE", "OPENED")
-			for _, barrier := range barriers.Items {
+			for _, b := range barriers {
 				opened := "N/A"
-				if barrier.Status.OpenedAt != nil {
-					opened = barrier.Status.OpenedAt.Format("15:04:05")
+				if b.Status.OpenedAt != nil {
+					opened = b.Status.OpenedAt.Format("15:04:05")
 				}
 
 				fmt.Printf("%-20s %-10d %-10d %-10s %-15s\n",
-					barrier.Name,
-					barrier.Spec.Expected,
-					barrier.Status.Arrived,
-					barrier.Status.Phase,
+					b.Name,
+					b.Spec.Expected,
+					b.Status.Arrived,
+					b.Status.Phase,
 					opened,
 				)
 			}

@@ -5,10 +5,13 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
+	konductor "github.com/LogicIQ/konductor/sdk/go/client"
+	"github.com/LogicIQ/konductor/sdk/go/semaphore"
+	"github.com/LogicIQ/konductor/sdk/go/barrier"
+	"github.com/LogicIQ/konductor/sdk/go/lease"
+	"github.com/LogicIQ/konductor/sdk/go/gate"
 )
 
 func newStatusCmd() *cobra.Command {
@@ -36,28 +39,27 @@ func newStatusSemaphoreCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			var semaphore syncv1.Semaphore
-			if err := k8sClient.Get(ctx, types.NamespacedName{
-				Name:      name,
-				Namespace: namespace,
-			}, &semaphore); err != nil {
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			// Get semaphore using SDK
+			sem, err := semaphore.GetSemaphore(client, ctx, name)
+			if err != nil {
 				return fmt.Errorf("failed to get semaphore: %w", err)
 			}
 
-			fmt.Printf("🚦 Semaphore: %s\n", semaphore.Name)
-			fmt.Printf("   Namespace: %s\n", semaphore.Namespace)
+			fmt.Printf("🚦 Semaphore: %s\n", sem.Name)
+			fmt.Printf("   Namespace: %s\n", sem.Namespace)
 			fmt.Printf("   Permits: %d total, %d in use, %d available\n", 
-				semaphore.Spec.Permits, semaphore.Status.InUse, semaphore.Status.Available)
-			fmt.Printf("   Phase: %s\n", semaphore.Status.Phase)
+				sem.Spec.Permits, sem.Status.InUse, sem.Status.Available)
+			fmt.Printf("   Phase: %s\n", sem.Status.Phase)
 
 
-			var permits syncv1.PermitList
-			if err := k8sClient.List(ctx, &permits, client.InNamespace(namespace), 
-				client.MatchingLabels{"semaphore": name}); err == nil {
-				
-				if len(permits.Items) > 0 {
+			// List permits using SDK
+			if permits, err := client.ListPermits(ctx, name); err == nil {
+				if len(permits) > 0 {
 					fmt.Println("\n📋 Active Permits:")
-					for _, permit := range permits.Items {
+					for _, permit := range permits {
 						status := "Active"
 						if permit.Status.ExpiresAt != nil {
 							status = fmt.Sprintf("Expires: %s", permit.Status.ExpiresAt.Format("15:04:05"))
@@ -83,31 +85,32 @@ func newStatusBarrierCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			var barrier syncv1.Barrier
-			if err := k8sClient.Get(ctx, types.NamespacedName{
-				Name:      name,
-				Namespace: namespace,
-			}, &barrier); err != nil {
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			// Get barrier using SDK
+			bar, err := barrier.GetBarrier(client, ctx, name)
+			if err != nil {
 				return fmt.Errorf("failed to get barrier: %w", err)
 			}
 
-			fmt.Printf("🚧 Barrier: %s\n", barrier.Name)
-			fmt.Printf("   Namespace: %s\n", barrier.Namespace)
-			fmt.Printf("   Expected: %d arrivals\n", barrier.Spec.Expected)
-			fmt.Printf("   Arrived: %d\n", barrier.Status.Arrived)
-			fmt.Printf("   Phase: %s\n", barrier.Status.Phase)
+			fmt.Printf("🚧 Barrier: %s\n", bar.Name)
+			fmt.Printf("   Namespace: %s\n", bar.Namespace)
+			fmt.Printf("   Expected: %d arrivals\n", bar.Spec.Expected)
+			fmt.Printf("   Arrived: %d\n", bar.Status.Arrived)
+			fmt.Printf("   Phase: %s\n", bar.Status.Phase)
 
-			if barrier.Spec.Quorum != nil {
-				fmt.Printf("   Quorum: %d (minimum to open)\n", *barrier.Spec.Quorum)
+			if bar.Spec.Quorum != nil {
+				fmt.Printf("   Quorum: %d (minimum to open)\n", *bar.Spec.Quorum)
 			}
 
-			if barrier.Status.OpenedAt != nil {
-				fmt.Printf("   Opened: %s\n", barrier.Status.OpenedAt.Format("2006-01-02 15:04:05"))
+			if bar.Status.OpenedAt != nil {
+				fmt.Printf("   Opened: %s\n", bar.Status.OpenedAt.Format("2006-01-02 15:04:05"))
 			}
 
-			if len(barrier.Status.Arrivals) > 0 {
+			if len(bar.Status.Arrivals) > 0 {
 				fmt.Println("\n📋 Arrivals:")
-				for _, arrival := range barrier.Status.Arrivals {
+				for _, arrival := range bar.Status.Arrivals {
 					fmt.Printf("   • %s\n", arrival)
 				}
 			}
@@ -128,37 +131,36 @@ func newStatusLeaseCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			var lease syncv1.Lease
-			if err := k8sClient.Get(ctx, types.NamespacedName{
-				Name:      name,
-				Namespace: namespace,
-			}, &lease); err != nil {
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			// Get lease using SDK
+			l, err := lease.GetLease(client, ctx, name)
+			if err != nil {
 				return fmt.Errorf("failed to get lease: %w", err)
 			}
 
-			fmt.Printf("🔒 Lease: %s\n", lease.Name)
-			fmt.Printf("   Namespace: %s\n", lease.Namespace)
-			fmt.Printf("   TTL: %s\n", lease.Spec.TTL.Duration)
-			fmt.Printf("   Phase: %s\n", lease.Status.Phase)
+			fmt.Printf("🔒 Lease: %s\n", l.Name)
+			fmt.Printf("   Namespace: %s\n", l.Namespace)
+			fmt.Printf("   TTL: %s\n", l.Spec.TTL.Duration)
+			fmt.Printf("   Phase: %s\n", l.Status.Phase)
 
-			if lease.Status.Holder != "" {
-				fmt.Printf("   Holder: %s\n", lease.Status.Holder)
-				if lease.Status.AcquiredAt != nil {
-					fmt.Printf("   Acquired: %s\n", lease.Status.AcquiredAt.Format("2006-01-02 15:04:05"))
+			if l.Status.Holder != "" {
+				fmt.Printf("   Holder: %s\n", l.Status.Holder)
+				if l.Status.AcquiredAt != nil {
+					fmt.Printf("   Acquired: %s\n", l.Status.AcquiredAt.Format("2006-01-02 15:04:05"))
 				}
-				if lease.Status.ExpiresAt != nil {
-					fmt.Printf("   Expires: %s\n", lease.Status.ExpiresAt.Format("2006-01-02 15:04:05"))
+				if l.Status.ExpiresAt != nil {
+					fmt.Printf("   Expires: %s\n", l.Status.ExpiresAt.Format("2006-01-02 15:04:05"))
 				}
-				fmt.Printf("   Renewals: %d\n", lease.Status.RenewCount)
+				fmt.Printf("   Renewals: %d\n", l.Status.RenewCount)
 			}
 
 
-			var requests syncv1.LeaseRequestList
-			if err := k8sClient.List(ctx, &requests, client.InNamespace(namespace), 
-				client.MatchingLabels{"lease": name}); err == nil {
-				
+			// List lease requests using SDK
+			if requests, err := client.ListLeaseRequests(ctx, name); err == nil {
 				pendingRequests := []syncv1.LeaseRequest{}
-				for _, req := range requests.Items {
+				for _, req := range requests {
 					if req.Status.Phase == syncv1.LeaseRequestPhasePending {
 						pendingRequests = append(pendingRequests, req)
 					}
@@ -192,29 +194,30 @@ func newStatusGateCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			var gate syncv1.Gate
-			if err := k8sClient.Get(ctx, types.NamespacedName{
-				Name:      name,
-				Namespace: namespace,
-			}, &gate); err != nil {
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			// Get gate using SDK
+			g, err := gate.GetGate(client, ctx, name)
+			if err != nil {
 				return fmt.Errorf("failed to get gate: %w", err)
 			}
 
-			fmt.Printf("🚪 Gate: %s\n", gate.Name)
-			fmt.Printf("   Namespace: %s\n", gate.Namespace)
-			fmt.Printf("   Phase: %s\n", gate.Status.Phase)
+			fmt.Printf("🚪 Gate: %s\n", g.Name)
+			fmt.Printf("   Namespace: %s\n", g.Namespace)
+			fmt.Printf("   Phase: %s\n", g.Status.Phase)
 
-			if gate.Status.OpenedAt != nil {
-				fmt.Printf("   Opened: %s\n", gate.Status.OpenedAt.Format("2006-01-02 15:04:05"))
+			if g.Status.OpenedAt != nil {
+				fmt.Printf("   Opened: %s\n", g.Status.OpenedAt.Format("2006-01-02 15:04:05"))
 			}
 
 			fmt.Println("\n📋 Conditions:")
-			for i, condition := range gate.Spec.Conditions {
+			for i, condition := range g.Spec.Conditions {
 				status := "❌ Not Met"
 				message := "Checking..."
 
-				if i < len(gate.Status.ConditionStatuses) {
-					condStatus := gate.Status.ConditionStatuses[i]
+				if i < len(g.Status.ConditionStatuses) {
+					condStatus := g.Status.ConditionStatuses[i]
 					if condStatus.Met {
 						status = "✅ Met"
 					} else {
@@ -246,17 +249,19 @@ func newStatusAllCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
+			// Create SDK client
+			client := konductor.NewFromClient(k8sClient, namespace)
+
 			fmt.Println("🎯 Konductor Status Overview")
 			fmt.Println("============================")
 
-
-			var semaphores syncv1.SemaphoreList
-			if err := k8sClient.List(ctx, &semaphores, client.InNamespace(namespace)); err == nil {
-				fmt.Printf("\n🚦 Semaphores (%d):\n", len(semaphores.Items))
-				if len(semaphores.Items) == 0 {
+			// List semaphores using SDK
+			if semaphores, err := semaphore.ListSemaphores(client, ctx); err == nil {
+				fmt.Printf("\n🚦 Semaphores (%d):\n", len(semaphores))
+				if len(semaphores) == 0 {
 					fmt.Println("   None found")
 				} else {
-					for _, sem := range semaphores.Items {
+					for _, sem := range semaphores {
 						fmt.Printf("   • %s: %d/%d permits, %s\n", 
 							sem.Name, sem.Status.InUse, sem.Spec.Permits, sem.Status.Phase)
 					}
@@ -264,52 +269,52 @@ func newStatusAllCmd() *cobra.Command {
 			}
 
 
-			var barriers syncv1.BarrierList
-			if err := k8sClient.List(ctx, &barriers, client.InNamespace(namespace)); err == nil {
-				fmt.Printf("\n🚧 Barriers (%d):\n", len(barriers.Items))
-				if len(barriers.Items) == 0 {
+			// List barriers using SDK
+			if barriers, err := barrier.ListBarriers(client, ctx); err == nil {
+				fmt.Printf("\n🚧 Barriers (%d):\n", len(barriers))
+				if len(barriers) == 0 {
 					fmt.Println("   None found")
 				} else {
-					for _, barrier := range barriers.Items {
+					for _, b := range barriers {
 						fmt.Printf("   • %s: %d/%d arrived, %s\n", 
-							barrier.Name, barrier.Status.Arrived, barrier.Spec.Expected, barrier.Status.Phase)
+							b.Name, b.Status.Arrived, b.Spec.Expected, b.Status.Phase)
 					}
 				}
 			}
 
 
-			var leases syncv1.LeaseList
-			if err := k8sClient.List(ctx, &leases, client.InNamespace(namespace)); err == nil {
-				fmt.Printf("\n🔒 Leases (%d):\n", len(leases.Items))
-				if len(leases.Items) == 0 {
+			// List leases using SDK
+			if leases, err := lease.ListLeases(client, ctx); err == nil {
+				fmt.Printf("\n🔒 Leases (%d):\n", len(leases))
+				if len(leases) == 0 {
 					fmt.Println("   None found")
 				} else {
-					for _, lease := range leases.Items {
+					for _, l := range leases {
 						holder := "Available"
-						if lease.Status.Holder != "" {
-							holder = lease.Status.Holder
+						if l.Status.Holder != "" {
+							holder = l.Status.Holder
 						}
-						fmt.Printf("   • %s: %s, %s\n", lease.Name, holder, lease.Status.Phase)
+						fmt.Printf("   • %s: %s, %s\n", l.Name, holder, l.Status.Phase)
 					}
 				}
 			}
 
 
-			var gates syncv1.GateList
-			if err := k8sClient.List(ctx, &gates, client.InNamespace(namespace)); err == nil {
-				fmt.Printf("\n🚪 Gates (%d):\n", len(gates.Items))
-				if len(gates.Items) == 0 {
+			// List gates using SDK
+			if gates, err := gate.ListGates(client, ctx); err == nil {
+				fmt.Printf("\n🚪 Gates (%d):\n", len(gates))
+				if len(gates) == 0 {
 					fmt.Println("   None found")
 				} else {
-					for _, gate := range gates.Items {
+					for _, g := range gates {
 						metCount := 0
-						for _, status := range gate.Status.ConditionStatuses {
+						for _, status := range g.Status.ConditionStatuses {
 							if status.Met {
 								metCount++
 							}
 						}
 						fmt.Printf("   • %s: %d/%d conditions met, %s\n", 
-							gate.Name, metCount, len(gate.Spec.Conditions), gate.Status.Phase)
+							g.Name, metCount, len(g.Spec.Conditions), g.Status.Phase)
 					}
 				}
 			}

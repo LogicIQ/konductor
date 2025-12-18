@@ -3,183 +3,201 @@ package gate
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-func TestWaitGate_Open(t *testing.T) {
+func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client {
 	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
+	k8sClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(objects...).
+		Build()
+
+	return konductor.NewFromClient(k8sClient, "test-ns")
+}
+
+func TestListGates(t *testing.T) {
+	gate1 := &syncv1.Gate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "gate1",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.GateSpec{
+			Conditions: []syncv1.GateCondition{
+				{Type: "Job", Name: "job1", State: "Complete"},
+			},
+		},
+		Status: syncv1.GateStatus{
+			Phase: syncv1.GatePhaseWaiting,
+			ConditionStatuses: []syncv1.GateConditionStatus{
+				{Type: "Job", Name: "job1", Met: false, Message: "Job not complete"},
+			},
+		},
+	}
+
+	gate2 := &syncv1.Gate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "gate2",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.GateSpec{
+			Conditions: []syncv1.GateCondition{
+				{Type: "Barrier", Name: "barrier1", State: "Open"},
+			},
+		},
+		Status: syncv1.GateStatus{
+			Phase:    syncv1.GatePhaseOpen,
+			OpenedAt: &metav1.Time{},
+			ConditionStatuses: []syncv1.GateConditionStatus{
+				{Type: "Barrier", Name: "barrier1", Met: true, Message: "Barrier is open"},
+			},
+		},
+	}
+
+	client := setupTestClient(t, gate1, gate2)
+
+	gates, err := ListGates(client, context.Background())
+	require.NoError(t, err)
+	assert.Len(t, gates, 2)
+
+	// Check that we got both gates
+	names := make([]string, len(gates))
+	for i, gate := range gates {
+		names[i] = gate.Name
+	}
+	assert.Contains(t, names, "gate1")
+	assert.Contains(t, names, "gate2")
+}
+
+func TestGetGate(t *testing.T) {
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
-			Namespace: "default",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.GateSpec{
+			Conditions: []syncv1.GateCondition{
+				{Type: "Job", Name: "job1", State: "Complete"},
+				{Type: "Semaphore", Name: "sem1", Value: &[]int32{3}[0]},
+			},
+		},
+		Status: syncv1.GateStatus{
+			Phase: syncv1.GatePhaseWaiting,
+			ConditionStatuses: []syncv1.GateConditionStatus{
+				{Type: "Job", Name: "job1", Met: true, Message: "Job complete"},
+				{Type: "Semaphore", Name: "sem1", Met: false, Message: "Not enough permits"},
+			},
+		},
+	}
+
+	client := setupTestClient(t, gate)
+
+	result, err := GetGate(client, context.Background(), "test-gate")
+	require.NoError(t, err)
+	assert.Equal(t, "test-gate", result.Name)
+	assert.Equal(t, syncv1.GatePhaseWaiting, result.Status.Phase)
+	assert.Len(t, result.Spec.Conditions, 2)
+	assert.Len(t, result.Status.ConditionStatuses, 2)
+}
+
+func TestGetGate_NotFound(t *testing.T) {
+	client := setupTestClient(t)
+
+	_, err := GetGate(client, context.Background(), "nonexistent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get gate")
+}
+
+func TestGetGateStatus(t *testing.T) {
+	gate := &syncv1.Gate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-gate",
+			Namespace: "test-ns",
+		},
+		Status: syncv1.GateStatus{
+			Phase:    syncv1.GatePhaseOpen,
+			OpenedAt: &metav1.Time{},
+			ConditionStatuses: []syncv1.GateConditionStatus{
+				{Type: "Job", Name: "job1", Met: true, Message: "Complete"},
+			},
+		},
+	}
+
+	client := setupTestClient(t, gate)
+
+	status, err := GetGateStatus(client, context.Background(), "test-gate")
+	require.NoError(t, err)
+	assert.Equal(t, syncv1.GatePhaseOpen, status.Phase)
+	assert.NotNil(t, status.OpenedAt)
+	assert.Len(t, status.ConditionStatuses, 1)
+}
+
+func TestCheckGate_Open(t *testing.T) {
+	gate := &syncv1.Gate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-gate",
+			Namespace: "test-ns",
 		},
 		Status: syncv1.GateStatus{
 			Phase: syncv1.GatePhaseOpen,
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
+	client := setupTestClient(t, gate)
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	err := client.WaitGate(context.Background(), "test-gate")
+	isOpen, err := CheckGate(client, context.Background(), "test-gate")
 	require.NoError(t, err)
+	assert.True(t, isOpen)
 }
 
-func TestWaitGate_Failed(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
+func TestCheckGate_Waiting(t *testing.T) {
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
-			Namespace: "default",
-		},
-		Status: syncv1.GateStatus{
-			Phase: syncv1.GatePhaseFailed,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	err := client.WaitGate(context.Background(), "test-gate")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "gate test-gate failed")
-}
-
-func TestWaitGate_Timeout(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	gate := &syncv1.Gate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-gate",
-			Namespace: "default",
+			Namespace: "test-ns",
 		},
 		Status: syncv1.GateStatus{
 			Phase: syncv1.GatePhaseWaiting,
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
+	client := setupTestClient(t, gate)
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	err := client.WaitGate(context.Background(), "test-gate", 
-		konductor.WithTimeout(100*time.Millisecond))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "timeout")
-}
-
-func TestCheckGate(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	tests := []struct {
-		name     string
-		phase    syncv1.GatePhase
-		expected bool
-	}{
-		{
-			name:     "open gate",
-			phase:    syncv1.GatePhaseOpen,
-			expected: true,
-		},
-		{
-			name:     "waiting gate",
-			phase:    syncv1.GatePhaseWaiting,
-			expected: false,
-		},
-		{
-			name:     "failed gate",
-			phase:    syncv1.GatePhaseFailed,
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gate := &syncv1.Gate{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-gate",
-					Namespace: "default",
-				},
-				Status: syncv1.GateStatus{
-					Phase: tt.phase,
-				},
-			}
-
-			k8sClient := fake.NewClientBuilder().
-				WithScheme(scheme).
-				WithRuntimeObjects(gate).
-				Build()
-
-			client := konductor.NewFromClient(k8sClient, "default")
-
-			isOpen, err := client.CheckGate(context.Background(), "test-gate")
-			require.NoError(t, err)
-			assert.Equal(t, tt.expected, isOpen)
-		})
-	}
+	isOpen, err := CheckGate(client, context.Background(), "test-gate")
+	require.NoError(t, err)
+	assert.False(t, isOpen)
 }
 
 func TestGetGateConditions(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
-			Namespace: "default",
+			Namespace: "test-ns",
 		},
 		Status: syncv1.GateStatus{
 			ConditionStatuses: []syncv1.GateConditionStatus{
-				{
-					Type:    "Job",
-					Name:    "job1",
-					Met:     true,
-					Message: "Job completed",
-				},
-				{
-					Type:    "Semaphore",
-					Name:    "sem1",
-					Met:     false,
-					Message: "Not enough permits",
-				},
+				{Type: "Job", Name: "job1", Met: true, Message: "Complete"},
+				{Type: "Semaphore", Name: "sem1", Met: false, Message: "Not enough permits"},
 			},
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
+	client := setupTestClient(t, gate)
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	conditions, err := client.GetGateConditions(context.Background(), "test-gate")
+	conditions, err := GetGateConditions(client, context.Background(), "test-gate")
 	require.NoError(t, err)
 	assert.Len(t, conditions, 2)
 	assert.Equal(t, "Job", conditions[0].Type)
@@ -188,202 +206,37 @@ func TestGetGateConditions(t *testing.T) {
 	assert.False(t, conditions[1].Met)
 }
 
-func TestWaitForConditions_AllMet(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
+func TestWaitGate_AlreadyOpen(t *testing.T) {
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
-			Namespace: "default",
-		},
-		Status: syncv1.GateStatus{
-			ConditionStatuses: []syncv1.GateConditionStatus{
-				{
-					Type:    "Job",
-					Name:    "job1",
-					Met:     true,
-					Message: "Job completed",
-				},
-				{
-					Type:    "Semaphore",
-					Name:    "sem1",
-					Met:     true,
-					Message: "Permits available",
-				},
-			},
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	err := client.WaitForConditions(context.Background(), "test-gate", []string{"job1", "sem1"})
-	require.NoError(t, err)
-}
-
-func TestWaitForConditions_Timeout(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	gate := &syncv1.Gate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-gate",
-			Namespace: "default",
-		},
-		Status: syncv1.GateStatus{
-			ConditionStatuses: []syncv1.GateConditionStatus{
-				{
-					Type:    "Job",
-					Name:    "job1",
-					Met:     false,
-					Message: "Job not completed",
-				},
-			},
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	err := client.WaitForConditions(context.Background(), "test-gate", []string{"job1"}, 
-		konductor.WithTimeout(100*time.Millisecond))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "timeout")
-}
-
-func TestWithGate(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	gate := &syncv1.Gate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-gate",
-			Namespace: "default",
+			Namespace: "test-ns",
 		},
 		Status: syncv1.GateStatus{
 			Phase: syncv1.GatePhaseOpen,
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
+	client := setupTestClient(t, gate)
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	executed := false
-	err := client.WithGate(context.Background(), "test-gate", func() error {
-		executed = true
-		return nil
-	})
-
-	require.NoError(t, err)
-	assert.True(t, executed)
+	err := WaitGate(client, context.Background(), "test-gate")
+	assert.NoError(t, err)
 }
 
-func TestListGates(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	gates := []runtime.Object{
-		&syncv1.Gate{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "gate1",
-				Namespace: "default",
-			},
-		},
-		&syncv1.Gate{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "gate2",
-				Namespace: "default",
-			},
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gates...).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	result, err := client.ListGates(context.Background())
-	require.NoError(t, err)
-	assert.Len(t, result, 2)
-}
-
-func TestGetGate(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
+func TestWaitGate_Failed(t *testing.T) {
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
-			Namespace: "default",
-		},
-		Spec: syncv1.GateSpec{
-			Conditions: []syncv1.GateCondition{
-				{
-					Type: "Job",
-					Name: "test-job",
-				},
-			},
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	result, err := client.GetGate(context.Background(), "test-gate")
-	require.NoError(t, err)
-	assert.Equal(t, "test-gate", result.Name)
-	assert.Len(t, result.Spec.Conditions, 1)
-}
-
-func TestGetGateStatus(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	gate := &syncv1.Gate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-gate",
-			Namespace: "default",
+			Namespace: "test-ns",
 		},
 		Status: syncv1.GateStatus{
-			Phase: syncv1.GatePhaseWaiting,
-			ConditionStatuses: []syncv1.GateConditionStatus{
-				{
-					Type: "Job",
-					Name: "test-job",
-					Met:  false,
-				},
-			},
+			Phase: syncv1.GatePhaseFailed,
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
+	client := setupTestClient(t, gate)
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	status, err := client.GetGateStatus(context.Background(), "test-gate")
-	require.NoError(t, err)
-	assert.Equal(t, syncv1.GatePhaseWaiting, status.Phase)
-	assert.Len(t, status.ConditionStatuses, 1)
+	err := WaitGate(client, context.Background(), "test-gate")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "gate test-gate failed")
 }

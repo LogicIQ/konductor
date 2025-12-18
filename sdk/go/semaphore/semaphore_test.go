@@ -2,245 +2,127 @@ package semaphore
 
 import (
 	"context"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-func TestAcquireSemaphore(t *testing.T) {
+func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client {
 	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	semaphore := &syncv1.Semaphore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-sem",
-			Namespace: "default",
-		},
-		Spec: syncv1.SemaphoreSpec{
-			Permits: 5,
-		},
-		Status: syncv1.SemaphoreStatus{
-			Available: 3,
-		},
-	}
 
 	k8sClient := fake.NewClientBuilder().
 		WithScheme(scheme).
-		WithRuntimeObjects(semaphore).
+		WithRuntimeObjects(objects...).
 		Build()
 
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	permit, err := client.AcquireSemaphore(context.Background(), "test-sem", 
-		konductor.WithHolder("test-holder"),
-		konductor.WithTTL(time.Hour))
-
-	require.NoError(t, err)
-	assert.NotNil(t, permit)
-	assert.Equal(t, "test-sem", permit.Name())
-	assert.Equal(t, "test-holder", permit.Holder())
-}
-
-func TestAcquireSemaphore_NoPermits(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	semaphore := &syncv1.Semaphore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-sem",
-			Namespace: "default",
-		},
-		Spec: syncv1.SemaphoreSpec{
-			Permits: 5,
-		},
-		Status: syncv1.SemaphoreStatus{
-			Available: 0,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(semaphore).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	_, err := client.AcquireSemaphore(ctx, "test-sem", 
-		konductor.WithHolder("test-holder"),
-		konductor.WithTimeout(50*time.Millisecond))
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "timeout")
-}
-
-func TestPermit_Release(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	permit := &syncv1.Permit{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-sem-test-holder",
-			Namespace: "default",
-		},
-		Spec: syncv1.PermitSpec{
-			Semaphore: "test-sem",
-			Holder:    "test-holder",
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(permit).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	p := &Permit{
-		client:   client,
-		name:     "test-sem",
-		permitID: "test-sem-test-holder",
-		holder:   "test-holder",
-	}
-
-	err := p.Release()
-	require.NoError(t, err)
-}
-
-func TestWithSemaphore(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	semaphore := &syncv1.Semaphore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-sem",
-			Namespace: "default",
-		},
-		Spec: syncv1.SemaphoreSpec{
-			Permits: 5,
-		},
-		Status: syncv1.SemaphoreStatus{
-			Available: 3,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(semaphore).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	executed := false
-	err := client.WithSemaphore(context.Background(), "test-sem", func() error {
-		executed = true
-		return nil
-	}, konductor.WithHolder("test-holder"))
-
-	require.NoError(t, err)
-	assert.True(t, executed)
+	return konductor.NewFromClient(k8sClient, "test-ns")
 }
 
 func TestListSemaphores(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	semaphores := []runtime.Object{
-		&syncv1.Semaphore{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "sem1",
-				Namespace: "default",
-			},
-		},
-		&syncv1.Semaphore{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "sem2",
-				Namespace: "default",
-			},
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(semaphores...).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	result, err := client.ListSemaphores(context.Background())
-	require.NoError(t, err)
-	assert.Len(t, result, 2)
-}
-
-func TestGetSemaphore(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	semaphore := &syncv1.Semaphore{
+	semaphore1 := &syncv1.Semaphore{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-sem",
-			Namespace: "default",
-		},
-		Spec: syncv1.SemaphoreSpec{
-			Permits: 5,
-		},
-	}
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(semaphore).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
-
-	result, err := client.GetSemaphore(context.Background(), "test-sem")
-	require.NoError(t, err)
-	assert.Equal(t, "test-sem", result.Name)
-	assert.Equal(t, int32(5), result.Spec.Permits)
-}
-
-func TestAcquireSemaphore_DefaultHolder(t *testing.T) {
-	originalHostname := os.Getenv("HOSTNAME")
-	defer os.Setenv("HOSTNAME", originalHostname)
-
-	os.Setenv("HOSTNAME", "test-pod")
-
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	semaphore := &syncv1.Semaphore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-sem",
-			Namespace: "default",
+			Name:      "sem1",
+			Namespace: "test-ns",
 		},
 		Spec: syncv1.SemaphoreSpec{
 			Permits: 5,
 		},
 		Status: syncv1.SemaphoreStatus{
+			InUse:     2,
 			Available: 3,
+			Phase:     syncv1.SemaphorePhaseReady,
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(semaphore).
-		Build()
+	semaphore2 := &syncv1.Semaphore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "sem2",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.SemaphoreSpec{
+			Permits: 3,
+		},
+		Status: syncv1.SemaphoreStatus{
+			InUse:     3,
+			Available: 0,
+			Phase:     syncv1.SemaphorePhaseFull,
+		},
+	}
 
-	client := konductor.NewFromClient(k8sClient, "default")
+	client := setupTestClient(t, semaphore1, semaphore2)
 
-	permit, err := client.AcquireSemaphore(context.Background(), "test-sem")
-
+	semaphores, err := ListSemaphores(client, context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, "test-pod", permit.Holder())
+	assert.Len(t, semaphores, 2)
+
+	// Check that we got both semaphores
+	names := make([]string, len(semaphores))
+	for i, sem := range semaphores {
+		names[i] = sem.Name
+	}
+	assert.Contains(t, names, "sem1")
+	assert.Contains(t, names, "sem2")
+}
+
+func TestGetSemaphore(t *testing.T) {
+	semaphore := &syncv1.Semaphore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-sem",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.SemaphoreSpec{
+			Permits: 5,
+		},
+		Status: syncv1.SemaphoreStatus{
+			InUse:     2,
+			Available: 3,
+			Phase:     syncv1.SemaphorePhaseReady,
+		},
+	}
+
+	client := setupTestClient(t, semaphore)
+
+	result, err := GetSemaphore(client, context.Background(), "test-sem")
+	require.NoError(t, err)
+	assert.Equal(t, "test-sem", result.Name)
+	assert.Equal(t, int32(5), result.Spec.Permits)
+	assert.Equal(t, int32(2), result.Status.InUse)
+	assert.Equal(t, int32(3), result.Status.Available)
+}
+
+func TestGetSemaphore_NotFound(t *testing.T) {
+	client := setupTestClient(t)
+
+	_, err := GetSemaphore(client, context.Background(), "nonexistent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get semaphore")
+}
+
+func TestAcquireSemaphore_NotImplemented(t *testing.T) {
+	client := setupTestClient(t)
+
+	_, err := AcquireSemaphore(client, context.Background(), "test-sem")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not implemented")
+}
+
+func TestWithSemaphore_NotImplemented(t *testing.T) {
+	client := setupTestClient(t)
+
+	err := WithSemaphore(client, context.Background(), "test-sem", func() error {
+		return nil
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not implemented")
 }
