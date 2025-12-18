@@ -1,0 +1,20 @@
+apiVersion: sync.konductor.io/v1
+kind: Lease
+metadata:
+  name: db-migration
+  namespace: default
+spec:
+  ttl: 5m
+  priority: 1
+---
+apiVersion: sync.konductor.io/v1
+kind: LeaseRequest
+metadata:
+  name: db-migration-request-1
+  namespace: default
+  labels:
+    lease: db-migration
+spec:
+  lease: db-migration
+  holder: migration-job-456
+  priority: 1

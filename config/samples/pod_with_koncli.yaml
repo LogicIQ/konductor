@@ -1,0 +1,117 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: worker-with-koncli
+  namespace: production
+spec:
+  template:
+    spec:
+      serviceAccountName: konductor-user
+      containers:
+      - name: worker
+        image: my-app:latest
+        env:
+        # Optional: Explicit namespace via downward API
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        # Optional: Pod name for holder identification
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # koncli will auto-detect namespace from service account
+          # No need to specify -n flag when running in pod
+          
+          echo "Acquiring semaphore permit..."
+          koncli semaphore acquire api-quota --wait --ttl=10m
+          
+          echo "Processing data..."
+          ./process-data.sh
+          
+          echo "Signaling completion..."
+          koncli barrier arrive processing-complete
+          
+          echo "Releasing permit..."
+          koncli semaphore release api-quota
+        volumeMounts:
+        - name: koncli
+          mountPath: /usr/local/bin/koncli
+          subPath: koncli
+      volumes:
+      - name: koncli
+        configMap:
+          name: koncli-binary
+          defaultMode: 0755
+      restartPolicy: Never
+---
+# Alternative: InitContainer pattern with auto-detection
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: worker-with-initcontainer
+  namespace: production
+spec:
+  template:
+    spec:
+      serviceAccountName: konductor-user
+      initContainers:
+      - name: wait-for-dependencies
+        image: konductor/koncli:latest
+        command:
+        - koncli
+        - gate
+        - wait
+        - processing-gate
+        - --timeout=30m
+        # No namespace flag needed - auto-detected!
+      - name: acquire-resources
+        image: konductor/koncli:latest
+        command:
+        - koncli
+        - semaphore
+        - acquire
+        - api-quota
+        - --wait
+        - --ttl=30m
+      containers:
+      - name: worker
+        image: my-app:latest
+        command: ["./process-data.sh"]
+      restartPolicy: Never
+---
+# ServiceAccount with proper RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: konductor-user
+  namespace: production
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: production
+  name: konductor-user
+rules:
+- apiGroups: ["sync.konductor.io"]
+  resources: ["semaphores", "barriers", "leases", "gates", "permits", "arrivals", "leaserequests"]
+  verbs: ["get", "list", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: konductor-user
+  namespace: production
+subjects:
+- kind: ServiceAccount
+  name: konductor-user
+  namespace: production
+roleRef:
+  kind: Role
+  name: konductor-user
+  apiGroup: rbac.authorization.k8s.io

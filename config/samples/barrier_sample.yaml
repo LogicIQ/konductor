@@ -1,0 +1,20 @@
+apiVersion: sync.konductor.io/v1
+kind: Barrier
+metadata:
+  name: stage-2
+  namespace: default
+spec:
+  expected: 10
+  timeout: 30m
+  quorum: 8
+---
+apiVersion: sync.konductor.io/v1
+kind: Arrival
+metadata:
+  name: stage-2-arrival-1
+  namespace: default
+  labels:
+    barrier: stage-2
+spec:
+  barrier: stage-2
+  holder: job-extract-1

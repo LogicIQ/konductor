@@ -123,14 +123,15 @@ status:
 ```yaml
 initContainers:
 - name: acquire-semaphore
-  image: konductor/cli:latest
+  image: konductor/koncli:latest
   command:
-    - kondctl
+    - koncli
     - semaphore
     - acquire
     - api-quota
     - --wait
     - --ttl=10m
+  # No namespace flag needed - auto-detected from pod!
 ```
 
 **Benefits**:
@@ -140,7 +141,7 @@ initContainers:
 
 ### Pattern B: Fail-Fast + Job Retries
 ```bash
-if ! kondctl semaphore acquire api-quota --ttl=5m; then
+if ! koncli semaphore acquire api-quota --ttl=5m; then
   exit 1
 fi
 # Job retries handle contention
@@ -154,26 +155,26 @@ fi
 ### Pattern C: Sidecar Gate (Advanced)
 For long-running services requiring dynamic coordination.
 
-## CLI Design (kondctl)
+## CLI Design (koncli)
 
 ### Core Commands
 ```bash
 # Semaphore operations
-kondctl semaphore acquire <name> [--wait] [--ttl=5m] [--timeout=30m]
-kondctl semaphore release <name>
+koncli semaphore acquire <name> [--wait] [--ttl=5m] [--timeout=30m]
+koncli semaphore release <name>
 
 # Barrier operations
-kondctl barrier wait <name> [--timeout=1h]
-kondctl barrier arrive <name>
+koncli barrier wait <name> [--timeout=1h]
+koncli barrier arrive <name>
 
 # Lease operations
-kondctl lease acquire <name> [--ttl=5m] [--priority=1]
-kondctl lease renew <name>
-kondctl lease release <name>
+koncli lease acquire <name> [--ttl=5m] [--priority=1]
+koncli lease renew <name>
+koncli lease release <name>
 
 # Status operations
-kondctl status semaphore <name>
-kondctl status barrier <name>
+koncli status semaphore <name>
+koncli status barrier <name>
 ```
 
 ### CLI Responsibilities
@@ -209,7 +210,7 @@ While tempting to use CRDs + CLI only, an operator is essential for:
 - No external system integration
 
 ### Key Design Decisions
-- **CLI-First Interface**: All user operations via kondctl
+- **CLI-First Interface**: All user operations via koncli
 - **Operator as Arbiter**: Only handles distributed coordination problems
 - **TTL Everywhere**: All ownership has time bounds
 - **Owner References**: Automatic cleanup on pod deletion

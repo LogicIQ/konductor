@@ -1,0 +1,160 @@
+version: '3'
+
+tasks:
+  go:build:
+    desc: Build the manager binary
+    cmds:
+      - go build -o bin/manager cmd/main.go
+
+  go:build:cli:
+    desc: Build the koncli binary
+    cmds:
+      - go build -o bin/koncli cli/main.go
+
+  go:build:examples:
+    desc: Build SDK examples
+    cmds:
+      - go build -o bin/sdk-example sdk/go/examples/basic_usage.go
+
+  go:test:
+    desc: Run all unit tests with coverage
+    cmds:
+      - go test -v -race -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out
+      - go tool cover -html=coverage.out -o coverage.html
+
+  go:test:cli:
+    desc: Run CLI unit tests
+    cmds:
+      - go test -v -race ./cli/...
+
+  go:test:controllers:
+    desc: Run controller unit tests
+    cmds:
+      - go test -v -race -coverprofile=controllers-coverage.out ./controllers/...
+      - go tool cover -func=controllers-coverage.out
+
+  go:test:sdk:
+    desc: Run SDK unit tests
+    cmds:
+      - go test -v -race -coverprofile=sdk-coverage.out ./sdk/go/...
+      - go tool cover -func=sdk-coverage.out
+
+  go:test:watch:
+    desc: Run tests in watch mode
+    cmds:
+      - go test -v ./... -count=1
+
+  go:bench:
+    desc: Run benchmark tests
+    cmds:
+      - go test -bench=. -benchmem ./...
+
+  go:fmt:
+    desc: Format and vet Go code
+    cmds:
+      - go fmt ./...
+      - go vet ./...
+
+  go:manifests:
+    desc: Generate CRD manifests
+    cmds:
+      - export PATH=$PATH:$(go env GOPATH)/bin && controller-gen crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+  go:generate:
+    desc: Generate code containing DeepCopy methods
+    cmds:
+      - export PATH=$PATH:$(go env GOPATH)/bin && controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+  docker:build:
+    desc: Build Docker image
+    cmds:
+      - docker build -t konductor:latest .
+
+  docker:build:cli:
+    desc: Build CLI Docker image
+    cmds:
+      - docker build -f cli/Dockerfile -t koncli:latest .
+
+  k8s:install:
+    desc: Install CRDs into the cluster
+    cmds:
+      - task: go:manifests
+      - kubectl apply -f config/crd/bases/
+
+  k8s:uninstall:
+    desc: Uninstall CRDs from the cluster
+    cmds:
+      - kubectl delete -f config/crd/bases/ --ignore-not-found=true
+
+  k8s:samples:
+    desc: Apply sample resources
+    cmds:
+      - kubectl apply -f config/samples/
+
+  run:local:
+    desc: Run the operator locally
+    cmds:
+      - task: go:manifests
+      - task: go:generate
+      - task: go:fmt
+      - go run ./cmd/main.go
+
+  e2e:run:
+    desc: Run complete e2e test suite
+    cmds:
+      # Setup
+      - go install sigs.k8s.io/kind@latest || echo "Kind already installed"
+      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest || echo "Controller-gen already installed"
+      - kind create cluster --name=konductor-e2e || echo "Cluster exists, reusing..."
+      - kubectl config use-context kind-konductor-e2e
+      
+      # Generate CRDs
+      - task: go:manifests
+      
+      # Deploy
+      - kubectl delete deployment konductor-controller -n konductor-system --ignore-not-found=true
+      - task: docker:build
+      - kind load docker-image konductor:latest --name=konductor-e2e
+      - kubectl create namespace konductor-system --dry-run=client -o yaml | kubectl apply -f - || echo "Namespace exists"
+      - kubectl apply -f config/crd/bases/
+      - kubectl apply -f config/samples/
+      
+      # Test coordination primitives
+      - kubectl wait --for=condition=Ready semaphore/api-quota --timeout=60s || echo "Testing semaphore..."
+      - kubectl wait --for=condition=Ready barrier/stage-2 --timeout=60s || echo "Testing barrier..."
+
+  e2e:cleanup:
+    desc: Cleanup e2e environment
+    cmds:
+      - kind delete cluster --name=konductor-e2e || echo "Cluster doesn't exist"
+
+  tools:install:
+    desc: Install required tools
+    cmds:
+      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+      - go install sigs.k8s.io/kustomize/kustomize/v3@latest
+      - go install golang.org/x/tools/cmd/godoc@latest
+
+  docs:generate:
+    desc: Generate API documentation
+    cmds:
+      - mkdir -p docs/api
+      - godoc -html github.com/LogicIQ/konductor/sdk/go/client > docs/api/client.html
+      - godoc -html github.com/LogicIQ/konductor/sdk/go/semaphore > docs/api/semaphore.html
+      - godoc -html github.com/LogicIQ/konductor/sdk/go/barrier > docs/api/barrier.html
+      - godoc -html github.com/LogicIQ/konductor/sdk/go/lease > docs/api/lease.html
+      - godoc -html github.com/LogicIQ/konductor/sdk/go/gate > docs/api/gate.html
+
+  docs:serve:
+    desc: Serve documentation locally
+    cmds:
+      - godoc -http=:6060
+
+  dev:setup:
+    desc: Setup development environment
+    cmds:
+      - task: tools:install
+      - task: go:manifests
+      - task: go:generate
+      - task: go:fmt

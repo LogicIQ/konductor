@@ -1,0 +1,20 @@
+apiVersion: sync.konductor.io/v1
+kind: Semaphore
+metadata:
+  name: api-quota
+  namespace: default
+spec:
+  permits: 5
+  ttl: 10m
+---
+apiVersion: sync.konductor.io/v1
+kind: Permit
+metadata:
+  name: api-quota-permit-1
+  namespace: default
+  labels:
+    semaphore: api-quota
+spec:
+  semaphore: api-quota
+  holder: job-worker-123
+  ttl: 10m

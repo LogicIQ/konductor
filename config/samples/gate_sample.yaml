@@ -1,0 +1,18 @@
+apiVersion: sync.konductor.io/v1
+kind: Gate
+metadata:
+  name: processing-gate
+  namespace: default
+spec:
+  conditions:
+    - type: Job
+      name: data-loader
+      state: Complete
+    - type: Semaphore
+      name: api-quota
+      state: Available
+      value: 2
+    - type: Barrier
+      name: stage-1-complete
+      state: Open
+  timeout: 1h
