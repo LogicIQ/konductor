@@ -43,7 +43,7 @@ func newStatusSemaphoreCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			// Get semaphore using SDK
-			sem, err := semaphore.GetSemaphore(client, ctx, name)
+			sem, err := semaphore.Get(client, ctx, name)
 			if err != nil {
 				return fmt.Errorf("failed to get semaphore: %w", err)
 			}
@@ -89,7 +89,7 @@ func newStatusBarrierCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			// Get barrier using SDK
-			bar, err := barrier.GetBarrier(client, ctx, name)
+			bar, err := barrier.Get(client, ctx, name)
 			if err != nil {
 				return fmt.Errorf("failed to get barrier: %w", err)
 			}
@@ -135,7 +135,7 @@ func newStatusLeaseCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			// Get lease using SDK
-			l, err := lease.GetLease(client, ctx, name)
+			l, err := lease.Get(client, ctx, name)
 			if err != nil {
 				return fmt.Errorf("failed to get lease: %w", err)
 			}
@@ -198,7 +198,7 @@ func newStatusGateCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			// Get gate using SDK
-			g, err := gate.GetGate(client, ctx, name)
+			g, err := gate.Get(client, ctx, name)
 			if err != nil {
 				return fmt.Errorf("failed to get gate: %w", err)
 			}
@@ -256,7 +256,7 @@ func newStatusAllCmd() *cobra.Command {
 			fmt.Println("============================")
 
 			// List semaphores using SDK
-			if semaphores, err := semaphore.ListSemaphores(client, ctx); err == nil {
+			if semaphores, err := semaphore.List(client, ctx); err == nil {
 				fmt.Printf("\n🚦 Semaphores (%d):\n", len(semaphores))
 				if len(semaphores) == 0 {
 					fmt.Println("   None found")
@@ -270,7 +270,7 @@ func newStatusAllCmd() *cobra.Command {
 
 
 			// List barriers using SDK
-			if barriers, err := barrier.ListBarriers(client, ctx); err == nil {
+			if barriers, err := barrier.List(client, ctx); err == nil {
 				fmt.Printf("\n🚧 Barriers (%d):\n", len(barriers))
 				if len(barriers) == 0 {
 					fmt.Println("   None found")
@@ -284,7 +284,7 @@ func newStatusAllCmd() *cobra.Command {
 
 
 			// List leases using SDK
-			if leases, err := lease.ListLeases(client, ctx); err == nil {
+			if leases, err := lease.List(client, ctx); err == nil {
 				fmt.Printf("\n🔒 Leases (%d):\n", len(leases))
 				if len(leases) == 0 {
 					fmt.Println("   None found")
@@ -301,7 +301,7 @@ func newStatusAllCmd() *cobra.Command {
 
 
 			// List gates using SDK
-			if gates, err := gate.ListGates(client, ctx); err == nil {
+			if gates, err := gate.List(client, ctx); err == nil {
 				fmt.Printf("\n🚪 Gates (%d):\n", len(gates))
 				if len(gates) == 0 {
 					fmt.Println("   None found")

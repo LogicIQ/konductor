@@ -41,27 +41,8 @@ import (
 
 
 
-// AcquireSemaphore acquires a permit from the specified semaphore.
-// It will wait until a permit becomes available or the context is cancelled.
-//
-// The function supports various options:
-//   - WithTTL: Set automatic permit expiration
-//   - WithTimeout: Set maximum wait time
-//   - WithHolder: Set custom holder identifier
-//
-// Returns a Permit that must be released when done, or an error if
-// acquisition fails or times out.
-//
-// Example:
-//
-//	permit, err := client.AcquireSemaphore(ctx, "database-connections",
-//		client.WithTTL(10*time.Minute),
-//		client.WithTimeout(30*time.Second))
-//	if err != nil {
-//		return err
-//	}
-//	defer permit.Release()
-func AcquireSemaphore(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*konductor.Permit, error) {
+// Acquire acquires a permit from the specified semaphore.
+func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*konductor.Permit, error) {
 	options := &konductor.Options{
 		TTL:     10 * time.Minute, // Default TTL
 		Timeout: 0,                // No timeout by default
@@ -148,17 +129,9 @@ func AcquireSemaphore(c *konductor.Client, ctx context.Context, name string, opt
 
 
 
-// WithSemaphore executes a function while holding a semaphore permit.
-// This is a convenience method that automatically acquires and releases the permit.
-// The permit is guaranteed to be released even if the function panics.
-//
-// Example:
-//
-//	err := WithSemaphore(client, ctx, "api-rate-limit", func() error {
-//		return makeAPICall()
-//	}, client.WithTTL(5*time.Minute))
-func WithSemaphore(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
-	permit, err := AcquireSemaphore(c, ctx, name, opts...)
+// With executes a function while holding a semaphore permit.
+func With(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
+	permit, err := Acquire(c, ctx, name, opts...)
 	if err != nil {
 		return err
 	}
@@ -167,11 +140,8 @@ func WithSemaphore(c *konductor.Client, ctx context.Context, name string, fn fun
 	return fn()
 }
 
-// ListSemaphores returns all semaphores in the current namespace.
-// This is useful for monitoring or administrative operations.
-//
-// Returns a slice of Semaphore objects or an error if the list operation fails.
-func ListSemaphores(c *konductor.Client, ctx context.Context) ([]syncv1.Semaphore, error) {
+// List returns all semaphores in the current namespace.
+func List(c *konductor.Client, ctx context.Context) ([]syncv1.Semaphore, error) {
 	var semaphores syncv1.SemaphoreList
 	if err := c.K8sClient().List(ctx, &semaphores, client.InNamespace(c.Namespace())); err != nil {
 		return nil, fmt.Errorf("failed to list semaphores: %w", err)
@@ -179,12 +149,8 @@ func ListSemaphores(c *konductor.Client, ctx context.Context) ([]syncv1.Semaphor
 	return semaphores.Items, nil
 }
 
-// GetSemaphore returns a specific semaphore by name.
-// This allows you to inspect the current state of a semaphore,
-// including available permits and current usage.
-//
-// Returns the Semaphore object or an error if it doesn't exist or cannot be retrieved.
-func GetSemaphore(c *konductor.Client, ctx context.Context, name string) (*syncv1.Semaphore, error) {
+// Get returns a specific semaphore by name.
+func Get(c *konductor.Client, ctx context.Context, name string) (*syncv1.Semaphore, error) {
 	var semaphore syncv1.Semaphore
 	if err := c.K8sClient().Get(ctx, types.NamespacedName{
 		Name:      name,
@@ -194,3 +160,44 @@ func GetSemaphore(c *konductor.Client, ctx context.Context, name string) (*syncv
 	}
 	return &semaphore, nil
 }
+
+// Create creates a new semaphore.
+func Create(c *konductor.Client, ctx context.Context, name string, permits int32, opts ...konductor.Option) error {
+	options := &konductor.Options{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	semaphore := &syncv1.Semaphore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.Namespace(),
+		},
+		Spec: syncv1.SemaphoreSpec{
+			Permits: permits,
+		},
+	}
+
+	if options.TTL > 0 {
+		semaphore.Spec.TTL = &metav1.Duration{Duration: options.TTL}
+	}
+
+	return c.K8sClient().Create(ctx, semaphore)
+}
+
+// Delete deletes a semaphore.
+func Delete(c *konductor.Client, ctx context.Context, name string) error {
+	semaphore := &syncv1.Semaphore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.Namespace(),
+		},
+	}
+	return c.K8sClient().Delete(ctx, semaphore)
+}
+
+// Update updates a semaphore.
+func Update(c *konductor.Client, ctx context.Context, semaphore *syncv1.Semaphore) error {
+	return c.K8sClient().Update(ctx, semaphore)
+}
+

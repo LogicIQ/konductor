@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,13 +39,8 @@ func TestGateWaitCmd_Open(t *testing.T) {
 	cmd := newGateWaitCmd()
 	cmd.SetArgs([]string{"test-gate"})
 
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-
-	err := cmd.Execute()
+	output, err := executeCommandWithOutput(t, cmd)
 	require.NoError(t, err)
-
-	output := buf.String()
 	assert.Contains(t, output, "Gate 'test-gate' is open!")
 }
 
@@ -92,7 +86,7 @@ func TestGateWaitCmd_Failed(t *testing.T) {
 
 	err := cmd.Execute()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "gate 'test-gate' failed")
+	assert.Contains(t, err.Error(), "gate test-gate failed")
 }
 
 func TestGateListCmd(t *testing.T) {
@@ -147,17 +141,110 @@ func TestGateListCmd(t *testing.T) {
 
 	cmd := newGateListCmd()
 
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-
-	err := cmd.Execute()
+	output, err := executeCommandWithOutput(t, cmd)
 	require.NoError(t, err)
-
-	output := buf.String()
 	assert.Contains(t, output, "gate1")
 	assert.Contains(t, output, "gate2")
 	assert.Contains(t, output, "1/2")
 	assert.Contains(t, output, "1/1")
 	assert.Contains(t, output, "Waiting")
 	assert.Contains(t, output, "Open")
+}
+
+func TestGateCreateCmd(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+	namespace = "default"
+
+	cmd := newGateCreateCmd()
+	cmd.SetArgs([]string{"test-gate"})
+
+	output, err := executeCommandWithOutput(t, cmd)
+	require.NoError(t, err)
+	assert.Contains(t, output, "Created gate 'test-gate'")
+}
+
+func TestGateDeleteCmd(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	gate := &syncv1.Gate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-gate",
+			Namespace: "default",
+		},
+	}
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(gate).
+		Build()
+	namespace = "default"
+
+	cmd := newGateDeleteCmd()
+	cmd.SetArgs([]string{"test-gate"})
+
+	output, err := executeCommandWithOutput(t, cmd)
+	require.NoError(t, err)
+	assert.Contains(t, output, "Deleted gate 'test-gate'")
+}
+
+func TestGateOpenCmd(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	gate := &syncv1.Gate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-gate",
+			Namespace: "default",
+		},
+		Status: syncv1.GateStatus{
+			Phase: syncv1.GatePhaseWaiting,
+		},
+	}
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(gate).
+		Build()
+	namespace = "default"
+
+	cmd := newGateOpenCmd()
+	cmd.SetArgs([]string{"test-gate"})
+
+	output, err := executeCommandWithOutput(t, cmd)
+	require.NoError(t, err)
+	assert.Contains(t, output, "Opened gate 'test-gate'")
+}
+
+func TestGateCloseCmd(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	gate := &syncv1.Gate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-gate",
+			Namespace: "default",
+		},
+		Status: syncv1.GateStatus{
+			Phase: syncv1.GatePhaseOpen,
+		},
+	}
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(gate).
+		Build()
+	namespace = "default"
+
+	cmd := newGateCloseCmd()
+	cmd.SetArgs([]string{"test-gate"})
+
+	output, err := executeCommandWithOutput(t, cmd)
+	require.NoError(t, err)
+	assert.Contains(t, output, "Closed gate 'test-gate'")
 }

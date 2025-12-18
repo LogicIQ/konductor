@@ -1,0 +1,14 @@
+# Konductor CLI Configuration
+# Copy this file to ~/.konductor/koncli.yaml or ./koncli.yaml
+
+# Kubernetes configuration
+kubeconfig: ""  # Path to kubeconfig file (empty for in-cluster or default)
+namespace: "default"  # Default namespace
+
+# Logging configuration
+log-level: "info"  # Log level: debug, info, warn, error
+
+# You can also set these via environment variables:
+# KONCLI_KUBECONFIG
+# KONCLI_NAMESPACE  
+# KONCLI_LOG_LEVEL

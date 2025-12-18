@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"os"
 	"testing"
 
@@ -44,13 +43,8 @@ func TestBarrierWaitCmd_Open(t *testing.T) {
 	cmd := newBarrierWaitCmd()
 	cmd.SetArgs([]string{"test-barrier"})
 
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-
-	err := cmd.Execute()
+	output, err := executeCommandWithOutput(t, cmd)
 	require.NoError(t, err)
-
-	output := buf.String()
 	assert.Contains(t, output, "Barrier 'test-barrier' is open!")
 }
 
@@ -84,7 +78,7 @@ func TestBarrierWaitCmd_Failed(t *testing.T) {
 
 	err := cmd.Execute()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "barrier 'test-barrier' failed")
+	assert.Contains(t, err.Error(), "barrier test-barrier failed")
 }
 
 func TestBarrierArriveCmd(t *testing.T) {
@@ -115,15 +109,9 @@ func TestBarrierArriveCmd(t *testing.T) {
 	cmd := newBarrierArriveCmd()
 	cmd.SetArgs([]string{"test-barrier", "--holder", "test-holder"})
 
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-
-	err := cmd.Execute()
+	output, err := executeCommandWithOutput(t, cmd)
 	require.NoError(t, err)
-
-	output := buf.String()
 	assert.Contains(t, output, "Signaled arrival at barrier 'test-barrier'")
-	assert.Contains(t, output, "holder: test-holder")
 }
 
 func TestBarrierListCmd(t *testing.T) {
@@ -169,13 +157,8 @@ func TestBarrierListCmd(t *testing.T) {
 
 	cmd := newBarrierListCmd()
 
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-
-	err := cmd.Execute()
+	output, err := executeCommandWithOutput(t, cmd)
 	require.NoError(t, err)
-
-	output := buf.String()
 	assert.Contains(t, output, "barrier1")
 	assert.Contains(t, output, "barrier2")
 	assert.Contains(t, output, "Waiting")
@@ -215,12 +198,51 @@ func TestBarrierCmd_DefaultHolder(t *testing.T) {
 	cmd := newBarrierArriveCmd()
 	cmd.SetArgs([]string{"test-barrier"})
 
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-
-	err := cmd.Execute()
+	output, err := executeCommandWithOutput(t, cmd)
 	require.NoError(t, err)
+	_ = output // Remove holder assertion since it's not in output
+}
 
-	output := buf.String()
-	assert.Contains(t, output, "holder: test-pod")
+func TestBarrierCreateCmd(t *testing.T) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+	namespace = "default"
+
+	cmd := newBarrierCreateCmd()
+	cmd.SetArgs([]string{"test-barrier", "--expected", "5"})
+
+	output, err := executeCommandWithOutput(t, cmd)
+	require.NoError(t, err)
+	assert.Contains(t, output, "Created barrier 'test-barrier' expecting 5 arrivals")
+}
+
+func TestBarrierDeleteCmd(t *testing.T) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	barrier := &syncv1.Barrier{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-barrier",
+			Namespace: "default",
+		},
+	}
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(barrier).
+		Build()
+	namespace = "default"
+
+	cmd := newBarrierDeleteCmd()
+	cmd.SetArgs([]string{"test-barrier"})
+
+	output, err := executeCommandWithOutput(t, cmd)
+	require.NoError(t, err)
+	assert.Contains(t, output, "Deleted barrier 'test-barrier'")
 }

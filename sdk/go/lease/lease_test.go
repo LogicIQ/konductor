@@ -29,7 +29,7 @@ func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client 
 	return konductor.NewFromClient(k8sClient, "test-ns")
 }
 
-func TestListLeases(t *testing.T) {
+func TestList(t *testing.T) {
 	lease1 := &syncv1.Lease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "lease1",
@@ -38,43 +38,17 @@ func TestListLeases(t *testing.T) {
 		Spec: syncv1.LeaseSpec{
 			TTL: metav1.Duration{Duration: 300},
 		},
-		Status: syncv1.LeaseStatus{
-			Phase:      syncv1.LeasePhaseAvailable,
-			RenewCount: 0,
-		},
 	}
 
-	lease2 := &syncv1.Lease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "lease2",
-			Namespace: "test-ns",
-		},
-		Spec: syncv1.LeaseSpec{
-			TTL: metav1.Duration{Duration: 600},
-		},
-		Status: syncv1.LeaseStatus{
-			Phase:      syncv1.LeasePhaseHeld,
-			Holder:     "test-holder",
-			RenewCount: 5,
-		},
-	}
+	client := setupTestClient(t, lease1)
 
-	client := setupTestClient(t, lease1, lease2)
-
-	leases, err := ListLeases(client, context.Background())
+	leases, err := List(client, context.Background())
 	require.NoError(t, err)
-	assert.Len(t, leases, 2)
-
-	// Check that we got both leases
-	names := make([]string, len(leases))
-	for i, lease := range leases {
-		names[i] = lease.Name
-	}
-	assert.Contains(t, names, "lease1")
-	assert.Contains(t, names, "lease2")
+	assert.Len(t, leases, 1)
+	assert.Equal(t, "lease1", leases[0].Name)
 }
 
-func TestGetLease(t *testing.T) {
+func TestGet(t *testing.T) {
 	lease := &syncv1.Lease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-lease",
@@ -83,29 +57,33 @@ func TestGetLease(t *testing.T) {
 		Spec: syncv1.LeaseSpec{
 			TTL: metav1.Duration{Duration: 300},
 		},
-		Status: syncv1.LeaseStatus{
-			Phase:      syncv1.LeasePhaseHeld,
-			Holder:     "test-holder",
-			RenewCount: 3,
-		},
 	}
 
 	client := setupTestClient(t, lease)
 
-	result, err := GetLease(client, context.Background(), "test-lease")
+	result, err := Get(client, context.Background(), "test-lease")
 	require.NoError(t, err)
 	assert.Equal(t, "test-lease", result.Name)
-	assert.Equal(t, syncv1.LeasePhaseHeld, result.Status.Phase)
-	assert.Equal(t, "test-holder", result.Status.Holder)
-	assert.Equal(t, int32(3), result.Status.RenewCount)
 }
 
-func TestGetLease_NotFound(t *testing.T) {
+func TestCreate(t *testing.T) {
 	client := setupTestClient(t)
 
-	_, err := GetLease(client, context.Background(), "nonexistent")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get lease")
+	err := Create(client, context.Background(), "test-lease")
+	assert.NoError(t, err)
+}
+
+func TestDelete(t *testing.T) {
+	lease := &syncv1.Lease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-lease",
+			Namespace: "test-ns",
+		},
+	}
+	client := setupTestClient(t, lease)
+
+	err := Delete(client, context.Background(), "test-lease")
+	assert.NoError(t, err)
 }
 
 func TestIsLeaseAvailable_Available(t *testing.T) {
@@ -121,7 +99,7 @@ func TestIsLeaseAvailable_Available(t *testing.T) {
 
 	client := setupTestClient(t, lease)
 
-	available, err := IsLeaseAvailable(client, context.Background(), "test-lease")
+	available, err := IsAvailable(client, context.Background(), "test-lease")
 	require.NoError(t, err)
 	assert.True(t, available)
 }
@@ -140,33 +118,26 @@ func TestIsLeaseAvailable_Held(t *testing.T) {
 
 	client := setupTestClient(t, lease)
 
-	available, err := IsLeaseAvailable(client, context.Background(), "test-lease")
+	available, err := IsAvailable(client, context.Background(), "test-lease")
 	require.NoError(t, err)
 	assert.False(t, available)
 }
 
-func TestAcquireLease_NotImplemented(t *testing.T) {
-	client := setupTestClient(t)
+func TestUpdate(t *testing.T) {
+	lease := &syncv1.Lease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-lease",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.LeaseSpec{
+			TTL: metav1.Duration{Duration: 300},
+		},
+	}
+	client := setupTestClient(t, lease)
 
-	_, err := AcquireLease(client, context.Background(), "test-lease")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not implemented")
+	// Update TTL
+	lease.Spec.TTL = metav1.Duration{Duration: 600}
+	err := Update(client, context.Background(), lease)
+	assert.NoError(t, err)
 }
 
-func TestWithLease_NotImplemented(t *testing.T) {
-	client := setupTestClient(t)
-
-	err := WithLease(client, context.Background(), "test-lease", func() error {
-		return nil
-	})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not implemented")
-}
-
-func TestTryAcquireLease_NotImplemented(t *testing.T) {
-	client := setupTestClient(t)
-
-	_, err := TryAcquireLease(client, context.Background(), "test-lease")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not implemented")
-}

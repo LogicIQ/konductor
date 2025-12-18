@@ -9,7 +9,11 @@ tasks:
   go:build:cli:
     desc: Build the koncli binary
     cmds:
-      - go build -o bin/koncli cli/main.go
+      - |
+        VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+        COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        go build -ldflags "-X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${BUILD_DATE}" -o bin/koncli ./cli
 
   go:build:examples:
     desc: Build SDK examples
@@ -19,7 +23,7 @@ tasks:
   go:test:
     desc: Run all unit tests with coverage
     cmds:
-      - go test -v -race -coverprofile=coverage.out ./...
+      - go test -v -race -coverprofile=coverage.out ./api/... ./cli/... ./controllers/... ./sdk/...
       - go tool cover -func=coverage.out
       - go tool cover -html=coverage.out -o coverage.html
 
@@ -103,31 +107,22 @@ tasks:
   e2e:run:
     desc: Run complete e2e test suite
     cmds:
-      # Setup
-      - go install sigs.k8s.io/kind@latest || echo "Kind already installed"
-      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest || echo "Controller-gen already installed"
-      - kind create cluster --name=konductor-e2e || echo "Cluster exists, reusing..."
-      - kubectl config use-context kind-konductor-e2e
-      
-      # Generate CRDs
-      - task: go:manifests
-      
-      # Deploy
-      - kubectl delete deployment konductor-controller -n konductor-system --ignore-not-found=true
-      - task: docker:build
-      - kind load docker-image konductor:latest --name=konductor-e2e
-      - kubectl create namespace konductor-system --dry-run=client -o yaml | kubectl apply -f - || echo "Namespace exists"
-      - kubectl apply -f config/crd/bases/
-      - kubectl apply -f config/samples/
-      
-      # Test coordination primitives
-      - kubectl wait --for=condition=Ready semaphore/api-quota --timeout=60s || echo "Testing semaphore..."
-      - kubectl wait --for=condition=Ready barrier/stage-2 --timeout=60s || echo "Testing barrier..."
+      - cd e2e && task run
+
+  e2e:test:
+    desc: Run e2e tests only (assumes cluster exists)
+    cmds:
+      - cd e2e && task test
+
+  e2e:setup:
+    desc: Setup e2e environment only
+    cmds:
+      - cd e2e && task setup
 
   e2e:cleanup:
     desc: Cleanup e2e environment
     cmds:
-      - kind delete cluster --name=konductor-e2e || echo "Cluster doesn't exist"
+      - cd e2e && task cleanup
 
   tools:install:
     desc: Install required tools

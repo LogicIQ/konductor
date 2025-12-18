@@ -230,3 +230,55 @@ func TestLeaseCmd_DefaultHolder(t *testing.T) {
 	output := buf.String()
 	assert.Contains(t, output, "holder: test-pod")
 }
+
+func TestLeaseCreateCmd(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+	namespace = "default"
+
+	cmd := newLeaseCreateCmd()
+	cmd.SetArgs([]string{"test-lease", "--ttl", "1h"})
+
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "Created lease 'test-lease'")
+}
+
+func TestLeaseDeleteCmd(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	lease := &syncv1.Lease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-lease",
+			Namespace: "default",
+		},
+	}
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(lease).
+		Build()
+	namespace = "default"
+
+	cmd := newLeaseDeleteCmd()
+	cmd.SetArgs([]string{"test-lease"})
+
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "Deleted lease 'test-lease'")
+}

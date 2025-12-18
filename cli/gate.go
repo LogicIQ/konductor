@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 	"github.com/LogicIQ/konductor/sdk/go/gate"
 )
@@ -19,6 +18,10 @@ func newGateCmd() *cobra.Command {
 		Long:  "Wait for gates and check dependency conditions",
 	}
 
+	cmd.AddCommand(newGateCreateCmd())
+	cmd.AddCommand(newGateDeleteCmd())
+	cmd.AddCommand(newGateOpenCmd())
+	cmd.AddCommand(newGateCloseCmd())
 	cmd.AddCommand(newGateWaitCmd())
 	cmd.AddCommand(newGateListCmd())
 
@@ -46,7 +49,7 @@ func newGateWaitCmd() *cobra.Command {
 			}
 
 			// Wait for gate using SDK
-			if err := gate.WaitGate(client, ctx, gateName, opts...); err != nil {
+			if err := gate.Wait(client, ctx, gateName, opts...); err != nil {
 				return err
 			}
 
@@ -71,7 +74,7 @@ func newGateListCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			// List gates using SDK
-			gates, err := gate.ListGates(client, ctx)
+			gates, err := gate.List(client, ctx)
 			if err != nil {
 				return fmt.Errorf("failed to list gates: %w", err)
 			}
@@ -121,13 +124,96 @@ func newGateListCmd() *cobra.Command {
 	return cmd
 }
 
-func printGateConditions(gate syncv1.Gate) {
-	fmt.Println("📋 Condition Status:")
-	for _, status := range gate.Status.ConditionStatuses {
-		icon := "❌"
-		if status.Met {
-			icon = "✅"
-		}
-		fmt.Printf("  %s %s/%s: %s\n", icon, status.Type, status.Name, status.Message)
+
+
+func newGateCreateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "create <gate-name>",
+		Short: "Create a gate",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			gateName := args[0]
+			ctx := context.Background()
+
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			if err := gate.Create(client, ctx, gateName); err != nil {
+				return fmt.Errorf("failed to create gate: %w", err)
+			}
+
+			fmt.Printf("✓ Created gate '%s'\n", gateName)
+			return nil
+		},
 	}
+
+	return cmd
+}
+
+func newGateDeleteCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "delete <gate-name>",
+		Short: "Delete a gate",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			gateName := args[0]
+			ctx := context.Background()
+
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			if err := gate.Delete(client, ctx, gateName); err != nil {
+				return fmt.Errorf("failed to delete gate: %w", err)
+			}
+
+			fmt.Printf("✓ Deleted gate '%s'\n", gateName)
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+func newGateOpenCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "open <gate-name>",
+		Short: "Open a gate",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			gateName := args[0]
+			ctx := context.Background()
+
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			if err := gate.Open(client, ctx, gateName); err != nil {
+				return fmt.Errorf("failed to open gate: %w", err)
+			}
+
+			fmt.Printf("✓ Opened gate '%s'\n", gateName)
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+func newGateCloseCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "close <gate-name>",
+		Short: "Close a gate",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			gateName := args[0]
+			ctx := context.Background()
+
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			if err := gate.Close(client, ctx, gateName); err != nil {
+				return fmt.Errorf("failed to close gate: %w", err)
+			}
+
+			fmt.Printf("✓ Closed gate '%s'\n", gateName)
+			return nil
+		},
+	}
+
+	return cmd
 }

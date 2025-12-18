@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/client-go/tools/clientcmd"
@@ -16,6 +17,11 @@ import (
 )
 
 var (
+	// Build-time variables
+	version   = "dev"
+	commit    = "unknown"
+	buildDate = "unknown"
+
 	kubeconfig string
 	namespace  string
 	logLevel   string
@@ -47,7 +53,26 @@ func execute() error {
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "default", "Kubernetes namespace (auto-detected if running in pod)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 
+	// Bind flags to viper
+	viper.BindPFlag("kubeconfig", rootCmd.PersistentFlags().Lookup("kubeconfig"))
+	viper.BindPFlag("namespace", rootCmd.PersistentFlags().Lookup("namespace"))
+	viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
 
+	// Set up viper
+	viper.SetConfigName("koncli")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("$HOME/.konductor")
+	viper.AddConfigPath(".")
+	viper.SetEnvPrefix("KONCLI")
+	viper.AutomaticEnv()
+
+	// Read config file if it exists
+	if err := viper.ReadInConfig(); err == nil {
+		fmt.Printf("Using config file: %s\n", viper.ConfigFileUsed())
+	}
+
+
+	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newSemaphoreCmd())
 	rootCmd.AddCommand(newBarrierCmd())
 	rootCmd.AddCommand(newLeaseCmd())
@@ -101,6 +126,11 @@ func initLogger() error {
 }
 
 func initKubeClient() error {
+	// Get values from viper (which includes flags, config file, and env vars)
+	kubeconfig = viper.GetString("kubeconfig")
+	namespace = viper.GetString("namespace")
+	logLevel = viper.GetString("log-level")
+
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get kubeconfig: %w", err)

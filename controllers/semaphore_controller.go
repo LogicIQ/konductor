@@ -22,6 +22,7 @@ type SemaphoreReconciler struct {
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=semaphores,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=semaphores/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=semaphores/finalizers,verbs=update
+//+kubebuilder:rbac:groups=sync.konductor.io,resources=permits,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop
 func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

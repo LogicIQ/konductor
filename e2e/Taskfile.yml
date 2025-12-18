@@ -1,0 +1,56 @@
+version: '3'
+
+tasks:
+  setup:
+    desc: Setup e2e environment
+    cmds:
+      - echo "Setting up e2e environment..."
+      - go install sigs.k8s.io/kind@latest || echo "Kind already installed"
+      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest || echo "Controller-gen already installed"
+      - kind create cluster --config=kind-config.yaml || echo "Cluster exists, reusing..."
+      - kubectl config use-context kind-konductor-e2e
+      - echo "Building operator and CLI..."
+      - cd .. && task go:build && task go:build:cli
+      - echo "Generating and applying CRDs..."
+      - cd .. && task go:manifests
+      - kubectl apply -f ../config/crd/bases/
+      - echo "Building and loading Docker image..."
+      - cd .. && task docker:build
+      - kind load docker-image konductor:latest --name=konductor-e2e
+      - echo "Deploying operator..."
+      - kubectl create namespace konductor-system --dry-run=client -o yaml | kubectl apply -f -
+      - echo "Applying RBAC resources..."
+      - kubectl apply -f ../config/rbac/role.yaml
+      - echo "Verifying ClusterRole creation..."
+      - kubectl get clusterrole manager-role
+      - kubectl apply -f ../config/rbac/service_account.yaml
+      - kubectl apply -f ../config/rbac/role_binding.yaml
+      - echo "Verifying RBAC setup..."
+      - kubectl get serviceaccount konductor-controller-manager -n konductor-system
+      - kubectl get clusterrolebinding konductor-manager-rolebinding
+      - kubectl apply -f ../config/rbac/e2e_rbac.yaml
+      - kubectl apply -f ../config/manager/manager.yaml
+      - echo "Restarting deployment to pick up RBAC changes..."
+      - kubectl rollout restart deployment/konductor-controller-manager -n konductor-system
+      - echo "Waiting for operator to be ready..."
+      - kubectl wait --for=condition=Available deployment/konductor-controller-manager -n konductor-system --timeout=120s
+
+  test:
+    desc: Run e2e tests
+    deps: [setup]
+    cmds:
+      - echo "Running e2e tests..."
+      - go mod tidy
+      - go test -v ./... -tags=e2e -timeout=10m
+
+  cleanup:
+    desc: Cleanup e2e environment
+    cmds:
+      - echo "Cleaning up e2e environment..."
+      - kind delete cluster --name=konductor-e2e || echo "Cluster doesn't exist"
+
+  run:
+    desc: Run complete e2e test suite
+    cmds:
+      - task: test
+      - task: cleanup

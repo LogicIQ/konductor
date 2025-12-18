@@ -29,7 +29,7 @@ func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client 
 	return konductor.NewFromClient(k8sClient, "test-ns")
 }
 
-func TestListBarriers(t *testing.T) {
+func TestList(t *testing.T) {
 	barrier1 := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "barrier1",
@@ -38,43 +38,17 @@ func TestListBarriers(t *testing.T) {
 		Spec: syncv1.BarrierSpec{
 			Expected: 3,
 		},
-		Status: syncv1.BarrierStatus{
-			Arrived: 1,
-			Phase:   syncv1.BarrierPhaseWaiting,
-		},
 	}
 
-	barrier2 := &syncv1.Barrier{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "barrier2",
-			Namespace: "test-ns",
-		},
-		Spec: syncv1.BarrierSpec{
-			Expected: 2,
-		},
-		Status: syncv1.BarrierStatus{
-			Arrived:  2,
-			Phase:    syncv1.BarrierPhaseOpen,
-			OpenedAt: &metav1.Time{},
-		},
-	}
+	client := setupTestClient(t, barrier1)
 
-	client := setupTestClient(t, barrier1, barrier2)
-
-	barriers, err := ListBarriers(client, context.Background())
+	barriers, err := List(client, context.Background())
 	require.NoError(t, err)
-	assert.Len(t, barriers, 2)
-
-	// Check that we got both barriers
-	names := make([]string, len(barriers))
-	for i, barrier := range barriers {
-		names[i] = barrier.Name
-	}
-	assert.Contains(t, names, "barrier1")
-	assert.Contains(t, names, "barrier2")
+	assert.Len(t, barriers, 1)
+	assert.Equal(t, "barrier1", barriers[0].Name)
 }
 
-func TestGetBarrier(t *testing.T) {
+func TestGet(t *testing.T) {
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-barrier",
@@ -83,31 +57,37 @@ func TestGetBarrier(t *testing.T) {
 		Spec: syncv1.BarrierSpec{
 			Expected: 3,
 		},
-		Status: syncv1.BarrierStatus{
-			Arrived: 1,
-			Phase:   syncv1.BarrierPhaseWaiting,
-		},
 	}
 
 	client := setupTestClient(t, barrier)
 
-	result, err := GetBarrier(client, context.Background(), "test-barrier")
+	result, err := Get(client, context.Background(), "test-barrier")
 	require.NoError(t, err)
 	assert.Equal(t, "test-barrier", result.Name)
 	assert.Equal(t, int32(3), result.Spec.Expected)
-	assert.Equal(t, int32(1), result.Status.Arrived)
-	assert.Equal(t, syncv1.BarrierPhaseWaiting, result.Status.Phase)
 }
 
-func TestGetBarrier_NotFound(t *testing.T) {
+func TestCreate(t *testing.T) {
 	client := setupTestClient(t)
 
-	_, err := GetBarrier(client, context.Background(), "nonexistent")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get barrier")
+	err := Create(client, context.Background(), "test-barrier", 3)
+	assert.NoError(t, err)
 }
 
-func TestGetBarrierStatus(t *testing.T) {
+func TestDelete(t *testing.T) {
+	barrier := &syncv1.Barrier{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-barrier",
+			Namespace: "test-ns",
+		},
+	}
+	client := setupTestClient(t, barrier)
+
+	err := Delete(client, context.Background(), "test-barrier")
+	assert.NoError(t, err)
+}
+
+func TestGetStatus(t *testing.T) {
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-barrier",
@@ -125,7 +105,7 @@ func TestGetBarrierStatus(t *testing.T) {
 
 	client := setupTestClient(t, barrier)
 
-	status, err := GetBarrierStatus(client, context.Background(), "test-barrier")
+	status, err := GetStatus(client, context.Background(), "test-barrier")
 	require.NoError(t, err)
 	assert.Equal(t, int32(2), status.Arrived)
 	assert.Equal(t, syncv1.BarrierPhaseWaiting, status.Phase)
@@ -149,7 +129,7 @@ func TestArriveBarrier(t *testing.T) {
 
 	client := setupTestClient(t, barrier)
 
-	err := ArriveBarrier(client, context.Background(), "test-barrier", konductor.WithHolder("test-holder"))
+	err := Arrive(client, context.Background(), "test-barrier", konductor.WithHolder("test-holder"))
 	require.NoError(t, err)
 
 	// Verify arrival was created
@@ -179,7 +159,7 @@ func TestWaitBarrier_AlreadyOpen(t *testing.T) {
 
 	client := setupTestClient(t, barrier)
 
-	err := WaitBarrier(client, context.Background(), "test-barrier")
+	err := Wait(client, context.Background(), "test-barrier")
 	assert.NoError(t, err)
 }
 
@@ -200,7 +180,25 @@ func TestWaitBarrier_Failed(t *testing.T) {
 
 	client := setupTestClient(t, barrier)
 
-	err := WaitBarrier(client, context.Background(), "test-barrier")
+	err := Wait(client, context.Background(), "test-barrier")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "barrier test-barrier failed")
+}
+
+func TestUpdate(t *testing.T) {
+	barrier := &syncv1.Barrier{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-barrier",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.BarrierSpec{
+			Expected: 3,
+		},
+	}
+	client := setupTestClient(t, barrier)
+
+	// Update expected count
+	barrier.Spec.Expected = 5
+	err := Update(client, context.Background(), barrier)
+	assert.NoError(t, err)
 }

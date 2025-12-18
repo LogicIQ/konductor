@@ -23,6 +23,8 @@ type LeaseReconciler struct {
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=leases/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=leases/finalizers,verbs=update
+//+kubebuilder:rbac:groups=sync.konductor.io,resources=leaserequests,verbs=get;list;watch
+//+kubebuilder:rbac:groups=sync.konductor.io,resources=leaserequests/status,verbs=get;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop
 func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

@@ -212,3 +212,55 @@ func TestSemaphoreCmd_DefaultHolder(t *testing.T) {
 	output := buf.String()
 	assert.Contains(t, output, "holder: test-pod")
 }
+
+func TestSemaphoreCreateCmd(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+	namespace = "default"
+
+	cmd := newSemaphoreCreateCmd()
+	cmd.SetArgs([]string{"test-sem", "--permits", "5"})
+
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "Created semaphore 'test-sem' with 5 permits")
+}
+
+func TestSemaphoreDeleteCmd(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	semaphore := &syncv1.Semaphore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-sem",
+			Namespace: "default",
+		},
+	}
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(semaphore).
+		Build()
+	namespace = "default"
+
+	cmd := newSemaphoreDeleteCmd()
+	cmd.SetArgs([]string{"test-sem"})
+
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "Deleted semaphore 'test-sem'")
+}

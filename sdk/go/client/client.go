@@ -178,6 +178,8 @@ type Options struct {
 	Priority int32
 	// Holder identifies the entity holding a resource (defaults to hostname)
 	Holder string
+	// Quorum specifies minimum arrivals needed to open a barrier
+	Quorum int32
 }
 
 // Option is a function that configures Options.
@@ -286,6 +288,18 @@ func WithPriority(priority int32) Option {
 func WithHolder(holder string) Option {
 	return func(o *Options) {
 		o.Holder = holder
+	}
+}
+
+// WithQuorum sets the minimum number of arrivals needed to open a barrier.
+// If not specified, all expected arrivals are required.
+//
+// Example:
+//
+//	client.CreateBarrier(ctx, "stage-gate", 10, client.WithQuorum(7))
+func WithQuorum(quorum int32) Option {
+	return func(o *Options) {
+		o.Quorum = quorum
 	}
 }
 

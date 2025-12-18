@@ -23,6 +23,7 @@ type BarrierReconciler struct {
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=barriers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=barriers/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=barriers/finalizers,verbs=update
+//+kubebuilder:rbac:groups=sync.konductor.io,resources=arrivals,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop
 func (r *BarrierReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

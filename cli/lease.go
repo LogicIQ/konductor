@@ -19,6 +19,8 @@ func newLeaseCmd() *cobra.Command {
 		Long:  "Acquire, release, and manage leases for singleton execution",
 	}
 
+	cmd.AddCommand(newLeaseCreateCmd())
+	cmd.AddCommand(newLeaseDeleteCmd())
 	cmd.AddCommand(newLeaseAcquireCmd())
 	cmd.AddCommand(newLeaseReleaseCmd())
 	cmd.AddCommand(newLeaseListCmd())
@@ -58,7 +60,7 @@ func newLeaseAcquireCmd() *cobra.Command {
 			}
 
 			// Acquire lease using SDK
-			leaseObj, err := lease.AcquireLease(client, ctx, leaseName, opts...)
+			leaseObj, err := lease.Acquire(client, ctx, leaseName, opts...)
 			if err != nil {
 				if !wait {
 					return fmt.Errorf("failed to acquire lease: %w", err)
@@ -126,7 +128,7 @@ func newLeaseListCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			// List leases using SDK
-			leases, err := lease.ListLeases(client, ctx)
+			leases, err := lease.List(client, ctx)
 			if err != nil {
 				return fmt.Errorf("failed to list leases: %w", err)
 			}
@@ -157,6 +159,60 @@ func newLeaseListCmd() *cobra.Command {
 				)
 			}
 
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+func newLeaseCreateCmd() *cobra.Command {
+	var ttl time.Duration
+
+	cmd := &cobra.Command{
+		Use:   "create <lease-name>",
+		Short: "Create a lease",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			leaseName := args[0]
+			ctx := context.Background()
+
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			var opts []konductor.Option
+			if ttl > 0 {
+				opts = append(opts, konductor.WithTTL(ttl))
+			}
+			if err := lease.Create(client, ctx, leaseName, opts...); err != nil {
+				return fmt.Errorf("failed to create lease: %w", err)
+			}
+
+			fmt.Printf("✓ Created lease '%s'\n", leaseName)
+			return nil
+		},
+	}
+
+	cmd.Flags().DurationVar(&ttl, "ttl", 10*time.Minute, "Default TTL for lease")
+
+	return cmd
+}
+
+func newLeaseDeleteCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "delete <lease-name>",
+		Short: "Delete a lease",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			leaseName := args[0]
+			ctx := context.Background()
+
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			if err := lease.Delete(client, ctx, leaseName); err != nil {
+				return fmt.Errorf("failed to delete lease: %w", err)
+			}
+
+			fmt.Printf("✓ Deleted lease '%s'\n", leaseName)
 			return nil
 		},
 	}

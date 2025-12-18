@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: konductor-controller-manager
+  namespace: konductor-system
+  labels:
+    app.kubernetes.io/name: konductor
+    app.kubernetes.io/component: manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: konductor
+      app.kubernetes.io/component: manager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: konductor
+        app.kubernetes.io/component: manager
+    spec:
+      serviceAccountName: konductor-controller-manager
+      containers:
+      - name: manager
+        image: konductor:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /manager
+        env:
+        - name: WATCH_NAMESPACE
+          value: ""
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+      securityContext:
+        runAsNonRoot: true
+      terminationGracePeriodSeconds: 10

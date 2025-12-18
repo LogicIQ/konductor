@@ -18,6 +18,8 @@ func newBarrierCmd() *cobra.Command {
 		Long:  "Wait for barriers and signal arrivals",
 	}
 
+	cmd.AddCommand(newBarrierCreateCmd())
+	cmd.AddCommand(newBarrierDeleteCmd())
 	cmd.AddCommand(newBarrierWaitCmd())
 	cmd.AddCommand(newBarrierArriveCmd())
 	cmd.AddCommand(newBarrierListCmd())
@@ -46,12 +48,12 @@ func newBarrierWaitCmd() *cobra.Command {
 			}
 
 			// Wait for barrier using SDK
-			if err := barrier.WaitBarrier(client, ctx, barrierName, opts...); err != nil {
+			if err := barrier.Wait(client, ctx, barrierName, opts...); err != nil {
 				return err
 			}
 
 			// Get barrier status to display info
-			barrierObj, _ := barrier.GetBarrier(client, ctx, barrierName)
+			barrierObj, _ := barrier.Get(client, ctx, barrierName)
 			if barrierObj != nil {
 				fmt.Printf("✓ Barrier '%s' is open! (arrived: %d/%d)\n", 
 					barrierName, barrierObj.Status.Arrived, barrierObj.Spec.Expected)
@@ -67,12 +69,15 @@ func newBarrierWaitCmd() *cobra.Command {
 }
 
 func newBarrierArriveCmd() *cobra.Command {
-	var holder string
+	var (
+		holder string
+		waitForUpdate bool
+	)
 
 	cmd := &cobra.Command{
-		Use:   "arrive <barrier-name>",
+		Use:   "arrive <barrier-name> [holder]",
 		Short: "Signal arrival at a barrier",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			barrierName := args[0]
 			ctx := context.Background()
@@ -82,19 +87,26 @@ func newBarrierArriveCmd() *cobra.Command {
 
 			// Build options
 			var opts []konductor.Option
-			if holder != "" {
+			if len(args) > 1 {
+				opts = append(opts, konductor.WithHolder(args[1]))
+			} else if holder != "" {
 				opts = append(opts, konductor.WithHolder(holder))
 			}
 
 			// Arrive at barrier using SDK
-			if err := barrier.ArriveBarrier(client, ctx, barrierName, opts...); err != nil {
+			if err := barrier.Arrive(client, ctx, barrierName, opts...); err != nil {
 				return fmt.Errorf("failed to arrive at barrier: %w", err)
+			}
+
+			// Wait for controller to process if requested
+			if waitForUpdate {
+				time.Sleep(3 * time.Second)
 			}
 
 			fmt.Printf("✓ Signaled arrival at barrier '%s'\n", barrierName)
 
 			// Get barrier status to display info
-			barrierObj, err := barrier.GetBarrier(client, ctx, barrierName)
+			barrierObj, err := barrier.Get(client, ctx, barrierName)
 			if err == nil {
 				fmt.Printf("📊 Barrier status: %d/%d arrived, phase: %s\n", 
 					barrierObj.Status.Arrived, barrierObj.Spec.Expected, barrierObj.Status.Phase)
@@ -105,6 +117,7 @@ func newBarrierArriveCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&holder, "holder", "", "Arrival holder identifier (defaults to hostname)")
+	cmd.Flags().BoolVar(&waitForUpdate, "wait-for-update", false, "Wait for controller to process the change")
 
 	return cmd
 }
@@ -120,7 +133,7 @@ func newBarrierListCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			// List barriers using SDK
-			barriers, err := barrier.ListBarriers(client, ctx)
+			barriers, err := barrier.List(client, ctx)
 			if err != nil {
 				return fmt.Errorf("failed to list barriers: %w", err)
 			}
@@ -146,6 +159,70 @@ func newBarrierListCmd() *cobra.Command {
 				)
 			}
 
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+func newBarrierCreateCmd() *cobra.Command {
+	var (
+		expected int32
+		timeout  time.Duration
+		quorum   int32
+	)
+
+	cmd := &cobra.Command{
+		Use:   "create <barrier-name>",
+		Short: "Create a barrier",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			barrierName := args[0]
+			ctx := context.Background()
+
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			var opts []konductor.Option
+			if timeout > 0 {
+				opts = append(opts, konductor.WithTimeout(timeout))
+			}
+			if quorum > 0 {
+				opts = append(opts, konductor.WithQuorum(quorum))
+			}
+
+			if err := barrier.Create(client, ctx, barrierName, expected); err != nil {
+				return fmt.Errorf("failed to create barrier: %w", err)
+			}
+
+			fmt.Printf("✓ Created barrier '%s' expecting %d arrivals\n", barrierName, expected)
+			return nil
+		},
+	}
+
+	cmd.Flags().Int32Var(&expected, "expected", 1, "Expected number of arrivals")
+	cmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for barrier")
+	cmd.Flags().Int32Var(&quorum, "quorum", 0, "Minimum arrivals to open")
+
+	return cmd
+}
+
+func newBarrierDeleteCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "delete <barrier-name>",
+		Short: "Delete a barrier",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			barrierName := args[0]
+			ctx := context.Background()
+
+			client := konductor.NewFromClient(k8sClient, namespace)
+
+			if err := barrier.Delete(client, ctx, barrierName); err != nil {
+				return fmt.Errorf("failed to delete barrier: %w", err)
+			}
+
+			fmt.Printf("✓ Deleted barrier '%s'\n", barrierName)
 			return nil
 		},
 	}

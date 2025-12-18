@@ -1,0 +1,60 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - sync.konductor.io
+  resources:
+  - arrivals
+  - leaserequests
+  - permits
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - sync.konductor.io
+  resources:
+  - barriers
+  - gates
+  - leases
+  - semaphores
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - sync.konductor.io
+  resources:
+  - barriers/finalizers
+  - gates/finalizers
+  - leases/finalizers
+  - semaphores/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - sync.konductor.io
+  resources:
+  - barriers/status
+  - gates/status
+  - leaserequests/status
+  - leases/status
+  - semaphores/status
+  verbs:
+  - get
+  - patch
+  - update

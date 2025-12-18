@@ -240,6 +240,84 @@ func TestSubcommandStructure(t *testing.T) {
 	}
 }
 
+func TestDetectNamespace(t *testing.T) {
+	// Save original values
+	origPodNS := os.Getenv("POD_NAMESPACE")
+	origNS := os.Getenv("NAMESPACE")
+	origKubeconfig := kubeconfig
+
+	// Clean up after test
+	defer func() {
+		os.Setenv("POD_NAMESPACE", origPodNS)
+		os.Setenv("NAMESPACE", origNS)
+		kubeconfig = origKubeconfig
+	}()
+
+	tests := []struct {
+		name       string
+		setupFunc  func(t *testing.T)
+		expectedNS string
+	}{
+		{
+			name: "POD_NAMESPACE environment variable",
+			setupFunc: func(t *testing.T) {
+				os.Setenv("POD_NAMESPACE", "test-namespace")
+				os.Unsetenv("NAMESPACE")
+			},
+			expectedNS: "test-namespace",
+		},
+		{
+			name: "NAMESPACE environment variable",
+			setupFunc: func(t *testing.T) {
+				os.Unsetenv("POD_NAMESPACE")
+				os.Setenv("NAMESPACE", "env-namespace")
+			},
+			expectedNS: "env-namespace",
+		},
+		{
+			name: "fallback to default",
+			setupFunc: func(t *testing.T) {
+				os.Unsetenv("POD_NAMESPACE")
+				os.Unsetenv("NAMESPACE")
+				kubeconfig = "/nonexistent/path"
+			},
+			expectedNS: "default",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupFunc(t)
+			result := detectNamespace()
+			if result != tt.expectedNS {
+				t.Errorf("detectNamespace() = %v, want %v", result, tt.expectedNS)
+			}
+		})
+	}
+}
+
+func TestDetectNamespacePriority(t *testing.T) {
+	// Save original values
+	origPodNS := os.Getenv("POD_NAMESPACE")
+	origNS := os.Getenv("NAMESPACE")
+
+	defer func() {
+		os.Setenv("POD_NAMESPACE", origPodNS)
+		os.Setenv("NAMESPACE", origNS)
+	}()
+
+	// Set both environment variables
+	os.Setenv("POD_NAMESPACE", "pod-namespace")
+	os.Setenv("NAMESPACE", "env-namespace")
+
+	result := detectNamespace()
+
+	// POD_NAMESPACE should have higher priority
+	if result != "pod-namespace" {
+		t.Errorf("Expected POD_NAMESPACE to have priority, got %v", result)
+	}
+}
+
 // Test environment variable cleanup
 func TestMain(m *testing.M) {
 	// Run tests
