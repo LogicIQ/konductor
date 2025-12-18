@@ -183,16 +183,34 @@ kondctl status barrier <name>
 - Retry logic with exponential backoff
 - Crash-safe ownership management
 
-## Operator Architecture
+## Architecture Decision: Minimal Operator vs CLI-Only
 
-### Controller Responsibilities
-- **Semaphore Controller**: Enforce permit limits, handle TTL expiration
-- **Barrier Controller**: Track arrivals, manage quorum logic
-- **Lease Controller**: Arbitrate ownership, handle preemption
-- **Gate Controller**: Evaluate conditions, update status
+### Why We Need an Operator (Minimal)
+While tempting to use CRDs + CLI only, an operator is essential for:
+
+1. **Distributed Arbitration**: Resolving conflicts when multiple pods compete for permits
+2. **TTL Enforcement**: CRDs are static - only controllers can expire permits automatically  
+3. **Status Consistency**: Centralized reconciliation prevents split-brain scenarios
+4. **Fairness**: Implementing ordering and priority requires coordination logic
+
+### Minimal Operator Design
+**Core Principle**: Operator handles coordination conflicts, CLI handles user interaction
+
+#### Controller Responsibilities (Minimal)
+- **Semaphore Controller**: Count valid permits, enforce limits, expire TTLs
+- **Barrier Controller**: Track arrivals, evaluate quorum, update phase
+- **Lease Controller**: Arbitrate ownership conflicts, handle expiration
+- **Gate Controller**: Evaluate conditions, update gate status
+
+#### What Controllers DON'T Do
+- No complex business logic
+- No direct pod interaction
+- No workflow orchestration
+- No external system integration
 
 ### Key Design Decisions
-- **No Pod Mutation**: Operator never modifies running pods
+- **CLI-First Interface**: All user operations via kondctl
+- **Operator as Arbiter**: Only handles distributed coordination problems
 - **TTL Everywhere**: All ownership has time bounds
 - **Owner References**: Automatic cleanup on pod deletion
 - **Status-Driven**: Pods poll status, don't block on API calls
@@ -200,10 +218,18 @@ kondctl status barrier <name>
 ## Implementation Phases
 
 ### Phase 1: MVP (Semaphore + Barrier)
-- Core CRDs and controllers
+- Core CRDs with minimal controllers
 - Basic CLI with acquire/wait/release
 - InitContainer integration pattern
 - Documentation and examples
+
+### Alternative: CLI-Only Approach (Not Recommended)
+**Why this doesn't work:**
+- Race conditions between competing CLIs
+- No automatic TTL enforcement
+- Complex distributed consensus in CLI
+- Split-brain scenarios with permit counting
+- Manual cleanup of dead permits
 
 ### Phase 2: Enhanced Features
 - Lease primitive
