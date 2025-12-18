@@ -7,6 +7,10 @@ import (
 	"time"
 
 	konductor "github.com/LogicIQ/konductor/sdk/go"
+	"github.com/LogicIQ/konductor/sdk/go/barrier"
+	"github.com/LogicIQ/konductor/sdk/go/gate"
+	"github.com/LogicIQ/konductor/sdk/go/lease"
+	"github.com/LogicIQ/konductor/sdk/go/semaphore"
 )
 
 func main() {
@@ -47,7 +51,7 @@ func main() {
 
 func semaphoreExample(ctx context.Context, client *konductor.Client) error {
 	// Acquire a semaphore permit
-	permit, err := client.AcquireSemaphore(ctx, "api-quota",
+	permit, err := semaphore.AcquireSemaphore(client, ctx, "api-quota",
 		konductor.WithTTL(5*time.Minute),
 		konductor.WithTimeout(30*time.Second),
 		konductor.WithHolder("example-app"),
@@ -70,7 +74,7 @@ func semaphoreExample(ctx context.Context, client *konductor.Client) error {
 func barrierExample(ctx context.Context, client *konductor.Client) error {
 	// Wait for a barrier to open
 	fmt.Println("Waiting for barrier 'stage-1'...")
-	if err := client.WaitBarrier(ctx, "stage-1",
+	if err := barrier.WaitBarrier(client, ctx, "stage-1",
 		konductor.WithTimeout(30*time.Second),
 	); err != nil {
 		return fmt.Errorf("failed to wait for barrier: %w", err)
@@ -83,7 +87,7 @@ func barrierExample(ctx context.Context, client *konductor.Client) error {
 	time.Sleep(1 * time.Second)
 
 	// Signal arrival at next barrier
-	if err := client.ArriveBarrier(ctx, "stage-2",
+	if err := barrier.ArriveBarrier(client, ctx, "stage-2",
 		konductor.WithHolder("example-app"),
 	); err != nil {
 		return fmt.Errorf("failed to arrive at barrier: %w", err)
@@ -95,7 +99,7 @@ func barrierExample(ctx context.Context, client *konductor.Client) error {
 
 func leaseExample(ctx context.Context, client *konductor.Client) error {
 	// Try to acquire a lease
-	lease, err := client.AcquireLease(ctx, "singleton-task",
+	leaseHandle, err := lease.AcquireLease(client, ctx, "singleton-task",
 		konductor.WithPriority(5),
 		konductor.WithTimeout(10*time.Second),
 		konductor.WithHolder("example-app"),
@@ -103,9 +107,9 @@ func leaseExample(ctx context.Context, client *konductor.Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to acquire lease: %w", err)
 	}
-	defer lease.Release()
+	defer leaseHandle.Release()
 
-	fmt.Printf("Acquired lease (holder: %s)\n", lease.Holder())
+	fmt.Printf("Acquired lease (holder: %s)\n", leaseHandle.Holder())
 
 	// Do singleton work
 	fmt.Println("Performing singleton task...")
@@ -118,7 +122,7 @@ func leaseExample(ctx context.Context, client *konductor.Client) error {
 func gateExample(ctx context.Context, client *konductor.Client) error {
 	// Wait for gate to open (all conditions met)
 	fmt.Println("Waiting for gate 'processing-gate'...")
-	if err := client.WaitGate(ctx, "processing-gate",
+	if err := gate.WaitGate(client, ctx, "processing-gate",
 		konductor.WithTimeout(30*time.Second),
 	); err != nil {
 		return fmt.Errorf("failed to wait for gate: %w", err)
@@ -127,7 +131,7 @@ func gateExample(ctx context.Context, client *konductor.Client) error {
 	fmt.Println("Gate 'processing-gate' is open!")
 
 	// Check gate conditions
-	conditions, err := client.GetGateConditions(ctx, "processing-gate")
+	conditions, err := gate.GetGateConditions(client, ctx, "processing-gate")
 	if err != nil {
 		return fmt.Errorf("failed to get gate conditions: %w", err)
 	}

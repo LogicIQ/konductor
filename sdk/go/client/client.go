@@ -196,7 +196,10 @@ type Permit struct {
 
 // Release releases the semaphore permit.
 func (p *Permit) Release() error {
-	return fmt.Errorf("not implemented")
+	if p.cancelCtx != nil {
+		p.cancelCtx()
+	}
+	return p.client.ReleaseSemaphorePermit(p.ctx, p.name, p.holder)
 }
 
 // Holder returns the permit holder identifier.
@@ -207,6 +210,33 @@ func (p *Permit) Holder() string {
 // Name returns the semaphore name.
 func (p *Permit) Name() string {
 	return p.name
+}
+
+// LeaseHandle represents an acquired lease.
+type LeaseHandle struct {
+	client    *Client
+	name      string
+	holder    string
+	ctx       context.Context
+	cancelCtx context.CancelFunc
+}
+
+// Release releases the lease.
+func (l *LeaseHandle) Release() error {
+	if l.cancelCtx != nil {
+		l.cancelCtx()
+	}
+	return l.client.ReleaseLease(l.ctx, l.name, l.holder)
+}
+
+// Holder returns the lease holder identifier.
+func (l *LeaseHandle) Holder() string {
+	return l.holder
+}
+
+// Name returns the lease name.
+func (l *LeaseHandle) Name() string {
+	return l.name
 }
 
 
@@ -258,3 +288,4 @@ func WithHolder(holder string) Option {
 		o.Holder = holder
 	}
 }
+

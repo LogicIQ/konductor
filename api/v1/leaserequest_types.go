@@ -15,6 +15,10 @@ type LeaseRequestSpec struct {
 	// Priority for lease acquisition (higher wins)
 	// +optional
 	Priority *int32 `json:"priority,omitempty"`
+	
+	// TTL is the time-to-live for the lease request
+	// +optional
+	TTL *metav1.Duration `json:"ttl,omitempty"`
 }
 
 // LeaseRequestStatus defines the observed state of LeaseRequest

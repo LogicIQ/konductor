@@ -18,3 +18,13 @@ var (
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 )
+
+func init() {
+	SchemeBuilder.Register(&Semaphore{}, &SemaphoreList{})
+	SchemeBuilder.Register(&Permit{}, &PermitList{})
+	SchemeBuilder.Register(&Barrier{}, &BarrierList{})
+	SchemeBuilder.Register(&Arrival{}, &ArrivalList{})
+	SchemeBuilder.Register(&Lease{}, &LeaseList{})
+	SchemeBuilder.Register(&LeaseRequest{}, &LeaseRequestList{})
+	SchemeBuilder.Register(&Gate{}, &GateList{})
+}
