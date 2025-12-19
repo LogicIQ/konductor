@@ -210,6 +210,7 @@ func TestGateOpenCmd(t *testing.T) {
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(gate).
+		WithStatusSubresource(&syncv1.Gate{}).
 		Build()
 	namespace = "default"
 
@@ -238,6 +239,7 @@ func TestGateCloseCmd(t *testing.T) {
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(gate).
+		WithStatusSubresource(&syncv1.Gate{}).
 		Build()
 	namespace = "default"
 

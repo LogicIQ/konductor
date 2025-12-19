@@ -196,6 +196,16 @@ type Permit struct {
 	cancelCtx context.CancelFunc
 }
 
+// NewPermit creates a new permit instance.
+func NewPermit(client *Client, name, holder string, ctx context.Context) *Permit {
+	return &Permit{
+		client: client,
+		name:   name,
+		holder: holder,
+		ctx:    ctx,
+	}
+}
+
 // Release releases the semaphore permit.
 func (p *Permit) Release() error {
 	if p.cancelCtx != nil {

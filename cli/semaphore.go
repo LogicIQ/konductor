@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 	"github.com/LogicIQ/konductor/sdk/go/semaphore"
 )
@@ -110,8 +111,25 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 			// Create SDK client
 			client := konductor.NewFromClient(k8sClient, namespace)
 
-			// Release permit using SDK
-			if err := client.ReleaseSemaphorePermit(ctx, semaphoreName, holder); err != nil {
+			// Find and release permit by holder
+			permits, err := client.ListPermits(ctx, semaphoreName)
+			if err != nil {
+				return fmt.Errorf("failed to list permits: %w", err)
+			}
+
+			var permitToDelete *syncv1.Permit
+			for _, permit := range permits {
+				if permit.Spec.Holder == holder {
+					permitToDelete = &permit
+					break
+				}
+			}
+
+			if permitToDelete == nil {
+				return fmt.Errorf("no permit found for holder %s", holder)
+			}
+
+			if err := client.K8sClient().Delete(ctx, permitToDelete); err != nil {
 				return fmt.Errorf("failed to release permit: %w", err)
 			}
 

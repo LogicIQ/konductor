@@ -17,7 +17,6 @@ rules:
   resources:
   - arrivals
   - leaserequests
-  - permits
   verbs:
   - get
   - list
@@ -53,8 +52,19 @@ rules:
   - gates/status
   - leaserequests/status
   - leases/status
+  - permits/status
   - semaphores/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - sync.konductor.io
+  resources:
+  - permits
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch

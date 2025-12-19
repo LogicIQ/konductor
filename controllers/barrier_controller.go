@@ -29,15 +29,20 @@ type BarrierReconciler struct {
 func (r *BarrierReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
+	log.Info("Reconciling Barrier", "name", req.Name, "namespace", req.Namespace)
+
 	// Fetch the Barrier instance
 	var barrier syncv1.Barrier
 	if err := r.Get(ctx, req.NamespacedName, &barrier); err != nil {
 		if errors.IsNotFound(err) {
+			log.Info("Barrier not found, likely deleted", "name", req.Name)
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "unable to fetch Barrier")
 		return ctrl.Result{}, err
 	}
+
+	log.Info("Found Barrier", "name", barrier.Name, "expected", barrier.Spec.Expected, "currentArrived", barrier.Status.Arrived)
 
 	// Count arrivals by looking for Arrival CRs
 	arrivals := &syncv1.ArrivalList{}
@@ -46,6 +51,8 @@ func (r *BarrierReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "unable to list arrivals")
 		return ctrl.Result{}, err
 	}
+
+	log.Info("Found arrivals", "count", len(arrivals.Items), "barrier", barrier.Name)
 
 	// Update arrival count and list
 	barrier.Status.Arrived = int32(len(arrivals.Items))
@@ -80,6 +87,8 @@ func (r *BarrierReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "unable to update Barrier status")
 		return ctrl.Result{}, err
 	}
+
+	log.Info("Successfully updated Barrier status", "name", barrier.Name, "arrived", barrier.Status.Arrived, "phase", barrier.Status.Phase)
 
 	// Requeue to check timeout
 	if barrier.Spec.Timeout != nil && barrier.Status.Phase == syncv1.BarrierPhaseWaiting {

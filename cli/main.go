@@ -44,7 +44,7 @@ func execute() error {
 			if err := initLogger(); err != nil {
 				return err
 			}
-			return initKubeClient()
+			return initKubeClient(cmd)
 		},
 	}
 
@@ -73,6 +73,7 @@ func execute() error {
 
 
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newOperatorCmd())
 	rootCmd.AddCommand(newSemaphoreCmd())
 	rootCmd.AddCommand(newBarrierCmd())
 	rootCmd.AddCommand(newLeaseCmd())
@@ -125,7 +126,7 @@ func initLogger() error {
 	return nil
 }
 
-func initKubeClient() error {
+func initKubeClient(cmd *cobra.Command) error {
 	// Get values from viper (which includes flags, config file, and env vars)
 	kubeconfig = viper.GetString("kubeconfig")
 	namespace = viper.GetString("namespace")
@@ -147,7 +148,8 @@ func initKubeClient() error {
 	}
 
 
-	if namespace == "default" {
+	// Only auto-detect if namespace wasn't explicitly set via flag
+	if !cmd.PersistentFlags().Changed("namespace") {
 		namespace = detectNamespace()
 	}
 
@@ -158,20 +160,26 @@ func detectNamespace() string {
 	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
 		ns := strings.TrimSpace(string(data))
 		if ns != "" {
-			logger.Debug("Auto-detected namespace from pod service account", zap.String("namespace", ns))
+			if logger != nil {
+				logger.Debug("Auto-detected namespace from pod service account", zap.String("namespace", ns))
+			}
 			return ns
 		}
 	}
 
 
 	if ns := os.Getenv("POD_NAMESPACE"); ns != "" {
-		logger.Debug("Auto-detected namespace from POD_NAMESPACE env", zap.String("namespace", ns))
+		if logger != nil {
+			logger.Debug("Auto-detected namespace from POD_NAMESPACE env", zap.String("namespace", ns))
+		}
 		return ns
 	}
 
 
 	if ns := os.Getenv("NAMESPACE"); ns != "" {
-		logger.Debug("Auto-detected namespace from NAMESPACE env", zap.String("namespace", ns))
+		if logger != nil {
+			logger.Debug("Auto-detected namespace from NAMESPACE env", zap.String("namespace", ns))
+		}
 		return ns
 	}
 
@@ -183,13 +191,16 @@ func detectNamespace() string {
 	if config, err := clientcmd.LoadFromFile(kubeconfig); err == nil {
 		if config.Contexts[config.CurrentContext] != nil {
 			if ns := config.Contexts[config.CurrentContext].Namespace; ns != "" {
-				logger.Debug("Auto-detected namespace from kubeconfig context", zap.String("namespace", ns))
+				if logger != nil {
+					logger.Debug("Auto-detected namespace from kubeconfig context", zap.String("namespace", ns))
+				}
 				return ns
 			}
 		}
 	}
 
-
-	logger.Debug("Using default namespace (no auto-detection available)")
+	if logger != nil {
+		logger.Debug("Using default namespace (no auto-detection available)")
+	}
 	return "default"
 }

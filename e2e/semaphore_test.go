@@ -21,6 +21,15 @@ func TestE2ESemaphore(t *testing.T) {
 		t.Fatalf("Failed to setup client: %v", err)
 	}
 
+	// Check operator status first
+	cmd := exec.Command("../bin/koncli", "operator", "--operator-namespace", "konductor-system")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Operator status check failed: %v, output: %s", err, string(output))
+	} else {
+		t.Logf("Operator status: %s", string(output))
+	}
+
 	namespace := "default"
 	semaphoreName := fmt.Sprintf("e2e-test-semaphore-%d", time.Now().Unix())
 
@@ -32,7 +41,7 @@ func TestE2ESemaphore(t *testing.T) {
 	}
 
 	// Wait for semaphore to be ready
-	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
+	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
 		semaphore := &syncv1.Semaphore{}
 		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: semaphoreName, Namespace: namespace}, semaphore)
 		if err != nil {
@@ -57,15 +66,20 @@ func TestE2ESemaphore(t *testing.T) {
 		t.Fatalf("Failed to acquire permit: %v, output: %s", err, string(output))
 	}
 
-	// Verify semaphore state
-	semaphore := &syncv1.Semaphore{}
-	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: semaphoreName, Namespace: namespace}, semaphore)
+	// Wait for controller to process permit acquisitions
+	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
+		semaphore := &syncv1.Semaphore{}
+		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: semaphoreName, Namespace: namespace}, semaphore)
+		if err != nil {
+			return false, nil
+		}
+		return semaphore.Status.Available == 1, nil
+	})
 	if err != nil {
-		t.Fatalf("Failed to get semaphore: %v", err)
-	}
-
-	if semaphore.Status.Available != 1 {
-		t.Errorf("Expected 1 available permit, got %d", semaphore.Status.Available)
+		// Get final state for debugging
+		semaphore := &syncv1.Semaphore{}
+		k8sClient.Get(context.TODO(), client.ObjectKey{Name: semaphoreName, Namespace: namespace}, semaphore)
+		t.Errorf("Expected 1 available permit, got %d (controller may not be running)", semaphore.Status.Available)
 	}
 
 	// Release permit using CLI

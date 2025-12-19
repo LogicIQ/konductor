@@ -30,15 +30,20 @@ type LeaseReconciler struct {
 func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
+	log.Info("Reconciling Lease", "name", req.Name, "namespace", req.Namespace)
+
 	// Fetch the Lease instance
 	var lease syncv1.Lease
 	if err := r.Get(ctx, req.NamespacedName, &lease); err != nil {
 		if errors.IsNotFound(err) {
+			log.Info("Lease not found, likely deleted", "name", req.Name)
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "unable to fetch Lease")
 		return ctrl.Result{}, err
 	}
+
+	log.Info("Found Lease", "name", lease.Name, "currentHolder", lease.Status.Holder, "currentPhase", lease.Status.Phase)
 
 	now := time.Now()
 
@@ -62,6 +67,8 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		log.Error(err, "unable to list lease requests")
 		return ctrl.Result{}, err
 	}
+
+	log.Info("Found lease requests", "count", len(requests.Items), "lease", lease.Name)
 
 	// If lease is available and there are requests, grant to highest priority
 	if lease.Status.Phase == syncv1.LeasePhaseAvailable && len(requests.Items) > 0 {
@@ -103,6 +110,8 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		log.Error(err, "unable to update Lease status")
 		return ctrl.Result{}, err
 	}
+
+	log.Info("Successfully updated Lease status", "name", lease.Name, "holder", lease.Status.Holder, "phase", lease.Status.Phase)
 
 	// Requeue to check expiration
 	if lease.Status.ExpiresAt != nil {

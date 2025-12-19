@@ -21,6 +21,15 @@ func TestE2EGate(t *testing.T) {
 		t.Fatalf("Failed to setup client: %v", err)
 	}
 
+	// Check operator status first
+	cmd := exec.Command("../bin/koncli", "operator", "--operator-namespace", "konductor-system")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Operator status check failed: %v, output: %s", err, string(output))
+	} else {
+		t.Logf("Operator status: %s", string(output))
+	}
+
 	namespace := "default"
 	gateName := fmt.Sprintf("e2e-test-gate-%d", time.Now().Unix())
 
@@ -31,11 +40,18 @@ func TestE2EGate(t *testing.T) {
 		t.Fatalf("Failed to create gate: %v, output: %s", err, string(output))
 	}
 
+	t.Logf("Created gate: %s", string(output))
+
 	// Wait for gate to be ready
-	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
+	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
 		gate := &syncv1.Gate{}
 		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: gateName, Namespace: namespace}, gate)
-		return err == nil, nil
+		if err != nil {
+			t.Logf("Waiting for gate %s: %v", gateName, err)
+			return false, nil
+		}
+		t.Logf("Gate %s found with status: %+v", gateName, gate.Status)
+		return true, nil
 	})
 	if err != nil {
 		t.Fatalf("Gate was not ready: %v", err)

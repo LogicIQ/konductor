@@ -29,6 +29,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,60 +71,77 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 		return nil, fmt.Errorf("failed to get semaphore %s: %w", name, err)
 	}
 
-	permitID := fmt.Sprintf("%s-%s", name, holder)
+	permitID := fmt.Sprintf("%s-%s-%d", name, holder, time.Now().UnixNano())
 	startTime := time.Now()
 
 	for {
-		// Check if permits are available
+		// Check semaphore status first
 		if err := c.K8sClient().Get(ctx, types.NamespacedName{
 			Name:      name,
 			Namespace: c.Namespace(),
 		}, &semaphore); err != nil {
-			return nil, fmt.Errorf("failed to refresh semaphore %s: %w", name, err)
+			return nil, fmt.Errorf("failed to get semaphore %s: %w", name, err)
 		}
 
-		if semaphore.Status.Available > 0 {
-			// Create permit
-			permit := &syncv1.Permit{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      permitID,
-					Namespace: c.Namespace(),
-					Labels: map[string]string{
-						"semaphore": name,
-					},
+		// If no permits available, wait without creating
+		if semaphore.Status.Available <= 0 {
+			// Check timeout
+			if options.Timeout > 0 && time.Since(startTime) > options.Timeout {
+				return nil, fmt.Errorf("timeout waiting for semaphore %s", name)
+			}
+
+			// Wait before retrying
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(1 * time.Second):
+				continue
+			}
+		}
+
+		// Create permit (optimistic approach)
+		permit := &syncv1.Permit{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      permitID,
+				Namespace: c.Namespace(),
+				Labels: map[string]string{
+					"semaphore": name,
 				},
-				Spec: syncv1.PermitSpec{
-					Semaphore: name,
-					Holder:    holder,
-				},
-			}
-
-			if options.TTL > 0 {
-				permit.Spec.TTL = &metav1.Duration{Duration: options.TTL}
-			}
-
-			if err := c.K8sClient().Create(ctx, permit); err != nil {
-				return nil, fmt.Errorf("failed to create permit: %w", err)
-			}
-
-			// Create permit object
-			p := &konductor.Permit{}
-
-			return p, nil
+			},
+			Spec: syncv1.PermitSpec{
+				Semaphore: name,
+				Holder:    holder,
+			},
 		}
 
-		// Check timeout
-		if options.Timeout > 0 && time.Since(startTime) > options.Timeout {
-			return nil, fmt.Errorf("timeout waiting for semaphore %s", name)
+		if options.TTL > 0 {
+			permit.Spec.TTL = &metav1.Duration{Duration: options.TTL}
 		}
 
-		// Wait before retrying
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(5 * time.Second):
-			// Continue loop
+		if err := c.K8sClient().Create(ctx, permit); err != nil {
+			// If creation fails due to name conflict, generate new ID and retry
+			if strings.Contains(err.Error(), "already exists") {
+				permitID = fmt.Sprintf("%s-%s-%d", name, holder, time.Now().UnixNano())
+				continue
+			}
+			return nil, fmt.Errorf("failed to create permit: %w", err)
 		}
+
+		// Wait for permit to be granted
+		for i := 0; i < 10; i++ {
+			var createdPermit syncv1.Permit
+			if err := c.K8sClient().Get(ctx, types.NamespacedName{
+				Name:      permitID,
+				Namespace: c.Namespace(),
+			}, &createdPermit); err == nil && createdPermit.Status.Phase == syncv1.PermitPhaseGranted {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		// Successfully created permit
+		p := konductor.NewPermit(c, name, holder, ctx)
+		return p, nil
 	}
 }
 

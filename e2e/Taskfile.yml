@@ -41,7 +41,7 @@ tasks:
     cmds:
       - echo "Running e2e tests..."
       - go mod tidy
-      - go test -v ./... -tags=e2e -timeout=10m
+      - go test -v ./... -tags=e2e -timeout=1m
 
   cleanup:
     desc: Cleanup e2e environment

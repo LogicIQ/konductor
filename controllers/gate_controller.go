@@ -30,15 +30,20 @@ type GateReconciler struct {
 func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
+	log.Info("Reconciling Gate", "name", req.Name, "namespace", req.Namespace)
+
 	// Fetch the Gate instance
 	var gate syncv1.Gate
 	if err := r.Get(ctx, req.NamespacedName, &gate); err != nil {
 		if errors.IsNotFound(err) {
+			log.Info("Gate not found, likely deleted", "name", req.Name)
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "unable to fetch Gate")
 		return ctrl.Result{}, err
 	}
+
+	log.Info("Found Gate", "name", gate.Name, "conditions", len(gate.Spec.Conditions), "currentPhase", gate.Status.Phase)
 
 	// Check each condition
 	allMet := true
@@ -144,6 +149,8 @@ func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		log.Error(err, "unable to update Gate status")
 		return ctrl.Result{}, err
 	}
+
+	log.Info("Successfully updated Gate status", "name", gate.Name, "phase", gate.Status.Phase, "allMet", allMet)
 
 	// Requeue to check conditions
 	if gate.Status.Phase == syncv1.GatePhaseWaiting {

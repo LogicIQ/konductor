@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -27,6 +29,7 @@ import (
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+	version  = "dev"
 )
 
 func initLogger(level string) (*zap.Logger, error) {
@@ -59,6 +62,13 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
+func versionHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"version": version})
+	})
+}
+
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -84,7 +94,7 @@ func main() {
 	ctrl.SetLogger(zapr.NewLogger(logger))
 
 	logger.Info("Starting konductor operator", 
-		zap.String("version", "dev"),
+		zap.String("version", version),
 		zap.String("log-level", logLevel),
 		zap.Bool("leader-election", enableLeaderElection))
 
@@ -142,6 +152,8 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
+
+	mgr.GetWebhookServer().Register("/version", versionHandler())
 
 	logger.Info("Starting manager")
 	setupLog.Info("starting manager")

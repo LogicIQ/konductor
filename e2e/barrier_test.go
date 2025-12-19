@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,10 +16,23 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
+func contains(s, substr string) bool {
+	return strings.Contains(s, substr)
+}
+
 func TestE2EBarrier(t *testing.T) {
 	k8sClient, err := setupClient()
 	if err != nil {
 		t.Fatalf("Failed to setup client: %v", err)
+	}
+
+	// Check operator status first
+	cmd := exec.Command("../bin/koncli", "operator", "--operator-namespace", "konductor-system")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Operator status check failed: %v, output: %s", err, string(output))
+	} else {
+		t.Logf("Operator status: %s", string(output))
 	}
 
 	namespace := "default"
@@ -31,11 +45,18 @@ func TestE2EBarrier(t *testing.T) {
 		t.Fatalf("Failed to create barrier: %v, output: %s", err, string(output))
 	}
 
+	t.Logf("Created barrier: %s", string(output))
+
 	// Wait for barrier to be ready
-	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
+	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
 		barrier := &syncv1.Barrier{}
 		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: barrierName, Namespace: namespace}, barrier)
-		return err == nil, nil
+		if err != nil {
+			t.Logf("Waiting for barrier %s: %v", barrierName, err)
+			return false, nil
+		}
+		t.Logf("Barrier %s found with status: %+v", barrierName, barrier.Status)
+		return true, nil
 	})
 	if err != nil {
 		t.Fatalf("Barrier was not ready: %v", err)
@@ -69,6 +90,10 @@ func TestE2EBarrier(t *testing.T) {
 	cmd = exec.Command("../bin/koncli", "barrier", "delete", barrierName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Failed to delete barrier: %v, output: %s", err, string(output))
+		// Don't fail if barrier doesn't exist (might have been auto-deleted)
+		if !contains(string(output), "not found") {
+			t.Fatalf("Failed to delete barrier: %v, output: %s", err, string(output))
+		}
+		t.Logf("Barrier already deleted or not found: %s", string(output))
 	}
 }

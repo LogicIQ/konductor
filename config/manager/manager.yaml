@@ -25,9 +25,13 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
         - /manager
+        args:
+        - --log-level=debug
         env:
         - name: WATCH_NAMESPACE
           value: ""
+        - name: LOG_LEVEL
+          value: "debug"
         ports:
         - containerPort: 8080
           name: metrics
