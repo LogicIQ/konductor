@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -46,7 +46,7 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// Count active permits by looking for Permit CRs
 	permits := &syncv1.PermitList{}
-	if err := r.List(ctx, permits, client.InNamespace(req.Namespace), 
+	if err := r.List(ctx, permits, client.InNamespace(req.Namespace),
 		client.MatchingLabels{"semaphore": semaphore.Name}); err != nil {
 		log.Error(err, "unable to list permits")
 		return ctrl.Result{}, err
@@ -80,15 +80,15 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	semaphore.Status.InUse = int32(validPermits)
 	semaphore.Status.Available = semaphore.Spec.Permits - int32(validPermits)
-	
+
 	if semaphore.Status.Available > 0 {
 		semaphore.Status.Phase = syncv1.SemaphorePhaseReady
 	} else {
 		semaphore.Status.Phase = syncv1.SemaphorePhaseFull
 	}
 
-	log.Info("Status update", "semaphore", semaphore.Name, 
-		"validPermits", validPermits, 
+	log.Info("Status update", "semaphore", semaphore.Name,
+		"validPermits", validPermits,
 		"oldInUse", oldInUse, "newInUse", semaphore.Status.InUse,
 		"oldAvailable", oldAvailable, "newAvailable", semaphore.Status.Available,
 		"oldPhase", oldPhase, "newPhase", semaphore.Status.Phase)

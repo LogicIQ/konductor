@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 	"github.com/LogicIQ/konductor/sdk/go/gate"
@@ -53,7 +53,7 @@ func newGateWaitCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("✓ Gate '%s' is open! All conditions met.\n", gateName)
+			logger.Info("Gate is open", zap.String("gate", gateName))
 			return nil
 		},
 	}
@@ -76,15 +76,14 @@ func newGateListCmd() *cobra.Command {
 			// List gates using SDK
 			gates, err := gate.List(client, ctx)
 			if err != nil {
-				return fmt.Errorf("failed to list gates: %w", err)
+				return err
 			}
 
 			if len(gates) == 0 {
-				fmt.Println("No gates found")
+				logger.Info("No gates found")
 				return nil
 			}
 
-			fmt.Printf("%-20s %-10s %-10s %-15s\n", "NAME", "CONDITIONS", "PHASE", "OPENED")
 			for _, g := range gates {
 				opened := "N/A"
 				if g.Status.OpenedAt != nil {
@@ -99,22 +98,23 @@ func newGateListCmd() *cobra.Command {
 					}
 				}
 
-				fmt.Printf("%-20s %-10s %-10s %-15s\n",
-					g.Name,
-					fmt.Sprintf("%d/%d", metCount, conditionCount),
-					g.Status.Phase,
-					opened,
+				logger.Info("Gate",
+					zap.String("name", g.Name),
+					zap.Int("conditions_met", metCount),
+					zap.Int("conditions_total", conditionCount),
+					zap.String("phase", string(g.Status.Phase)),
+					zap.String("opened", opened),
 				)
 
 				// Show condition details
 				for _, status := range g.Status.ConditionStatuses {
-					icon := "❌"
-					if status.Met {
-						icon = "✅"
-					}
-					fmt.Printf("  %s %s/%s: %s\n", icon, status.Type, status.Name, status.Message)
+					logger.Info("Condition",
+						zap.Bool("met", status.Met),
+						zap.String("type", status.Type),
+						zap.String("name", status.Name),
+						zap.String("message", status.Message),
+					)
 				}
-				fmt.Println()
 			}
 
 			return nil
@@ -123,8 +123,6 @@ func newGateListCmd() *cobra.Command {
 
 	return cmd
 }
-
-
 
 func newGateCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -138,10 +136,10 @@ func newGateCreateCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			if err := gate.Create(client, ctx, gateName); err != nil {
-				return fmt.Errorf("failed to create gate: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Created gate '%s'\n", gateName)
+			logger.Info("Created gate", zap.String("gate", gateName))
 			return nil
 		},
 	}
@@ -161,10 +159,10 @@ func newGateDeleteCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			if err := gate.Delete(client, ctx, gateName); err != nil {
-				return fmt.Errorf("failed to delete gate: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Deleted gate '%s'\n", gateName)
+			logger.Info("Deleted gate", zap.String("gate", gateName))
 			return nil
 		},
 	}
@@ -184,10 +182,10 @@ func newGateOpenCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			if err := gate.Open(client, ctx, gateName); err != nil {
-				return fmt.Errorf("failed to open gate: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Opened gate '%s'\n", gateName)
+			logger.Info("Opened gate", zap.String("gate", gateName))
 			return nil
 		},
 	}
@@ -207,10 +205,10 @@ func newGateCloseCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			if err := gate.Close(client, ctx, gateName); err != nil {
-				return fmt.Errorf("failed to close gate: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Closed gate '%s'\n", gateName)
+			logger.Info("Closed gate", zap.String("gate", gateName))
 			return nil
 		},
 	}

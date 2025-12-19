@@ -2,27 +2,29 @@ package main
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func executeCommandWithOutput(t *testing.T, cmd *cobra.Command) (string, error) {
+	// Create a buffer to capture logs
+	var logBuf bytes.Buffer
+	encoderConfig := zap.NewDevelopmentEncoderConfig()
+	encoderConfig.TimeKey = ""
+	core := zapcore.NewCore(
+		zapcore.NewConsoleEncoder(encoderConfig),
+		zapcore.AddSync(&logBuf),
+		zapcore.DebugLevel,
+	)
+	logger = zap.New(core)
+	
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
 	err := cmd.Execute()
-	w.Close()
-	os.Stdout = oldStdout
-
-	var stdoutBuf bytes.Buffer
-	stdoutBuf.ReadFrom(r)
-	return buf.String() + stdoutBuf.String(), err
+	return buf.String() + logBuf.String(), err
 }

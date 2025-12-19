@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -46,7 +46,7 @@ func (r *BarrierReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// Count arrivals by looking for Arrival CRs
 	arrivals := &syncv1.ArrivalList{}
-	if err := r.List(ctx, arrivals, client.InNamespace(req.Namespace), 
+	if err := r.List(ctx, arrivals, client.InNamespace(req.Namespace),
 		client.MatchingLabels{"barrier": barrier.Name}); err != nil {
 		log.Error(err, "unable to list arrivals")
 		return ctrl.Result{}, err

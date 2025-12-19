@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 func TestRootCommand(t *testing.T) {
@@ -22,7 +23,7 @@ func TestRootCommand(t *testing.T) {
 			checkFunc: func(t *testing.T, output string) {
 				expectedStrings := []string{
 					"koncli",
-					"Konductor CLI for coordination primitives",
+					"Konductor synchronization primitives",
 					"semaphore",
 					"barrier",
 					"lease",
@@ -58,6 +59,9 @@ func TestRootCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Initialize logger
+			logger, _ = zap.NewDevelopment()
+			
 			// Create a new root command for each test to avoid state pollution
 			rootCmd := &cobra.Command{
 				Use:   "koncli",
@@ -157,7 +161,7 @@ func TestCommandStructure(t *testing.T) {
 
 	expectedCommands := []string{
 		"semaphore",
-		"barrier", 
+		"barrier",
 		"lease",
 		"gate",
 		"status",
@@ -179,15 +183,15 @@ func TestCommandStructure(t *testing.T) {
 
 func TestSubcommandStructure(t *testing.T) {
 	tests := []struct {
-		command          string
-		expectedSubcmds  []string
+		command         string
+		expectedSubcmds []string
 	}{
 		{
 			command:         "semaphore",
 			expectedSubcmds: []string{"acquire", "release", "list"},
 		},
 		{
-			command:         "barrier", 
+			command:         "barrier",
 			expectedSubcmds: []string{"wait", "arrive", "list"},
 		},
 		{
@@ -322,10 +326,10 @@ func TestDetectNamespacePriority(t *testing.T) {
 func TestMain(m *testing.M) {
 	// Run tests
 	code := m.Run()
-	
+
 	// Cleanup
 	os.Unsetenv("POD_NAMESPACE")
 	os.Unsetenv("NAMESPACE")
-	
+
 	os.Exit(code)
 }

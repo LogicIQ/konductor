@@ -27,12 +27,12 @@ func TestE2EBarrier(t *testing.T) {
 	}
 
 	// Check operator status first
-	cmd := exec.Command("../bin/koncli", "operator", "--operator-namespace", "konductor-system")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Logf("Operator status check failed: %v, output: %s", err, string(output))
+	statusCmd := exec.Command("../bin/koncli", "operator", "--operator-namespace", "konductor-system")
+	statusOutput, statusErr := statusCmd.CombinedOutput()
+	if statusErr != nil {
+		t.Logf("Operator status check failed: %v, output: %s", statusErr, string(statusOutput))
 	} else {
-		t.Logf("Operator status: %s", string(output))
+		t.Logf("Operator status: %s", string(statusOutput))
 	}
 
 	namespace := "default"

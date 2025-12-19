@@ -21,12 +21,12 @@ func TestSemaphoreReconciler_Reconcile(t *testing.T) {
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
 	tests := []struct {
-		name           string
-		semaphore      *syncv1.Semaphore
-		permits        []syncv1.Permit
-		expectedPhase  syncv1.SemaphorePhase
-		expectedInUse  int32
-		expectedAvail  int32
+		name          string
+		semaphore     *syncv1.Semaphore
+		permits       []syncv1.Permit
+		expectedPhase syncv1.SemaphorePhase
+		expectedInUse int32
+		expectedAvail int32
 	}{
 		{
 			name: "empty semaphore should be ready",
@@ -39,10 +39,10 @@ func TestSemaphoreReconciler_Reconcile(t *testing.T) {
 					Permits: 5,
 				},
 			},
-			permits:        []syncv1.Permit{},
-			expectedPhase:  syncv1.SemaphorePhaseReady,
-			expectedInUse:  0,
-			expectedAvail:  5,
+			permits:       []syncv1.Permit{},
+			expectedPhase: syncv1.SemaphorePhaseReady,
+			expectedInUse: 0,
+			expectedAvail: 5,
 		},
 		{
 			name: "partial usage should be ready",
@@ -68,9 +68,9 @@ func TestSemaphoreReconciler_Reconcile(t *testing.T) {
 					},
 				},
 			},
-			expectedPhase:  syncv1.SemaphorePhaseReady,
-			expectedInUse:  1,
-			expectedAvail:  4,
+			expectedPhase: syncv1.SemaphorePhaseReady,
+			expectedInUse: 1,
+			expectedAvail: 4,
 		},
 		{
 			name: "full semaphore should be full",
@@ -107,9 +107,9 @@ func TestSemaphoreReconciler_Reconcile(t *testing.T) {
 					},
 				},
 			},
-			expectedPhase:  syncv1.SemaphorePhaseFull,
-			expectedInUse:  2,
-			expectedAvail:  0,
+			expectedPhase: syncv1.SemaphorePhaseFull,
+			expectedInUse: 2,
+			expectedAvail: 0,
 		},
 		{
 			name: "expired permits should not count",
@@ -152,9 +152,9 @@ func TestSemaphoreReconciler_Reconcile(t *testing.T) {
 					},
 				},
 			},
-			expectedPhase:  syncv1.SemaphorePhaseReady,
-			expectedInUse:  1,
-			expectedAvail:  2,
+			expectedPhase: syncv1.SemaphorePhaseReady,
+			expectedInUse: 1,
+			expectedAvail: 2,
 		},
 	}
 

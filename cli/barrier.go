@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
-	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 	"github.com/LogicIQ/konductor/sdk/go/barrier"
+	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
 func newBarrierCmd() *cobra.Command {
@@ -55,8 +55,11 @@ func newBarrierWaitCmd() *cobra.Command {
 			// Get barrier status to display info
 			barrierObj, _ := barrier.Get(client, ctx, barrierName)
 			if barrierObj != nil {
-				fmt.Printf("✓ Barrier '%s' is open! (arrived: %d/%d)\n", 
-					barrierName, barrierObj.Status.Arrived, barrierObj.Spec.Expected)
+				logger.Info("Barrier is open",
+					zap.String("barrier", barrierName),
+					zap.Int32("arrived", barrierObj.Status.Arrived),
+					zap.Int32("expected", barrierObj.Spec.Expected),
+				)
 			}
 
 			return nil
@@ -70,7 +73,7 @@ func newBarrierWaitCmd() *cobra.Command {
 
 func newBarrierArriveCmd() *cobra.Command {
 	var (
-		holder string
+		holder        string
 		waitForUpdate bool
 	)
 
@@ -95,7 +98,7 @@ func newBarrierArriveCmd() *cobra.Command {
 
 			// Arrive at barrier using SDK
 			if err := barrier.Arrive(client, ctx, barrierName, opts...); err != nil {
-				return fmt.Errorf("failed to arrive at barrier: %w", err)
+				return err
 			}
 
 			// Wait for controller to process if requested
@@ -103,13 +106,16 @@ func newBarrierArriveCmd() *cobra.Command {
 				time.Sleep(3 * time.Second)
 			}
 
-			fmt.Printf("✓ Signaled arrival at barrier '%s'\n", barrierName)
+			logger.Info("Signaled arrival at barrier", zap.String("barrier", barrierName))
 
 			// Get barrier status to display info
 			barrierObj, err := barrier.Get(client, ctx, barrierName)
 			if err == nil {
-				fmt.Printf("📊 Barrier status: %d/%d arrived, phase: %s\n", 
-					barrierObj.Status.Arrived, barrierObj.Spec.Expected, barrierObj.Status.Phase)
+				logger.Info("Barrier status",
+					zap.Int32("arrived", barrierObj.Status.Arrived),
+					zap.Int32("expected", barrierObj.Spec.Expected),
+					zap.String("phase", string(barrierObj.Status.Phase)),
+				)
 			}
 
 			return nil
@@ -135,27 +141,26 @@ func newBarrierListCmd() *cobra.Command {
 			// List barriers using SDK
 			barriers, err := barrier.List(client, ctx)
 			if err != nil {
-				return fmt.Errorf("failed to list barriers: %w", err)
+				return err
 			}
 
 			if len(barriers) == 0 {
-				fmt.Println("No barriers found")
+				logger.Info("No barriers found")
 				return nil
 			}
 
-			fmt.Printf("%-20s %-10s %-10s %-10s %-15s\n", "NAME", "EXPECTED", "ARRIVED", "PHASE", "OPENED")
 			for _, b := range barriers {
 				opened := "N/A"
 				if b.Status.OpenedAt != nil {
 					opened = b.Status.OpenedAt.Format("15:04:05")
 				}
 
-				fmt.Printf("%-20s %-10d %-10d %-10s %-15s\n",
-					b.Name,
-					b.Spec.Expected,
-					b.Status.Arrived,
-					b.Status.Phase,
-					opened,
+				logger.Info("Barrier",
+					zap.String("name", b.Name),
+					zap.Int32("expected", b.Spec.Expected),
+					zap.Int32("arrived", b.Status.Arrived),
+					zap.String("phase", string(b.Status.Phase)),
+					zap.String("opened", opened),
 				)
 			}
 
@@ -192,10 +197,13 @@ func newBarrierCreateCmd() *cobra.Command {
 			}
 
 			if err := barrier.Create(client, ctx, barrierName, expected); err != nil {
-				return fmt.Errorf("failed to create barrier: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Created barrier '%s' expecting %d arrivals\n", barrierName, expected)
+			logger.Info("Created barrier",
+				zap.String("barrier", barrierName),
+				zap.Int32("expected", expected),
+			)
 			return nil
 		},
 	}
@@ -219,10 +227,10 @@ func newBarrierDeleteCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			if err := barrier.Delete(client, ctx, barrierName); err != nil {
-				return fmt.Errorf("failed to delete barrier: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Deleted barrier '%s'\n", barrierName)
+			logger.Info("Deleted barrier", zap.String("barrier", barrierName))
 			return nil
 		},
 	}

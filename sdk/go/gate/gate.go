@@ -225,4 +225,3 @@ func Close(c *konductor.Client, ctx context.Context, name string) error {
 	gate.Status.Phase = syncv1.GatePhaseWaiting
 	return c.K8sClient().Status().Update(ctx, gate)
 }
-

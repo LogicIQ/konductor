@@ -8,14 +8,14 @@ import (
 type LeaseRequestSpec struct {
 	// Lease is the name of the lease being requested
 	Lease string `json:"lease"`
-	
+
 	// Holder is the pod/job requesting the lease
 	Holder string `json:"holder"`
-	
+
 	// Priority for lease acquisition (higher wins)
 	// +optional
 	Priority *int32 `json:"priority,omitempty"`
-	
+
 	// TTL is the time-to-live for the lease request
 	// +optional
 	TTL *metav1.Duration `json:"ttl,omitempty"`
@@ -25,11 +25,11 @@ type LeaseRequestSpec struct {
 type LeaseRequestStatus struct {
 	// Phase represents the current state of the request
 	Phase LeaseRequestPhase `json:"phase"`
-	
+
 	// RequestedAt is when the request was made
 	// +optional
 	RequestedAt *metav1.Time `json:"requestedAt,omitempty"`
-	
+
 	// Conditions represent the latest available observations
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }

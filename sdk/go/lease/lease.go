@@ -226,8 +226,6 @@ func Update(c *konductor.Client, ctx context.Context, lease *syncv1.Lease) error
 	return c.K8sClient().Update(ctx, lease)
 }
 
-
-
 // CreateLease creates a new lease
 func CreateLease(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{}

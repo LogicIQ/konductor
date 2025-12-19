@@ -8,11 +8,11 @@ import (
 type BarrierSpec struct {
 	// Expected is the number of arrivals required to open the barrier
 	Expected int32 `json:"expected"`
-	
+
 	// Timeout is the maximum time to wait for all arrivals
 	// +optional
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
-	
+
 	// Quorum is the minimum number of arrivals to open (optional)
 	// +optional
 	Quorum *int32 `json:"quorum,omitempty"`
@@ -22,17 +22,17 @@ type BarrierSpec struct {
 type BarrierStatus struct {
 	// Arrived is the current number of arrivals
 	Arrived int32 `json:"arrived"`
-	
+
 	// Phase represents the current state of the barrier
 	Phase BarrierPhase `json:"phase"`
-	
+
 	// Arrivals tracks which pods have arrived
 	Arrivals []string `json:"arrivals,omitempty"`
-	
+
 	// OpenedAt is when the barrier opened
 	// +optional
 	OpenedAt *metav1.Time `json:"openedAt,omitempty"`
-	
+
 	// Conditions represent the latest available observations
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }

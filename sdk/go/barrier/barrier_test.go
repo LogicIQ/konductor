@@ -97,8 +97,8 @@ func TestGetStatus(t *testing.T) {
 			Expected: 3,
 		},
 		Status: syncv1.BarrierStatus{
-			Arrived: 2,
-			Phase:   syncv1.BarrierPhaseWaiting,
+			Arrived:  2,
+			Phase:    syncv1.BarrierPhaseWaiting,
 			Arrivals: []string{"holder1", "holder2"},
 		},
 	}

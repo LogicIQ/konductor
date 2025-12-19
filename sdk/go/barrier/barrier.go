@@ -184,8 +184,6 @@ func Update(c *konductor.Client, ctx context.Context, barrier *syncv1.Barrier) e
 	return c.K8sClient().Update(ctx, barrier)
 }
 
-
-
 // CreateBarrier creates a new barrier with the specified expected arrivals
 func CreateBarrier(c *konductor.Client, ctx context.Context, name string, expected int32, opts ...konductor.Option) error {
 	options := &konductor.Options{}

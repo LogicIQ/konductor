@@ -8,7 +8,7 @@ import (
 type SemaphoreSpec struct {
 	// Permits is the maximum number of concurrent permits allowed
 	Permits int32 `json:"permits"`
-	
+
 	// TTL is the default time-to-live for permits
 	// +optional
 	TTL *metav1.Duration `json:"ttl,omitempty"`
@@ -18,13 +18,13 @@ type SemaphoreSpec struct {
 type SemaphoreStatus struct {
 	// InUse is the current number of permits in use
 	InUse int32 `json:"inUse"`
-	
+
 	// Available is the number of available permits
 	Available int32 `json:"available"`
-	
+
 	// Phase represents the current state of the semaphore
 	Phase SemaphorePhase `json:"phase"`
-	
+
 	// Conditions represent the latest available observations
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
@@ -33,8 +33,8 @@ type SemaphoreStatus struct {
 type SemaphorePhase string
 
 const (
-	SemaphorePhaseReady      SemaphorePhase = "Ready"
-	SemaphorePhaseFull       SemaphorePhase = "Full"
+	SemaphorePhaseReady       SemaphorePhase = "Ready"
+	SemaphorePhaseFull        SemaphorePhase = "Full"
 	SemaphorePhaseUnavailable SemaphorePhase = "Unavailable"
 )
 

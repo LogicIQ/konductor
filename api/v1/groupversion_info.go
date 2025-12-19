@@ -1,6 +1,6 @@
 // Package v1 contains API Schema definitions for the sync v1 API group
-//+kubebuilder:object:generate=true
-//+groupName=sync.konductor.io
+// +kubebuilder:object:generate=true
+// +groupName=sync.konductor.io
 package v1
 
 import (

@@ -140,4 +140,3 @@ func TestUpdate(t *testing.T) {
 	err := Update(client, context.Background(), lease)
 	assert.NoError(t, err)
 }
-

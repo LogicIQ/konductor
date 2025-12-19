@@ -1,13 +1,11 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"k8s.io/client-go/rest"
 )
 
@@ -31,43 +29,28 @@ func newOperatorCmd() *cobra.Command {
 }
 
 func runOperatorStatus(cmd *cobra.Command, args []string, svcName, operatorNamespace string) error {
-	fmt.Printf("Operator Service: %s\n", svcName)
-	fmt.Printf("Namespace: %s\n", operatorNamespace)
+	healthURL := "http://" + svcName + "." + operatorNamespace + ".svc.cluster.local:8081"
 
-	baseURL := fmt.Sprintf("http://%s.%s.svc.cluster.local:8081", svcName, operatorNamespace)
+	version, health := checkHealthWithVersion(healthURL + "/healthz")
+	ready := checkHealth(healthURL + "/readyz")
 
-	if version := callEndpoint(baseURL + "/version"); version != "" {
-		fmt.Printf("Version: %s\n", version)
-	}
-
-	fmt.Printf("Health: %s\n", checkHealth(baseURL+"/healthz"))
-	fmt.Printf("Ready: %s\n", checkHealth(baseURL+"/readyz"))
+	logger.Info("Operator status",
+		zap.String("service", svcName),
+		zap.String("namespace", operatorNamespace),
+		zap.String("version", version),
+		zap.String("health", health),
+		zap.String("ready", ready),
+	)
 
 	return nil
 }
 
-func callEndpoint(url string) string {
-	cfg, _ := rest.InClusterConfig()
-	client := &http.Client{
-		Timeout:   2 * time.Second,
-		Transport: getTransport(cfg),
-	}
-
-	resp, err := client.Get(url)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	var result map[string]string
-	if json.Unmarshal(body, &result) == nil {
-		return result["version"]
-	}
-	return ""
+func checkHealth(url string) string {
+	_, status := checkHealthWithVersion(url)
+	return status
 }
 
-func checkHealth(url string) string {
+func checkHealthWithVersion(url string) (string, string) {
 	cfg, _ := rest.InClusterConfig()
 	client := &http.Client{
 		Timeout:   2 * time.Second,
@@ -76,14 +59,15 @@ func checkHealth(url string) string {
 
 	resp, err := client.Get(url)
 	if err != nil {
-		return "unavailable"
+		return "", "unavailable"
 	}
 	defer resp.Body.Close()
 
+	version := resp.Header.Get("X-Konductor-Version")
 	if resp.StatusCode == http.StatusOK {
-		return "OK"
+		return version, "OK"
 	}
-	return resp.Status
+	return version, resp.Status
 }
 
 func getTransport(cfg *rest.Config) http.RoundTripper {

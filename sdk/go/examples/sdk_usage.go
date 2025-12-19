@@ -7,7 +7,6 @@ import (
 	"time"
 
 	konductor "github.com/LogicIQ/konductor/sdk/go"
-
 )
 
 func SDKUsageExample() {
@@ -313,7 +312,7 @@ func demonstrateLease(client *konductor.Client, ctx context.Context) {
 		log.Printf("Try acquire lease error: %v", err)
 	} else {
 		fmt.Printf("✓ Try-acquired lease (holder: %s)\n", leaseHandle.Holder())
-		
+
 		// Release the lease
 		err = leaseHandle.Release()
 		if err != nil {
@@ -332,14 +331,14 @@ func demonstrateLease(client *konductor.Client, ctx context.Context) {
 		log.Printf("Acquire lease error: %v", err)
 	} else {
 		fmt.Printf("✓ Acquired lease (holder: %s)\n", leaseHandle.Holder())
-		
+
 		// Use lease with automatic cleanup
 		err = konductor.LeaseWith(client, ctx, "demo-lease", func() error {
 			fmt.Println("✓ Executing protected code with lease")
 			time.Sleep(1 * time.Second)
 			return nil
 		}, konductor.WithHolder("auto-holder"))
-		
+
 		// Release the lease
 		err = leaseHandle.Release()
 		if err != nil {
@@ -416,32 +415,32 @@ func pipelineExample(client *konductor.Client, ctx context.Context) error {
 
 	// Simulate worker execution
 	workerID := "worker-1"
-	
+
 	// Stage 1
 	fmt.Printf("Worker %s: Executing stage 1\n", workerID)
 	time.Sleep(1 * time.Second)
-	
+
 	err := konductor.BarrierArrive(client, ctx, "stage1-complete",
 		konductor.WithHolder(workerID))
 	if err != nil {
 		return fmt.Errorf("failed to signal stage 1 completion: %w", err)
 	}
-	
+
 	// Wait for all workers to complete stage 1
 	err = konductor.BarrierWait(client, ctx, "stage1-complete",
 		konductor.WithTimeout(30*time.Second))
 	if err != nil {
 		return fmt.Errorf("timeout waiting for stage 1: %w", err)
 	}
-	
+
 	fmt.Printf("Worker %s: Stage 1 complete, starting stage 2\n", workerID)
-	
+
 	// Continue with subsequent stages...
-	
+
 	// Cleanup
 	for _, stage := range stages {
 		konductor.BarrierDelete(client, ctx, stage)
 	}
-	
+
 	return nil
 }

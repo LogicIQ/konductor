@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
@@ -31,10 +32,10 @@ func newSemaphoreCmd() *cobra.Command {
 
 func newSemaphoreAcquireCmd() *cobra.Command {
 	var (
-		wait    bool
-		timeout time.Duration
-		ttl     time.Duration
-		holder  string
+		wait          bool
+		timeout       time.Duration
+		ttl           time.Duration
+		holder        string
 		waitForUpdate bool
 	)
 
@@ -64,11 +65,7 @@ func newSemaphoreAcquireCmd() *cobra.Command {
 			// Acquire semaphore using SDK
 			permit, err := semaphore.Acquire(client, ctx, semaphoreName, opts...)
 			if err != nil {
-				if !wait {
-					return fmt.Errorf("failed to acquire semaphore: %w", err)
-				}
-				// For wait mode, we need to implement retry logic here
-				return fmt.Errorf("failed to acquire semaphore: %w", err)
+				return err
 			}
 
 			// Wait for controller to process if requested
@@ -76,7 +73,7 @@ func newSemaphoreAcquireCmd() *cobra.Command {
 				time.Sleep(3 * time.Second)
 			}
 
-			fmt.Printf("✓ Acquired permit for semaphore '%s' (holder: %s)\n", semaphoreName, permit.Holder())
+			logger.Info("Acquired permit for semaphore", zap.String("semaphore", semaphoreName), zap.String("holder", permit.Holder()))
 			return nil
 		},
 	}
@@ -104,7 +101,7 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 			if holder == "" {
 				holder = os.Getenv("HOSTNAME")
 				if holder == "" {
-					return fmt.Errorf("holder must be specified or HOSTNAME must be set")
+					return errors.New("holder must be specified or HOSTNAME must be set")
 				}
 			}
 
@@ -114,7 +111,7 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 			// Find and release permit by holder
 			permits, err := client.ListPermits(ctx, semaphoreName)
 			if err != nil {
-				return fmt.Errorf("failed to list permits: %w", err)
+				return err
 			}
 
 			var permitToDelete *syncv1.Permit
@@ -126,14 +123,15 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 			}
 
 			if permitToDelete == nil {
-				return fmt.Errorf("no permit found for holder %s", holder)
+				logger.Error("No permit found", zap.String("holder", holder))
+				return errors.New("no permit found for holder")
 			}
 
 			if err := client.K8sClient().Delete(ctx, permitToDelete); err != nil {
-				return fmt.Errorf("failed to release permit: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Released permit for semaphore '%s' (holder: %s)\n", semaphoreName, holder)
+			logger.Info("Released permit for semaphore", zap.String("semaphore", semaphoreName), zap.String("holder", holder))
 			return nil
 		},
 	}
@@ -156,22 +154,21 @@ func newSemaphoreListCmd() *cobra.Command {
 			// List semaphores using SDK
 			semaphores, err := semaphore.List(client, ctx)
 			if err != nil {
-				return fmt.Errorf("failed to list semaphores: %w", err)
+				return err
 			}
 
 			if len(semaphores) == 0 {
-				fmt.Println("No semaphores found")
+				logger.Info("No semaphores found")
 				return nil
 			}
 
-			fmt.Printf("%-20s %-10s %-10s %-10s %-10s\n", "NAME", "PERMITS", "IN-USE", "AVAILABLE", "PHASE")
 			for _, sem := range semaphores {
-				fmt.Printf("%-20s %-10d %-10d %-10d %-10s\n",
-					sem.Name,
-					sem.Spec.Permits,
-					sem.Status.InUse,
-					sem.Status.Available,
-					sem.Status.Phase,
+				logger.Info("Semaphore",
+					zap.String("name", sem.Name),
+					zap.Int32("permits", sem.Spec.Permits),
+					zap.Int32("in-use", sem.Status.InUse),
+					zap.Int32("available", sem.Status.Available),
+					zap.String("phase", string(sem.Status.Phase)),
 				)
 			}
 
@@ -203,10 +200,10 @@ func newSemaphoreCreateCmd() *cobra.Command {
 				opts = append(opts, konductor.WithTTL(ttl))
 			}
 			if err := semaphore.Create(client, ctx, semaphoreName, permits, opts...); err != nil {
-				return fmt.Errorf("failed to create semaphore: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Created semaphore '%s' with %d permits\n", semaphoreName, permits)
+			logger.Info("Created semaphore", zap.String("semaphore", semaphoreName), zap.Int32("permits", permits))
 			return nil
 		},
 	}
@@ -229,10 +226,10 @@ func newSemaphoreDeleteCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			if err := semaphore.Delete(client, ctx, semaphoreName); err != nil {
-				return fmt.Errorf("failed to delete semaphore: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Deleted semaphore '%s'\n", semaphoreName)
+			logger.Info("Deleted semaphore", zap.String("semaphore", semaphoreName))
 			return nil
 		},
 	}

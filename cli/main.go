@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -48,7 +47,6 @@ func execute() error {
 		},
 	}
 
-
 	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "default", "Kubernetes namespace (auto-detected if running in pod)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
@@ -67,10 +65,7 @@ func execute() error {
 	viper.AutomaticEnv()
 
 	// Read config file if it exists
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Printf("Using config file: %s\n", viper.ConfigFileUsed())
-	}
-
+	viper.ReadInConfig()
 
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newOperatorCmd())
@@ -81,17 +76,11 @@ func execute() error {
 	rootCmd.AddCommand(newStatusCmd())
 
 	if err := rootCmd.Execute(); err != nil {
-		if logger != nil {
-			logger.Error("Command execution failed", zap.Error(err))
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		}
+		logger.Error("Command execution failed", zap.Error(err))
 		return err
 	}
 
-	if logger != nil {
-		logger.Sync()
-	}
+	logger.Sync()
 	return nil
 }
 
@@ -107,7 +96,7 @@ func initLogger() error {
 	case "error":
 		level = zapcore.ErrorLevel
 	default:
-		return fmt.Errorf("invalid log level: %s (valid: debug, info, warn, error)", logLevel)
+		level = zapcore.InfoLevel
 	}
 
 	config := zap.NewProductionConfig()
@@ -119,11 +108,7 @@ func initLogger() error {
 
 	var err error
 	logger, err = config.Build()
-	if err != nil {
-		return fmt.Errorf("failed to initialize logger: %w", err)
-	}
-
-	return nil
+	return err
 }
 
 func initKubeClient(cmd *cobra.Command) error {
@@ -134,19 +119,18 @@ func initKubeClient(cmd *cobra.Command) error {
 
 	cfg, err := config.GetConfig()
 	if err != nil {
-		return fmt.Errorf("failed to get kubeconfig: %w", err)
+		return err
 	}
 
 	scheme, err := syncv1.SchemeBuilder.Build()
 	if err != nil {
-		return fmt.Errorf("failed to build scheme: %w", err)
+		return err
 	}
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
+		return err
 	}
-
 
 	// Only auto-detect if namespace wasn't explicitly set via flag
 	if !cmd.PersistentFlags().Changed("namespace") {
@@ -160,47 +144,34 @@ func detectNamespace() string {
 	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
 		ns := strings.TrimSpace(string(data))
 		if ns != "" {
-			if logger != nil {
-				logger.Debug("Auto-detected namespace from pod service account", zap.String("namespace", ns))
-			}
+			logger.Debug("Auto-detected namespace from pod service account", zap.String("namespace", ns))
 			return ns
 		}
 	}
 
-
 	if ns := os.Getenv("POD_NAMESPACE"); ns != "" {
-		if logger != nil {
-			logger.Debug("Auto-detected namespace from POD_NAMESPACE env", zap.String("namespace", ns))
-		}
+		logger.Debug("Auto-detected namespace from POD_NAMESPACE env", zap.String("namespace", ns))
 		return ns
 	}
-
 
 	if ns := os.Getenv("NAMESPACE"); ns != "" {
-		if logger != nil {
-			logger.Debug("Auto-detected namespace from NAMESPACE env", zap.String("namespace", ns))
-		}
+		logger.Debug("Auto-detected namespace from NAMESPACE env", zap.String("namespace", ns))
 		return ns
 	}
-
 
 	if kubeconfig == "" {
 		kubeconfig = clientcmd.RecommendedHomeFile
 	}
-	
+
 	if config, err := clientcmd.LoadFromFile(kubeconfig); err == nil {
 		if config.Contexts[config.CurrentContext] != nil {
 			if ns := config.Contexts[config.CurrentContext].Namespace; ns != "" {
-				if logger != nil {
-					logger.Debug("Auto-detected namespace from kubeconfig context", zap.String("namespace", ns))
-				}
+				logger.Debug("Auto-detected namespace from kubeconfig context", zap.String("namespace", ns))
 				return ns
 			}
 		}
 	}
 
-	if logger != nil {
-		logger.Debug("Using default namespace (no auto-detection available)")
-	}
+	logger.Debug("Using default namespace (no auto-detection available)")
 	return "default"
 }

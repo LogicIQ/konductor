@@ -2,16 +2,16 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
-	konductor "github.com/LogicIQ/konductor/sdk/go/client"
-	"github.com/LogicIQ/konductor/sdk/go/semaphore"
 	"github.com/LogicIQ/konductor/sdk/go/barrier"
-	"github.com/LogicIQ/konductor/sdk/go/lease"
+	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 	"github.com/LogicIQ/konductor/sdk/go/gate"
+	"github.com/LogicIQ/konductor/sdk/go/lease"
+	"github.com/LogicIQ/konductor/sdk/go/semaphore"
 )
 
 func newStatusCmd() *cobra.Command {
@@ -45,27 +45,29 @@ func newStatusSemaphoreCmd() *cobra.Command {
 			// Get semaphore using SDK
 			sem, err := semaphore.Get(client, ctx, name)
 			if err != nil {
-				return fmt.Errorf("failed to get semaphore: %w", err)
+				return err
 			}
 
-			fmt.Printf("🚦 Semaphore: %s\n", sem.Name)
-			fmt.Printf("   Namespace: %s\n", sem.Namespace)
-			fmt.Printf("   Permits: %d total, %d in use, %d available\n", 
-				sem.Spec.Permits, sem.Status.InUse, sem.Status.Available)
-			fmt.Printf("   Phase: %s\n", sem.Status.Phase)
-
+			logger.Info("Semaphore status",
+				zap.String("name", sem.Name),
+				zap.String("namespace", sem.Namespace),
+				zap.Int32("permits_total", sem.Spec.Permits),
+				zap.Int32("permits_in_use", sem.Status.InUse),
+				zap.Int32("permits_available", sem.Status.Available),
+				zap.String("phase", string(sem.Status.Phase)),
+			)
 
 			// List permits using SDK
-			if permits, err := client.ListPermits(ctx, name); err == nil {
-				if len(permits) > 0 {
-					fmt.Println("\n📋 Active Permits:")
-					for _, permit := range permits {
-						status := "Active"
-						if permit.Status.ExpiresAt != nil {
-							status = fmt.Sprintf("Expires: %s", permit.Status.ExpiresAt.Format("15:04:05"))
-						}
-						fmt.Printf("   • %s (%s)\n", permit.Spec.Holder, status)
+			if permits, err := client.ListPermits(ctx, name); err == nil && len(permits) > 0 {
+				for _, permit := range permits {
+					expires := "Active"
+					if permit.Status.ExpiresAt != nil {
+						expires = permit.Status.ExpiresAt.Format("15:04:05")
 					}
+					logger.Info("Active permit",
+						zap.String("holder", permit.Spec.Holder),
+						zap.String("expires", expires),
+					)
 				}
 			}
 
@@ -91,27 +93,30 @@ func newStatusBarrierCmd() *cobra.Command {
 			// Get barrier using SDK
 			bar, err := barrier.Get(client, ctx, name)
 			if err != nil {
-				return fmt.Errorf("failed to get barrier: %w", err)
+				return err
 			}
 
-			fmt.Printf("🚧 Barrier: %s\n", bar.Name)
-			fmt.Printf("   Namespace: %s\n", bar.Namespace)
-			fmt.Printf("   Expected: %d arrivals\n", bar.Spec.Expected)
-			fmt.Printf("   Arrived: %d\n", bar.Status.Arrived)
-			fmt.Printf("   Phase: %s\n", bar.Status.Phase)
+			fields := []zap.Field{
+				zap.String("name", bar.Name),
+				zap.String("namespace", bar.Namespace),
+				zap.Int32("expected", bar.Spec.Expected),
+				zap.Int32("arrived", bar.Status.Arrived),
+				zap.String("phase", string(bar.Status.Phase)),
+			}
 
 			if bar.Spec.Quorum != nil {
-				fmt.Printf("   Quorum: %d (minimum to open)\n", *bar.Spec.Quorum)
+				fields = append(fields, zap.Int32("quorum", *bar.Spec.Quorum))
 			}
 
 			if bar.Status.OpenedAt != nil {
-				fmt.Printf("   Opened: %s\n", bar.Status.OpenedAt.Format("2006-01-02 15:04:05"))
+				fields = append(fields, zap.String("opened", bar.Status.OpenedAt.Format("2006-01-02 15:04:05")))
 			}
 
+			logger.Info("Barrier status", fields...)
+
 			if len(bar.Status.Arrivals) > 0 {
-				fmt.Println("\n📋 Arrivals:")
 				for _, arrival := range bar.Status.Arrivals {
-					fmt.Printf("   • %s\n", arrival)
+					logger.Info("Arrival", zap.String("holder", arrival))
 				}
 			}
 
@@ -137,43 +142,41 @@ func newStatusLeaseCmd() *cobra.Command {
 			// Get lease using SDK
 			l, err := lease.Get(client, ctx, name)
 			if err != nil {
-				return fmt.Errorf("failed to get lease: %w", err)
+				return err
 			}
 
-			fmt.Printf("🔒 Lease: %s\n", l.Name)
-			fmt.Printf("   Namespace: %s\n", l.Namespace)
-			fmt.Printf("   TTL: %s\n", l.Spec.TTL.Duration)
-			fmt.Printf("   Phase: %s\n", l.Status.Phase)
+			fields := []zap.Field{
+				zap.String("name", l.Name),
+				zap.String("namespace", l.Namespace),
+				zap.Duration("ttl", l.Spec.TTL.Duration),
+				zap.String("phase", string(l.Status.Phase)),
+			}
 
 			if l.Status.Holder != "" {
-				fmt.Printf("   Holder: %s\n", l.Status.Holder)
+				fields = append(fields, zap.String("holder", l.Status.Holder))
 				if l.Status.AcquiredAt != nil {
-					fmt.Printf("   Acquired: %s\n", l.Status.AcquiredAt.Format("2006-01-02 15:04:05"))
+					fields = append(fields, zap.String("acquired", l.Status.AcquiredAt.Format("2006-01-02 15:04:05")))
 				}
 				if l.Status.ExpiresAt != nil {
-					fmt.Printf("   Expires: %s\n", l.Status.ExpiresAt.Format("2006-01-02 15:04:05"))
+					fields = append(fields, zap.String("expires", l.Status.ExpiresAt.Format("2006-01-02 15:04:05")))
 				}
-				fmt.Printf("   Renewals: %d\n", l.Status.RenewCount)
+				fields = append(fields, zap.Int32("renewals", l.Status.RenewCount))
 			}
 
+			logger.Info("Lease status", fields...)
 
 			// List lease requests using SDK
 			if requests, err := client.ListLeaseRequests(ctx, name); err == nil {
-				pendingRequests := []syncv1.LeaseRequest{}
 				for _, req := range requests {
 					if req.Status.Phase == syncv1.LeaseRequestPhasePending {
-						pendingRequests = append(pendingRequests, req)
-					}
-				}
-
-				if len(pendingRequests) > 0 {
-					fmt.Println("\n📋 Pending Requests:")
-					for _, req := range pendingRequests {
-						priority := "0"
+						priority := int32(0)
 						if req.Spec.Priority != nil {
-							priority = fmt.Sprintf("%d", *req.Spec.Priority)
+							priority = *req.Spec.Priority
 						}
-						fmt.Printf("   • %s (priority: %s)\n", req.Spec.Holder, priority)
+						logger.Info("Pending request",
+							zap.String("holder", req.Spec.Holder),
+							zap.Int32("priority", priority),
+						)
 					}
 				}
 			}
@@ -200,39 +203,46 @@ func newStatusGateCmd() *cobra.Command {
 			// Get gate using SDK
 			g, err := gate.Get(client, ctx, name)
 			if err != nil {
-				return fmt.Errorf("failed to get gate: %w", err)
+				return err
 			}
 
-			fmt.Printf("🚪 Gate: %s\n", g.Name)
-			fmt.Printf("   Namespace: %s\n", g.Namespace)
-			fmt.Printf("   Phase: %s\n", g.Status.Phase)
+			fields := []zap.Field{
+				zap.String("name", g.Name),
+				zap.String("namespace", g.Namespace),
+				zap.String("phase", string(g.Status.Phase)),
+			}
 
 			if g.Status.OpenedAt != nil {
-				fmt.Printf("   Opened: %s\n", g.Status.OpenedAt.Format("2006-01-02 15:04:05"))
+				fields = append(fields, zap.String("opened", g.Status.OpenedAt.Format("2006-01-02 15:04:05")))
 			}
 
-			fmt.Println("\n📋 Conditions:")
+			logger.Info("Gate status", fields...)
+
 			for i, condition := range g.Spec.Conditions {
-				status := "❌ Not Met"
+				met := false
 				message := "Checking..."
 
 				if i < len(g.Status.ConditionStatuses) {
 					condStatus := g.Status.ConditionStatuses[i]
-					if condStatus.Met {
-						status = "✅ Met"
-					} else {
-						status = "❌ Not Met"
-					}
+					met = condStatus.Met
 					message = condStatus.Message
 				}
 
-				fmt.Printf("   %s %s/%s: %s\n", status, condition.Type, condition.Name, message)
+				condFields := []zap.Field{
+					zap.Bool("met", met),
+					zap.String("type", condition.Type),
+					zap.String("name", condition.Name),
+					zap.String("message", message),
+				}
+
 				if condition.State != "" {
-					fmt.Printf("      Required state: %s\n", condition.State)
+					condFields = append(condFields, zap.String("required_state", condition.State))
 				}
 				if condition.Value != nil {
-					fmt.Printf("      Required value: %d\n", *condition.Value)
+					condFields = append(condFields, zap.Int32("required_value", *condition.Value))
 				}
+
+				logger.Info("Condition", condFields...)
 			}
 
 			return nil
@@ -252,70 +262,66 @@ func newStatusAllCmd() *cobra.Command {
 			// Create SDK client
 			client := konductor.NewFromClient(k8sClient, namespace)
 
-			fmt.Println("🎯 Konductor Status Overview")
-			fmt.Println("============================")
+			logger.Info("Konductor Status Overview")
 
 			// List semaphores using SDK
 			if semaphores, err := semaphore.List(client, ctx); err == nil {
-				fmt.Printf("\n🚦 Semaphores (%d):\n", len(semaphores))
-				if len(semaphores) == 0 {
-					fmt.Println("   None found")
-				} else {
-					for _, sem := range semaphores {
-						fmt.Printf("   • %s: %d/%d permits, %s\n", 
-							sem.Name, sem.Status.InUse, sem.Spec.Permits, sem.Status.Phase)
-					}
+				logger.Info("Semaphores", zap.Int("count", len(semaphores)))
+				for _, sem := range semaphores {
+					logger.Info("Semaphore",
+						zap.String("name", sem.Name),
+						zap.Int32("in_use", sem.Status.InUse),
+						zap.Int32("total", sem.Spec.Permits),
+						zap.String("phase", string(sem.Status.Phase)),
+					)
 				}
 			}
-
 
 			// List barriers using SDK
 			if barriers, err := barrier.List(client, ctx); err == nil {
-				fmt.Printf("\n🚧 Barriers (%d):\n", len(barriers))
-				if len(barriers) == 0 {
-					fmt.Println("   None found")
-				} else {
-					for _, b := range barriers {
-						fmt.Printf("   • %s: %d/%d arrived, %s\n", 
-							b.Name, b.Status.Arrived, b.Spec.Expected, b.Status.Phase)
-					}
+				logger.Info("Barriers", zap.Int("count", len(barriers)))
+				for _, b := range barriers {
+					logger.Info("Barrier",
+						zap.String("name", b.Name),
+						zap.Int32("arrived", b.Status.Arrived),
+						zap.Int32("expected", b.Spec.Expected),
+						zap.String("phase", string(b.Status.Phase)),
+					)
 				}
 			}
-
 
 			// List leases using SDK
 			if leases, err := lease.List(client, ctx); err == nil {
-				fmt.Printf("\n🔒 Leases (%d):\n", len(leases))
-				if len(leases) == 0 {
-					fmt.Println("   None found")
-				} else {
-					for _, l := range leases {
-						holder := "Available"
-						if l.Status.Holder != "" {
-							holder = l.Status.Holder
-						}
-						fmt.Printf("   • %s: %s, %s\n", l.Name, holder, l.Status.Phase)
+				logger.Info("Leases", zap.Int("count", len(leases)))
+				for _, l := range leases {
+					holder := "Available"
+					if l.Status.Holder != "" {
+						holder = l.Status.Holder
 					}
+					logger.Info("Lease",
+						zap.String("name", l.Name),
+						zap.String("holder", holder),
+						zap.String("phase", string(l.Status.Phase)),
+					)
 				}
 			}
 
-
 			// List gates using SDK
 			if gates, err := gate.List(client, ctx); err == nil {
-				fmt.Printf("\n🚪 Gates (%d):\n", len(gates))
-				if len(gates) == 0 {
-					fmt.Println("   None found")
-				} else {
-					for _, g := range gates {
-						metCount := 0
-						for _, status := range g.Status.ConditionStatuses {
-							if status.Met {
-								metCount++
-							}
+				logger.Info("Gates", zap.Int("count", len(gates)))
+				for _, g := range gates {
+					metCount := 0
+					for _, status := range g.Status.ConditionStatuses {
+						if status.Met {
+							metCount++
 						}
-						fmt.Printf("   • %s: %d/%d conditions met, %s\n", 
-							g.Name, metCount, len(g.Spec.Conditions), g.Status.Phase)
 					}
+					logger.Info("Gate",
+						zap.String("name", g.Name),
+						zap.Int("conditions_met", metCount),
+						zap.Int("conditions_total", len(g.Spec.Conditions)),
+						zap.String("phase", string(g.Status.Phase)),
+					)
 				}
 			}
 

@@ -40,8 +40,6 @@ import (
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-
-
 // Acquire acquires a permit from the specified semaphore.
 func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*konductor.Permit, error) {
 	options := &konductor.Options{
@@ -145,8 +143,6 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	}
 }
 
-
-
 // With executes a function while holding a semaphore permit.
 func With(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
 	permit, err := Acquire(c, ctx, name, opts...)
@@ -218,4 +214,3 @@ func Delete(c *konductor.Client, ctx context.Context, name string) error {
 func Update(c *konductor.Client, ctx context.Context, semaphore *syncv1.Semaphore) error {
 	return c.K8sClient().Update(ctx, semaphore)
 }
-

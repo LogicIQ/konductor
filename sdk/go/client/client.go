@@ -125,8 +125,6 @@ func (c *Client) K8sClient() client.Client {
 	return c.k8sClient
 }
 
-
-
 // ReleaseSemaphorePermit releases a semaphore permit.
 func (c *Client) ReleaseSemaphorePermit(ctx context.Context, semaphoreName, holder string) error {
 	permitName := fmt.Sprintf("%s-%s", semaphoreName, holder)
@@ -135,8 +133,6 @@ func (c *Client) ReleaseSemaphorePermit(ctx context.Context, semaphoreName, hold
 	permit.Namespace = c.namespace
 	return c.k8sClient.Delete(ctx, permit)
 }
-
-
 
 // ReleaseLease releases a lease.
 func (c *Client) ReleaseLease(ctx context.Context, leaseName, holder string) error {
@@ -150,7 +146,7 @@ func (c *Client) ReleaseLease(ctx context.Context, leaseName, holder string) err
 // ListPermits returns all permits for a specific semaphore.
 func (c *Client) ListPermits(ctx context.Context, semaphoreName string) ([]syncv1.Permit, error) {
 	var permits syncv1.PermitList
-	if err := c.k8sClient.List(ctx, &permits, client.InNamespace(c.namespace), 
+	if err := c.k8sClient.List(ctx, &permits, client.InNamespace(c.namespace),
 		client.MatchingLabels{"semaphore": semaphoreName}); err != nil {
 		return nil, fmt.Errorf("failed to list permits: %w", err)
 	}
@@ -160,7 +156,7 @@ func (c *Client) ListPermits(ctx context.Context, semaphoreName string) ([]syncv
 // ListLeaseRequests returns all lease requests for a specific lease.
 func (c *Client) ListLeaseRequests(ctx context.Context, leaseName string) ([]syncv1.LeaseRequest, error) {
 	var requests syncv1.LeaseRequestList
-	if err := c.k8sClient.List(ctx, &requests, client.InNamespace(c.namespace), 
+	if err := c.k8sClient.List(ctx, &requests, client.InNamespace(c.namespace),
 		client.MatchingLabels{"lease": leaseName}); err != nil {
 		return nil, fmt.Errorf("failed to list lease requests: %w", err)
 	}
@@ -251,8 +247,6 @@ func (l *LeaseHandle) Name() string {
 	return l.name
 }
 
-
-
 // WithTTL sets the time-to-live for the operation.
 // Resources with TTL will be automatically cleaned up after expiration.
 //
@@ -312,4 +306,3 @@ func WithQuorum(quorum int32) Option {
 		o.Quorum = quorum
 	}
 }
-

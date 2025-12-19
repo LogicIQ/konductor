@@ -21,10 +21,10 @@ func TestLeaseReconciler_Reconcile(t *testing.T) {
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
 	tests := []struct {
-		name          string
-		lease         *syncv1.Lease
-		requests      []syncv1.LeaseRequest
-		expectedPhase syncv1.LeasePhase
+		name           string
+		lease          *syncv1.Lease
+		requests       []syncv1.LeaseRequest
+		expectedPhase  syncv1.LeasePhase
 		expectedHolder string
 	}{
 		{

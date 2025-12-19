@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 func newVersionCmd() *cobra.Command {
@@ -11,9 +10,11 @@ func newVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Show version information",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("koncli version %s\n", version)
-			fmt.Printf("commit: %s\n", commit)
-			fmt.Printf("built: %s\n", buildDate)
+			logger.Info("Version info",
+				zap.String("version", version),
+				zap.String("commit", commit),
+				zap.String("built", buildDate),
+			)
 		},
 	}
 

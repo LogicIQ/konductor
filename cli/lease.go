@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 	"github.com/LogicIQ/konductor/sdk/go/lease"
@@ -62,13 +63,10 @@ func newLeaseAcquireCmd() *cobra.Command {
 			// Acquire lease using SDK
 			leaseObj, err := lease.Acquire(client, ctx, leaseName, opts...)
 			if err != nil {
-				if !wait {
-					return fmt.Errorf("failed to acquire lease: %w", err)
-				}
-				return fmt.Errorf("failed to acquire lease: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Acquired lease '%s' (holder: %s)\n", leaseName, leaseObj.Holder())
+			logger.Info("Acquired lease", zap.String("lease", leaseName), zap.String("holder", leaseObj.Holder()))
 			return nil
 		},
 	}
@@ -95,7 +93,7 @@ func newLeaseReleaseCmd() *cobra.Command {
 			if holder == "" {
 				holder = os.Getenv("HOSTNAME")
 				if holder == "" {
-					return fmt.Errorf("holder must be specified or HOSTNAME must be set")
+					return errors.New("holder must be specified or HOSTNAME must be set")
 				}
 			}
 
@@ -104,10 +102,10 @@ func newLeaseReleaseCmd() *cobra.Command {
 
 			// Release lease using SDK
 			if err := client.ReleaseLease(ctx, leaseName, holder); err != nil {
-				return fmt.Errorf("failed to release lease: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Released lease '%s' (holder: %s)\n", leaseName, holder)
+			logger.Info("Released lease", zap.String("lease", leaseName), zap.String("holder", holder))
 			return nil
 		},
 	}
@@ -130,15 +128,14 @@ func newLeaseListCmd() *cobra.Command {
 			// List leases using SDK
 			leases, err := lease.List(client, ctx)
 			if err != nil {
-				return fmt.Errorf("failed to list leases: %w", err)
+				return err
 			}
 
 			if len(leases) == 0 {
-				fmt.Println("No leases found")
+				logger.Info("No leases found")
 				return nil
 			}
 
-			fmt.Printf("%-20s %-20s %-10s %-15s %-10s\n", "NAME", "HOLDER", "PHASE", "ACQUIRED", "RENEWALS")
 			for _, l := range leases {
 				holder := l.Status.Holder
 				if holder == "" {
@@ -150,12 +147,12 @@ func newLeaseListCmd() *cobra.Command {
 					acquired = l.Status.AcquiredAt.Format("15:04:05")
 				}
 
-				fmt.Printf("%-20s %-20s %-10s %-15s %-10d\n",
-					l.Name,
-					holder,
-					l.Status.Phase,
-					acquired,
-					l.Status.RenewCount,
+				logger.Info("Lease",
+					zap.String("name", l.Name),
+					zap.String("holder", holder),
+					zap.String("phase", string(l.Status.Phase)),
+					zap.String("acquired", acquired),
+					zap.Int32("renewals", l.Status.RenewCount),
 				)
 			}
 
@@ -184,10 +181,10 @@ func newLeaseCreateCmd() *cobra.Command {
 				opts = append(opts, konductor.WithTTL(ttl))
 			}
 			if err := lease.Create(client, ctx, leaseName, opts...); err != nil {
-				return fmt.Errorf("failed to create lease: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Created lease '%s'\n", leaseName)
+			logger.Info("Created lease", zap.String("lease", leaseName))
 			return nil
 		},
 	}
@@ -209,10 +206,10 @@ func newLeaseDeleteCmd() *cobra.Command {
 			client := konductor.NewFromClient(k8sClient, namespace)
 
 			if err := lease.Delete(client, ctx, leaseName); err != nil {
-				return fmt.Errorf("failed to delete lease: %w", err)
+				return err
 			}
 
-			fmt.Printf("✓ Deleted lease '%s'\n", leaseName)
+			logger.Info("Deleted lease", zap.String("lease", leaseName))
 			return nil
 		},
 	}

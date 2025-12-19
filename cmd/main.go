@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,7 +19,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"github.com/go-logr/zapr"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	"github.com/LogicIQ/konductor/controllers"
@@ -62,11 +61,13 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-func versionHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"version": version})
-	})
+func versionHealthCheck() healthz.Checker {
+	return func(req *http.Request) error {
+		req.Response = &http.Response{
+			Header: http.Header{"X-Konductor-Version": []string{version}},
+		}
+		return nil
+	}
 }
 
 func main() {
@@ -93,7 +94,7 @@ func main() {
 	// Set controller-runtime logger
 	ctrl.SetLogger(zapr.NewLogger(logger))
 
-	logger.Info("Starting konductor operator", 
+	logger.Info("Starting konductor operator",
 		zap.String("version", version),
 		zap.String("log-level", logLevel),
 		zap.Bool("leader-election", enableLeaderElection))
@@ -103,6 +104,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "konductor.io",
+		WebhookServer:          nil,
 	})
 	if err != nil {
 		logger.Error("Unable to start manager", zap.Error(err))
@@ -144,16 +146,14 @@ func main() {
 
 	//+kubebuilder:scaffold:builder
 
-	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+	if err := mgr.AddHealthzCheck("healthz", versionHealthCheck()); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+	if err := mgr.AddReadyzCheck("readyz", versionHealthCheck()); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
-
-	mgr.GetWebhookServer().Register("/version", versionHandler())
 
 	logger.Info("Starting manager")
 	setupLog.Info("starting manager")

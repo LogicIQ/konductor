@@ -1,36 +1,27 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func TestVersionHandler(t *testing.T) {
+func TestVersionHealthCheck(t *testing.T) {
 	version = "test-version"
-	handler := versionHandler()
+	checker := versionHealthCheck()
 
-	req := httptest.NewRequest(http.MethodGet, "/version", nil)
-	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 
-	handler.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", w.Code)
+	err := checker(req)
+	if err != nil {
+		t.Errorf("health check failed: %v", err)
 	}
 
-	var result map[string]string
-	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
+	if req.Response == nil {
+		t.Fatal("expected response to be set")
 	}
 
-	if result["version"] != "test-version" {
-		t.Errorf("expected version 'test-version', got '%s'", result["version"])
-	}
-
-	contentType := w.Header().Get("Content-Type")
-	if contentType != "application/json" {
-		t.Errorf("expected Content-Type 'application/json', got '%s'", contentType)
+	if req.Response.Header.Get("X-Konductor-Version") != "test-version" {
+		t.Errorf("expected version header 'test-version', got '%s'", req.Response.Header.Get("X-Konductor-Version"))
 	}
 }

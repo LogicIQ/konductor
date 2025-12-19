@@ -2,8 +2,8 @@
 package konductor
 
 import (
-	"github.com/LogicIQ/konductor/sdk/go/client"
 	"github.com/LogicIQ/konductor/sdk/go/barrier"
+	"github.com/LogicIQ/konductor/sdk/go/client"
 	"github.com/LogicIQ/konductor/sdk/go/gate"
 	"github.com/LogicIQ/konductor/sdk/go/lease"
 	"github.com/LogicIQ/konductor/sdk/go/semaphore"
@@ -72,13 +72,13 @@ var (
 
 // Lease operations
 var (
-	LeaseCreate     = lease.Create
-	LeaseDelete     = lease.Delete
-	LeaseUpdate     = lease.Update
-	LeaseGet        = lease.Get
-	LeaseList       = lease.List
-	LeaseAcquire    = lease.Acquire
-	LeaseTryAcquire = lease.TryAcquire
-	LeaseWith       = lease.With
+	LeaseCreate      = lease.Create
+	LeaseDelete      = lease.Delete
+	LeaseUpdate      = lease.Update
+	LeaseGet         = lease.Get
+	LeaseList        = lease.List
+	LeaseAcquire     = lease.Acquire
+	LeaseTryAcquire  = lease.TryAcquire
+	LeaseWith        = lease.With
 	LeaseIsAvailable = lease.IsAvailable
 )

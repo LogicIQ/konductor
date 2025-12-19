@@ -8,7 +8,7 @@ import (
 type ArrivalSpec struct {
 	// Barrier is the name of the barrier this arrival belongs to
 	Barrier string `json:"barrier"`
-	
+
 	// Holder is the pod/job that has arrived
 	Holder string `json:"holder"`
 }
@@ -17,11 +17,11 @@ type ArrivalSpec struct {
 type ArrivalStatus struct {
 	// Phase represents the current state of the arrival
 	Phase ArrivalPhase `json:"phase"`
-	
+
 	// ArrivedAt is when the arrival was recorded
 	// +optional
 	ArrivedAt *metav1.Time `json:"arrivedAt,omitempty"`
-	
+
 	// Conditions represent the latest available observations
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }

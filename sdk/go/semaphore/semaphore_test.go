@@ -109,4 +109,3 @@ func TestUpdate(t *testing.T) {
 	err := Update(client, context.Background(), semaphore)
 	assert.NoError(t, err)
 }
-

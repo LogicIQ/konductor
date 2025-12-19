@@ -8,7 +8,7 @@ import (
 type LeaseSpec struct {
 	// TTL is the time-to-live for the lease
 	TTL metav1.Duration `json:"ttl"`
-	
+
 	// Priority for lease acquisition (higher wins)
 	// +optional
 	Priority *int32 `json:"priority,omitempty"`
@@ -19,21 +19,21 @@ type LeaseStatus struct {
 	// Holder is the current lease holder
 	// +optional
 	Holder string `json:"holder,omitempty"`
-	
+
 	// AcquiredAt is when the lease was acquired
 	// +optional
 	AcquiredAt *metav1.Time `json:"acquiredAt,omitempty"`
-	
+
 	// ExpiresAt is when the lease expires
 	// +optional
 	ExpiresAt *metav1.Time `json:"expiresAt,omitempty"`
-	
+
 	// Phase represents the current state of the lease
 	Phase LeasePhase `json:"phase"`
-	
+
 	// RenewCount tracks the number of renewals
 	RenewCount int32 `json:"renewCount,omitempty"`
-	
+
 	// Conditions represent the latest available observations
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
