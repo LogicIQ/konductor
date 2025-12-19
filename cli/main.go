@@ -21,11 +21,12 @@ var (
 	commit    = "unknown"
 	buildDate = "unknown"
 
-	kubeconfig string
-	namespace  string
-	logLevel   string
-	k8sClient  client.Client
-	logger     *zap.Logger
+	kubeconfig   string
+	namespace    string
+	logLevel     string
+	outputFormat string
+	k8sClient    client.Client
+	logger       *zap.Logger
 )
 
 func main() {
@@ -50,11 +51,13 @@ func execute() error {
 	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file")
 	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "default", "Kubernetes namespace (auto-detected if running in pod)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "text", "Output format (text, json)")
 
 	// Bind flags to viper
 	viper.BindPFlag("kubeconfig", rootCmd.PersistentFlags().Lookup("kubeconfig"))
 	viper.BindPFlag("namespace", rootCmd.PersistentFlags().Lookup("namespace"))
 	viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
+	viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
 
 	// Set up viper
 	viper.SetConfigName("koncli")
@@ -99,12 +102,20 @@ func initLogger() error {
 		level = zapcore.InfoLevel
 	}
 
-	config := zap.NewProductionConfig()
+	var config zap.Config
+	if strings.ToLower(outputFormat) == "json" {
+		config = zap.NewProductionConfig()
+		config.EncoderConfig.TimeKey = "timestamp"
+		config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	} else {
+		config = zap.NewDevelopmentConfig()
+		config.EncoderConfig.TimeKey = ""
+		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	}
+
 	config.Level = zap.NewAtomicLevelAt(level)
 	config.OutputPaths = []string{"stdout"}
 	config.ErrorOutputPaths = []string{"stderr"}
-	config.EncoderConfig.TimeKey = "timestamp"
-	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	var err error
 	logger, err = config.Build()
@@ -116,6 +127,7 @@ func initKubeClient(cmd *cobra.Command) error {
 	kubeconfig = viper.GetString("kubeconfig")
 	namespace = viper.GetString("namespace")
 	logLevel = viper.GetString("log-level")
+	outputFormat = viper.GetString("output")
 
 	cfg, err := config.GetConfig()
 	if err != nil {

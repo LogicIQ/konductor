@@ -258,6 +258,7 @@ func TestStatusAllEmpty(t *testing.T) {
 
 	k8sClient = fakeClient
 	namespace = "default"
+	outputFormat = "text"
 
 	// Initialize logger to capture output
 	var logBuf bytes.Buffer
