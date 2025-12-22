@@ -183,6 +183,9 @@ func TestSemaphoreReconciler_Reconcile(t *testing.T) {
 				},
 			}
 
+			_, err := reconciler.Reconcile(context.Background(), req)
+			require.NoError(t, err)
+
 			result, err := reconciler.Reconcile(context.Background(), req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Minute, result.RequeueAfter)
