@@ -14,10 +14,9 @@ import (
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-// Wait waits for a barrier to open
 func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{
-		Timeout: 0, // No timeout by default
+		Timeout: 0,
 	}
 
 	for _, opt := range opts {
@@ -41,23 +40,19 @@ func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 		case syncv1.BarrierPhaseFailed:
 			return fmt.Errorf("barrier %s failed", name)
 		case syncv1.BarrierPhaseWaiting:
-			// Check timeout
 			if options.Timeout > 0 && time.Since(startTime) > options.Timeout {
 				return fmt.Errorf("timeout waiting for barrier %s", name)
 			}
 
-			// Wait before retrying
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-time.After(5 * time.Second):
-				// Continue loop
 			}
 		}
 	}
 }
 
-// Arrive signals arrival at a barrier
 func Arrive(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{}
 
@@ -65,7 +60,6 @@ func Arrive(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 		opt(options)
 	}
 
-	// Get holder identifier
 	holder := options.Holder
 	if holder == "" {
 		holder = os.Getenv("HOSTNAME")
@@ -74,13 +68,31 @@ func Arrive(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 		}
 	}
 
-	// Create arrival
+	var barrier syncv1.Barrier
+	if err := c.K8sClient().Get(ctx, types.NamespacedName{
+		Name:      name,
+		Namespace: c.Namespace(),
+	}, &barrier); err != nil {
+		return fmt.Errorf("failed to get barrier %s: %w", name, err)
+	}
+
+	ctrlTrue := true
 	arrival := &syncv1.Arrival{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s", name, holder),
 			Namespace: c.Namespace(),
 			Labels: map[string]string{
 				"barrier": name,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         "sync.konductor.io/v1",
+					Kind:               "Barrier",
+					Name:               barrier.Name,
+					UID:                barrier.UID,
+					Controller:         &ctrlTrue,
+					BlockOwnerDeletion: &ctrlTrue,
+				},
 			},
 		},
 		Spec: syncv1.ArrivalSpec{
@@ -96,7 +108,6 @@ func Arrive(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 	return nil
 }
 
-// With executes a function and then signals arrival at a barrier
 func With(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
 	if err := fn(); err != nil {
 		return err
@@ -104,19 +115,15 @@ func With(c *konductor.Client, ctx context.Context, name string, fn func() error
 	return Arrive(c, ctx, name, opts...)
 }
 
-// WaitAndArrive waits for a barrier to open, executes a function, then signals arrival at another barrier
 func WaitAndArrive(c *konductor.Client, ctx context.Context, waitBarrier, arriveBarrier string, fn func() error, opts ...konductor.Option) error {
-	// Wait for the first barrier
 	if err := Wait(c, ctx, waitBarrier, opts...); err != nil {
 		return fmt.Errorf("failed to wait for barrier %s: %w", waitBarrier, err)
 	}
 
-	// Execute function
 	if err := fn(); err != nil {
 		return err
 	}
 
-	// Signal arrival at second barrier
 	if err := Arrive(c, ctx, arriveBarrier, opts...); err != nil {
 		return fmt.Errorf("failed to arrive at barrier %s: %w", arriveBarrier, err)
 	}
@@ -124,7 +131,6 @@ func WaitAndArrive(c *konductor.Client, ctx context.Context, waitBarrier, arrive
 	return nil
 }
 
-// List returns all barriers in the namespace
 func List(c *konductor.Client, ctx context.Context) ([]syncv1.Barrier, error) {
 	var barriers syncv1.BarrierList
 	if err := c.K8sClient().List(ctx, &barriers, client.InNamespace(c.Namespace())); err != nil {
@@ -133,7 +139,6 @@ func List(c *konductor.Client, ctx context.Context) ([]syncv1.Barrier, error) {
 	return barriers.Items, nil
 }
 
-// Get returns a specific barrier
 func Get(c *konductor.Client, ctx context.Context, name string) (*syncv1.Barrier, error) {
 	var barrier syncv1.Barrier
 	if err := c.K8sClient().Get(ctx, types.NamespacedName{
@@ -145,7 +150,6 @@ func Get(c *konductor.Client, ctx context.Context, name string) (*syncv1.Barrier
 	return &barrier, nil
 }
 
-// GetStatus returns the current status of a barrier
 func GetStatus(c *konductor.Client, ctx context.Context, name string) (*syncv1.BarrierStatus, error) {
 	barrier, err := Get(c, ctx, name)
 	if err != nil {
@@ -154,7 +158,6 @@ func GetStatus(c *konductor.Client, ctx context.Context, name string) (*syncv1.B
 	return &barrier.Status, nil
 }
 
-// Create creates a new barrier.
 func Create(c *konductor.Client, ctx context.Context, name string, expected int32, opts ...konductor.Option) error {
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
@@ -168,7 +171,6 @@ func Create(c *konductor.Client, ctx context.Context, name string, expected int3
 	return c.K8sClient().Create(ctx, barrier)
 }
 
-// Delete deletes a barrier.
 func Delete(c *konductor.Client, ctx context.Context, name string) error {
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
@@ -179,12 +181,10 @@ func Delete(c *konductor.Client, ctx context.Context, name string) error {
 	return c.K8sClient().Delete(ctx, barrier)
 }
 
-// Update updates a barrier.
 func Update(c *konductor.Client, ctx context.Context, barrier *syncv1.Barrier) error {
 	return c.K8sClient().Update(ctx, barrier)
 }
 
-// CreateBarrier creates a new barrier with the specified expected arrivals
 func CreateBarrier(c *konductor.Client, ctx context.Context, name string, expected int32, opts ...konductor.Option) error {
 	options := &konductor.Options{}
 	for _, opt := range opts {
@@ -216,7 +216,6 @@ func CreateBarrier(c *konductor.Client, ctx context.Context, name string, expect
 	return nil
 }
 
-// DeleteBarrier deletes a barrier and all its associated arrivals
 func DeleteBarrier(c *konductor.Client, ctx context.Context, name string) error {
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{

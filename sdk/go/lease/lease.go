@@ -24,7 +24,6 @@ type Lease struct {
 	cancelCtx context.CancelFunc
 }
 
-// Release releases the lease
 func (l *Lease) Release() error {
 	if l.cancelCtx != nil {
 		l.cancelCtx()
@@ -40,28 +39,24 @@ func (l *Lease) Release() error {
 	return l.client.K8sClient().Delete(context.Background(), request)
 }
 
-// Holder returns the lease holder identifier
 func (l *Lease) Holder() string {
 	return l.holder
 }
 
-// Name returns the lease name
 func (l *Lease) Name() string {
 	return l.name
 }
 
-// Acquire acquires a lease
 func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*Lease, error) {
 	options := &konductor.Options{
-		Timeout:  0, // No timeout by default
-		Priority: 0, // Default priority
+		Timeout:  0,
+		Priority: 0,
 	}
 
 	for _, opt := range opts {
 		opt(options)
 	}
 
-	// Get holder identifier
 	holder := options.Holder
 	if holder == "" {
 		holder = os.Getenv("HOSTNAME")
@@ -72,7 +67,6 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 
 	requestID := fmt.Sprintf("%s-%s", name, holder)
 
-	// Create lease request
 	request := &syncv1.LeaseRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      requestID,
@@ -98,7 +92,6 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	startTime := time.Now()
 
 	for {
-		// Check request status
 		if err := c.K8sClient().Get(ctx, types.NamespacedName{
 			Name:      requestID,
 			Namespace: c.Namespace(),
@@ -108,7 +101,6 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 
 		switch request.Status.Phase {
 		case syncv1.LeaseRequestPhaseGranted:
-			// Create lease object
 			leaseCtx, cancelCtx := context.WithCancel(context.Background())
 			return &Lease{
 				client:    c,
@@ -123,27 +115,21 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 			return nil, fmt.Errorf("lease request denied for %s", name)
 
 		case syncv1.LeaseRequestPhasePending:
-			// Check timeout
 			if options.Timeout > 0 && time.Since(startTime) > options.Timeout {
-				// Clean up request
 				c.K8sClient().Delete(ctx, request)
 				return nil, fmt.Errorf("timeout waiting for lease %s", name)
 			}
 
-			// Wait before retrying
 			select {
 			case <-ctx.Done():
-				// Clean up request
 				c.K8sClient().Delete(context.Background(), request)
 				return nil, ctx.Err()
 			case <-time.After(5 * time.Second):
-				// Continue loop
 			}
 		}
 	}
 }
 
-// With executes a function while holding a lease
 func With(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
 	lease, err := Acquire(c, ctx, name, opts...)
 	if err != nil {
@@ -154,14 +140,11 @@ func With(c *konductor.Client, ctx context.Context, name string, fn func() error
 	return fn()
 }
 
-// TryAcquire attempts to acquire a lease without waiting
 func TryAcquire(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*Lease, error) {
-	// Add zero timeout to make it non-blocking
 	opts = append(opts, konductor.WithTimeout(1*time.Second))
 	return Acquire(c, ctx, name, opts...)
 }
 
-// List returns all leases in the namespace
 func List(c *konductor.Client, ctx context.Context) ([]syncv1.Lease, error) {
 	var leases syncv1.LeaseList
 	if err := c.K8sClient().List(ctx, &leases, client.InNamespace(c.Namespace())); err != nil {
@@ -170,7 +153,6 @@ func List(c *konductor.Client, ctx context.Context) ([]syncv1.Lease, error) {
 	return leases.Items, nil
 }
 
-// Get returns a specific lease
 func Get(c *konductor.Client, ctx context.Context, name string) (*syncv1.Lease, error) {
 	var lease syncv1.Lease
 	if err := c.K8sClient().Get(ctx, types.NamespacedName{
@@ -182,7 +164,6 @@ func Get(c *konductor.Client, ctx context.Context, name string) (*syncv1.Lease, 
 	return &lease, nil
 }
 
-// IsAvailable checks if a lease is available for acquisition
 func IsAvailable(c *konductor.Client, ctx context.Context, name string) (bool, error) {
 	lease, err := Get(c, ctx, name)
 	if err != nil {
@@ -191,7 +172,6 @@ func IsAvailable(c *konductor.Client, ctx context.Context, name string) (bool, e
 	return lease.Status.Phase == syncv1.LeasePhaseAvailable, nil
 }
 
-// Create creates a new lease.
 func Create(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{TTL: 10 * time.Minute}
 	for _, opt := range opts {
@@ -210,7 +190,6 @@ func Create(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 	return c.K8sClient().Create(ctx, lease)
 }
 
-// Delete deletes a lease.
 func Delete(c *konductor.Client, ctx context.Context, name string) error {
 	lease := &syncv1.Lease{
 		ObjectMeta: metav1.ObjectMeta{
@@ -221,12 +200,10 @@ func Delete(c *konductor.Client, ctx context.Context, name string) error {
 	return c.K8sClient().Delete(ctx, lease)
 }
 
-// Update updates a lease.
 func Update(c *konductor.Client, ctx context.Context, lease *syncv1.Lease) error {
 	return c.K8sClient().Update(ctx, lease)
 }
 
-// CreateLease creates a new lease
 func CreateLease(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{}
 	for _, opt := range opts {
@@ -252,7 +229,6 @@ func CreateLease(c *konductor.Client, ctx context.Context, name string, opts ...
 	return nil
 }
 
-// DeleteLease deletes a lease and all its associated requests
 func DeleteLease(c *konductor.Client, ctx context.Context, name string) error {
 	lease := &syncv1.Lease{
 		ObjectMeta: metav1.ObjectMeta{

@@ -25,13 +25,11 @@ type SemaphoreReconciler struct {
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=permits,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=permits/status,verbs=get;update;patch
 
-// Reconcile is part of the main kubernetes reconciliation loop
 func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
 	log.Info("Reconciling Semaphore", "name", req.Name, "namespace", req.Namespace)
 
-	// Fetch the Semaphore instance
 	var semaphore syncv1.Semaphore
 	if err := r.Get(ctx, req.NamespacedName, &semaphore); err != nil {
 		if errors.IsNotFound(err) {
@@ -44,7 +42,18 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	log.Info("Found Semaphore", "name", semaphore.Name, "permits", semaphore.Spec.Permits, "currentAvailable", semaphore.Status.Available)
 
-	// Count active permits by looking for Permit CRs
+	if semaphore.Status.Available == 0 && semaphore.Status.InUse == 0 && semaphore.Status.Phase == "" {
+		semaphore.Status.Available = semaphore.Spec.Permits
+		semaphore.Status.InUse = 0
+		semaphore.Status.Phase = syncv1.SemaphorePhaseReady
+		if err := r.Status().Update(ctx, &semaphore); err != nil {
+			log.Error(err, "unable to initialize Semaphore status")
+			return ctrl.Result{}, err
+		}
+		log.Info("Initialized Semaphore status", "name", semaphore.Name)
+		return ctrl.Result{}, nil
+	}
+
 	permits := &syncv1.PermitList{}
 	if err := r.List(ctx, permits, client.InNamespace(req.Namespace),
 		client.MatchingLabels{"semaphore": semaphore.Name}); err != nil {
@@ -54,7 +63,6 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	log.Info("Found permits", "count", len(permits.Items), "semaphore", semaphore.Name)
 
-	// Count valid (non-expired) permits and update their status
 	validPermits := 0
 	now := time.Now()
 	for i, permit := range permits.Items {
@@ -65,7 +73,7 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 				r.Status().Update(ctx, &permits.Items[i])
 			}
 		} else if permit.Status.ExpiresAt == nil {
-			validPermits++ // No expiration set
+			validPermits++
 			if permit.Status.Phase != syncv1.PermitPhaseGranted {
 				permits.Items[i].Status.Phase = syncv1.PermitPhaseGranted
 				r.Status().Update(ctx, &permits.Items[i])
@@ -73,7 +81,6 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 
-	// Update status
 	oldInUse := semaphore.Status.InUse
 	oldAvailable := semaphore.Status.Available
 	oldPhase := semaphore.Status.Phase
@@ -93,7 +100,6 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		"oldAvailable", oldAvailable, "newAvailable", semaphore.Status.Available,
 		"oldPhase", oldPhase, "newPhase", semaphore.Status.Phase)
 
-	// Update the status
 	if err := r.Status().Update(ctx, &semaphore); err != nil {
 		log.Error(err, "unable to update Semaphore status")
 		return ctrl.Result{}, err
@@ -101,11 +107,9 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	log.Info("Successfully updated Semaphore status", "name", semaphore.Name)
 
-	// Requeue to check for expired permits
 	return ctrl.Result{RequeueAfter: time.Minute}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
 func (r *SemaphoreReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&syncv1.Semaphore{}).

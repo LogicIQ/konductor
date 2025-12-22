@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -34,6 +35,14 @@ func runOperatorStatus(cmd *cobra.Command, args []string, svcName, operatorNames
 	version, health := checkHealthWithVersion(healthURL + "/healthz")
 	ready := checkHealth(healthURL + "/readyz")
 
+	// Print formatted output for CLI users
+	fmt.Printf("Operator Service: %s\n", svcName)
+	fmt.Printf("Namespace: %s\n", operatorNamespace)
+	fmt.Printf("Version: %s\n", version)
+	fmt.Printf("Health: %s\n", health)
+	fmt.Printf("Ready: %s\n", ready)
+
+	// Also log for structured logging
 	logger.Info("Operator status",
 		zap.String("service", svcName),
 		zap.String("namespace", operatorNamespace),

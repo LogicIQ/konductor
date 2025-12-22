@@ -26,13 +26,11 @@ type GateReconciler struct {
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=gates/finalizers,verbs=update
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch
 
-// Reconcile is part of the main kubernetes reconciliation loop
 func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
 	log.Info("Reconciling Gate", "name", req.Name, "namespace", req.Namespace)
 
-	// Fetch the Gate instance
 	var gate syncv1.Gate
 	if err := r.Get(ctx, req.NamespacedName, &gate); err != nil {
 		if errors.IsNotFound(err) {
@@ -45,7 +43,6 @@ func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	log.Info("Found Gate", "name", gate.Name, "conditions", len(gate.Spec.Conditions), "currentPhase", gate.Status.Phase)
 
-	// Check each condition
 	allMet := true
 	conditionStatuses := make([]syncv1.GateConditionStatus, len(gate.Spec.Conditions))
 
@@ -126,7 +123,6 @@ func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		conditionStatuses[i] = status
 	}
 
-	// Update gate status
 	gate.Status.ConditionStatuses = conditionStatuses
 
 	if allMet {
@@ -136,7 +132,6 @@ func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			gate.Status.OpenedAt = &now
 		}
 	} else {
-		// Check timeout
 		if gate.Spec.Timeout != nil && gate.CreationTimestamp.Add(gate.Spec.Timeout.Duration).Before(time.Now()) {
 			gate.Status.Phase = syncv1.GatePhaseFailed
 		} else {
@@ -144,7 +139,6 @@ func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		}
 	}
 
-	// Update the status
 	if err := r.Status().Update(ctx, &gate); err != nil {
 		log.Error(err, "unable to update Gate status")
 		return ctrl.Result{}, err
@@ -152,7 +146,6 @@ func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	log.Info("Successfully updated Gate status", "name", gate.Name, "phase", gate.Status.Phase, "allMet", allMet)
 
-	// Requeue to check conditions
 	if gate.Status.Phase == syncv1.GatePhaseWaiting {
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 	}
@@ -160,7 +153,6 @@ func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
 func (r *GateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&syncv1.Gate{}).

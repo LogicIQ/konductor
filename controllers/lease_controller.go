@@ -26,13 +26,11 @@ type LeaseReconciler struct {
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=leaserequests,verbs=get;list;watch
 //+kubebuilder:rbac:groups=sync.konductor.io,resources=leaserequests/status,verbs=get;update;patch
 
-// Reconcile is part of the main kubernetes reconciliation loop
 func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
 	log.Info("Reconciling Lease", "name", req.Name, "namespace", req.Namespace)
 
-	// Fetch the Lease instance
 	var lease syncv1.Lease
 	if err := r.Get(ctx, req.NamespacedName, &lease); err != nil {
 		if errors.IsNotFound(err) {
@@ -47,7 +45,6 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	now := time.Now()
 
-	// Check if current lease is expired
 	if lease.Status.ExpiresAt != nil && lease.Status.ExpiresAt.Time.Before(now) {
 		lease.Status.Phase = syncv1.LeasePhaseExpired
 		lease.Status.Holder = ""
@@ -55,12 +52,10 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		lease.Status.ExpiresAt = nil
 	}
 
-	// If no holder, mark as available
 	if lease.Status.Holder == "" {
 		lease.Status.Phase = syncv1.LeasePhaseAvailable
 	}
 
-	// Look for lease requests
 	requests := &syncv1.LeaseRequestList{}
 	if err := r.List(ctx, requests, client.InNamespace(req.Namespace),
 		client.MatchingLabels{"lease": lease.Name}); err != nil {
@@ -70,7 +65,6 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	log.Info("Found lease requests", "count", len(requests.Items), "lease", lease.Name)
 
-	// If lease is available and there are requests, grant to highest priority
 	if lease.Status.Phase == syncv1.LeasePhaseAvailable && len(requests.Items) > 0 {
 		var bestRequest *syncv1.LeaseRequest
 		var highestPriority int32 = -1
@@ -88,7 +82,6 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 
 		if bestRequest != nil {
-			// Grant lease
 			lease.Status.Holder = bestRequest.Spec.Holder
 			lease.Status.Phase = syncv1.LeasePhaseHeld
 			acquiredAt := metav1.Now()
@@ -97,7 +90,6 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			lease.Status.ExpiresAt = &expiresAt
 			lease.Status.RenewCount = 0
 
-			// Update request status
 			bestRequest.Status.Phase = syncv1.LeaseRequestPhaseGranted
 			if err := r.Status().Update(ctx, bestRequest); err != nil {
 				log.Error(err, "unable to update lease request status")
@@ -105,7 +97,6 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		}
 	}
 
-	// Update the status
 	if err := r.Status().Update(ctx, &lease); err != nil {
 		log.Error(err, "unable to update Lease status")
 		return ctrl.Result{}, err
@@ -113,7 +104,6 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	log.Info("Successfully updated Lease status", "name", lease.Name, "holder", lease.Status.Holder, "phase", lease.Status.Phase)
 
-	// Requeue to check expiration
 	if lease.Status.ExpiresAt != nil {
 		return ctrl.Result{RequeueAfter: time.Until(lease.Status.ExpiresAt.Time)}, nil
 	}
@@ -121,7 +111,6 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return ctrl.Result{RequeueAfter: time.Minute}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
 func (r *LeaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&syncv1.Lease{}).
