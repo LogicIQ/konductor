@@ -9,6 +9,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 COPY api/ api/
+COPY sdk/ sdk/
 COPY cli/ cli/
 
 RUN --mount=type=cache,target=/go/pkg/mod \
