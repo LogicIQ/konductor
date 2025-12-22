@@ -39,10 +39,10 @@ jobs:
         GIT_HASH=${{ github.sha }}
         LDFLAGS="-w -s -X main.version=${VERSION}"
         
-        GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o koncli-linux-amd64 cli/main.go
-        GOOS=linux GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o koncli-linux-arm64 cli/main.go
-        GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o koncli-darwin-amd64 cli/main.go
-        GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o koncli-darwin-arm64 cli/main.go
+        GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o koncli-linux-amd64 ./cli
+        GOOS=linux GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o koncli-linux-arm64 ./cli
+        GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o koncli-darwin-amd64 ./cli
+        GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o koncli-darwin-arm64 ./cli
     
     - name: Upload binaries
       uses: softprops/action-gh-release@v1
