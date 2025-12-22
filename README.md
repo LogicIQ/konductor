@@ -2,6 +2,37 @@
 
 Kubernetes operator for workflow coordination and job orchestration. Synchronize Kubernetes Jobs, coordinate multi-stage pipelines, and manage complex workflows in your cluster.
 
+## Why Konductor?
+
+Kubernetes Jobs are powerful but lack built-in coordination. When you need to:
+- Wait for multiple Jobs to complete before starting the next stage
+- Prevent CronJobs from overlapping when they run longer than their schedule
+- Ensure only one Job runs database migrations across multiple replicas
+- Limit how many batch Jobs run concurrently to avoid overwhelming your cluster
+- Coordinate Pods with each other using CLI or SDK
+
+Konductor provides simple primitives to solve these problems natively in Kubernetes.
+
+**Native Kubernetes Integration**
+- CRDs for declarative workflow definition
+- Works seamlessly with Jobs, CronJobs, and Pods
+- No external dependencies or services required
+
+**Simple and Lightweight**
+- Single operator deployment
+- Minimal resource overhead
+- Easy to understand primitives
+
+**Flexible Usage**
+- **CLI** for shell scripts and initContainers
+- **SDK** for application-level integration
+- **kubectl** for manual operations
+
+**Production Ready**
+- Automatic cleanup and TTL expiration
+- Leader election for HA operator
+- Comprehensive observability
+
 ## Features
 
 - **Barrier** - Synchronize multiple Jobs at coordination points
