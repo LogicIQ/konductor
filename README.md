@@ -1,6 +1,10 @@
 # konductor
 
+![Konductor](https://raw.githubusercontent.com/LogicIQ/konductor/main/docs/images/konductor.webp)
+
 Kubernetes operator for workflow coordination and job orchestration. Synchronize Kubernetes Jobs, coordinate multi-stage pipelines, and manage complex workflows in your cluster.
+
+🌐 **[Visit Project Page](https://logiciq.ca/konductor)**
 
 ## Why Konductor?
 
