@@ -4,6 +4,7 @@ Complete guide for integrating Konductor synchronization primitives into your Go
 
 ## Table of Contents
 
+- [Roadmap](#roadmap)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Client Configuration](#client-configuration)
@@ -14,6 +15,41 @@ Complete guide for integrating Konductor synchronization primitives into your Go
 - [Error Handling](#error-handling)
 - [Best Practices](#best-practices)
 - [Integration Patterns](#integration-patterns)
+
+## Roadmap
+
+Konductor SDK development follows a phased approach aligned with the core product roadmap:
+
+### Phase 1: MVP (Current) ✅
+- **Semaphores**: Rate limiting and resource throttling
+- **Barriers**: Multi-stage workflow coordination
+- **Basic Client**: Core configuration and connection handling
+- **Error Handling**: Comprehensive error types and retry patterns
+
+### Phase 2: Enhanced Features (In Progress) 🚧
+- **Leases**: Singleton execution and leader election
+- **Priority Support**: Preemption and priority-based acquisition
+- **Advanced TTL**: Automatic renewal and background management
+- **Metrics Integration**: Built-in observability hooks
+
+### Phase 3: Advanced Coordination (Planned) 📋
+- **Gates**: Complex dependency coordination
+- **Cross-Namespace**: Multi-tenant coordination primitives
+- **Performance Optimizations**: Connection pooling and caching
+- **SDK Extensions**: Framework-specific integrations
+
+### Language Support Roadmap
+- **Go SDK**: ✅ Available (current)
+- **Python SDK**: 🚧 In development
+- **Java SDK**: 📋 Planned
+- **Node.js SDK**: 📋 Planned
+- **Rust SDK**: 📋 Community-driven
+
+### Integration Targets
+- **Argo Workflows**: Native step coordination
+- **Tekton Pipelines**: Task synchronization
+- **Kubeflow**: ML pipeline coordination
+- **Spark on K8s**: Job-level resource management
 
 ## Installation
 
