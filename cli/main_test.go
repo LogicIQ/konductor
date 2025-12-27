@@ -39,6 +39,18 @@ func TestRootCommand(t *testing.T) {
 			},
 		},
 		{
+			name:        "help command no panic",
+			args:        []string{"--help"},
+			expectError: false,
+			checkFunc: func(t *testing.T, output string) {
+				// This test specifically checks that help doesn't panic
+				// when logger is nil (which was the original issue)
+				if !bytes.Contains([]byte(output), []byte("koncli")) {
+					t.Errorf("Expected help output to contain 'koncli'")
+				}
+			},
+		},
+		{
 			name:        "version-like behavior",
 			args:        []string{},
 			expectError: false,
@@ -333,4 +345,36 @@ func TestMain(m *testing.M) {
 	os.Unsetenv("NAMESPACE")
 
 	os.Exit(code)
+}
+
+// TestExecuteWithNilLogger tests that execute() doesn't panic when logger is nil
+func TestExecuteWithNilLogger(t *testing.T) {
+	// Save original logger
+	origLogger := logger
+	defer func() {
+		logger = origLogger
+	}()
+
+	// Set logger to nil to simulate the panic condition
+	logger = nil
+
+	// Override os.Args to simulate --help
+	origArgs := os.Args
+	defer func() {
+		os.Args = origArgs
+	}()
+	os.Args = []string{"koncli", "--help"}
+
+	// This should not panic
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("execute() panicked with nil logger: %v", r)
+		}
+	}()
+
+	// Call execute - it should handle nil logger gracefully
+	err := execute()
+	if err != nil {
+		t.Errorf("execute() returned error: %v", err)
+	}
 }

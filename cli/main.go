@@ -79,11 +79,15 @@ func execute() error {
 	rootCmd.AddCommand(newStatusCmd())
 
 	if err := rootCmd.Execute(); err != nil {
-		logger.Error("Command execution failed", zap.Error(err))
+		if logger != nil {
+			logger.Error("Command execution failed", zap.Error(err))
+		}
 		return err
 	}
 
-	logger.Sync()
+	if logger != nil {
+		logger.Sync()
+	}
 	return nil
 }
 
