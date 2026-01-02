@@ -9,7 +9,8 @@ Konductor provides four Custom Resource Definitions (CRDs) that implement synchr
 | [Semaphore](./semaphore.md) | Limit concurrent access | ✅ Available |
 | [Barrier](./barrier.md) | Coordinate multi-stage workflows | ✅ Available |
 | [Lease](./lease.md) | Singleton execution | ✅ Available |
-| [Gate](./gate.md) | Dependency coordination | 🚧 Planned |
+| [Gate](./gate.md) | Dependency coordination | ✅ Available |
+| [Mutex](./mutex.md) | Mutual exclusion | ✅ Available |
 
 ## Common Fields
 
@@ -87,4 +88,6 @@ kubectl delete semaphore my-semaphore
 - [Semaphore API](./semaphore.md) - Concurrent access control
 - [Barrier API](./barrier.md) - Multi-stage coordination  
 - [Lease API](./lease.md) - Singleton execution
+- [Gate API](./gate.md) - Dependency coordination
+- [Mutex API](./mutex.md) - Mutual exclusion
 - [CLI Reference](../cli/overview.md) - Command-line usage

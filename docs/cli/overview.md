@@ -92,6 +92,37 @@ koncli lease status <name> [flags]
 - `--priority`: Priority for acquisition (default: 1)
 - `--wait`: Wait for lease if not available
 
+### Mutex Commands
+
+```bash
+# Lock a mutex
+koncli mutex lock <name> [flags]
+
+# Unlock a mutex
+koncli mutex unlock <name> [flags]
+
+# Check mutex status
+koncli mutex status <name> [flags]
+```
+
+**Flags:**
+- `--ttl`: Time-to-live for the lock (default: 5m)
+- `--holder`: Lock holder identifier (default: auto-detected)
+- `--wait`: Wait for lock if not available
+
+### Gate Commands
+
+```bash
+# Wait for gate to open
+koncli gate wait <name> [flags]
+
+# Check gate status
+koncli gate status <name> [flags]
+```
+
+**Flags:**
+- `--timeout`: Maximum time to wait (default: 30m)
+
 ### General Commands
 
 ```bash
@@ -271,4 +302,6 @@ kubectl describe barrier my-barrier
 - [Semaphore CLI](./semaphore.md) - Detailed semaphore commands
 - [Barrier CLI](./barrier.md) - Detailed barrier commands  
 - [Lease CLI](./lease.md) - Detailed lease commands
+- [Mutex CLI](./mutex.md) - Detailed mutex commands
+- [Gate CLI](./gate.md) - Detailed gate commands
 - [Examples](../examples/overview.md) - Real-world usage examples
