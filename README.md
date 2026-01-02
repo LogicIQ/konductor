@@ -42,6 +42,7 @@ Konductor provides simple primitives to solve these problems natively in Kuberne
 - **Barrier** - Synchronize multiple Jobs at coordination points
 - **Gate** - Wait for dependencies before starting Jobs
 - **Lease** - Singleton Job execution and leader election
+- **Mutex** - Mutual exclusion for critical sections
 - **Semaphore** - Control concurrent Job execution
 - **CLI** - Command-line tool for workflow management
 - **SDK** - Go SDK for programmatic integration
@@ -130,6 +131,26 @@ Control concurrent Job execution.
 - Resource-constrained Job execution
 - Throttle parallel Job processing
 - Control cluster load from Jobs
+
+### Mutex
+Mutual exclusion for critical sections.
+
+```
+┌──────────┐     ┌─────────┐     ┌──────────┐
+│  Pod A   │────▶│  Mutex  │     │  Pod B   │
+│ (holder) │     │ Holder: │     │(waiting) │
+│          │     │  Pod A  │     │          │
+└──────────┘     │ Locked  │     └──────────┘
+                 └─────────┘
+                      │
+              [Unlock → Available]
+```
+
+**Use Cases:**
+- Database migration coordination
+- Shared resource access serialization
+- Critical section protection
+- Simple mutual exclusion (simpler than Lease)
 
 ## Installation
 
@@ -276,6 +297,36 @@ spec:
                 generate-report
                 koncli lease release daily-report --holder $HOSTNAME
               fi
+```
+
+### Critical Section with Mutex
+
+```yaml
+apiVersion: konductor.io/v1
+kind: Mutex
+metadata:
+  name: db-migration
+spec:
+  ttl: 10m
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migration
+spec:
+  template:
+    spec:
+      containers:
+      - name: migrate
+        image: my-app:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          if koncli mutex lock db-migration --holder $HOSTNAME --timeout 30s; then
+            run-migrations
+            koncli mutex unlock db-migration --holder $HOSTNAME
+          fi
 ```
 
 ## Documentation
