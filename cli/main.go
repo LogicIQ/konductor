@@ -76,6 +76,7 @@ func execute() error {
 	rootCmd.AddCommand(newBarrierCmd())
 	rootCmd.AddCommand(newLeaseCmd())
 	rootCmd.AddCommand(newGateCmd())
+	rootCmd.AddCommand(newMutexCmd())
 	rootCmd.AddCommand(newStatusCmd())
 
 	if err := rootCmd.Execute(); err != nil {

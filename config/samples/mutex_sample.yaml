@@ -1,0 +1,34 @@
+apiVersion: sync.konductor.io/v1
+kind: Mutex
+metadata:
+  name: critical-section
+spec:
+  # Optional: TTL for automatic unlock (e.g., 5m, 1h)
+  # If not set, mutex must be explicitly unlocked
+  ttl: 10m
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: exclusive-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: worker
+        image: my-app:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          if koncli mutex lock critical-section --holder $HOSTNAME --timeout 30s; then
+            echo "Acquired lock, performing critical work..."
+            # Do critical work here
+            sleep 5
+            koncli mutex unlock critical-section --holder $HOSTNAME
+            echo "Released lock"
+          else
+            echo "Failed to acquire lock"
+            exit 1
+          fi
+      restartPolicy: Never

@@ -6,6 +6,7 @@ import (
 	"github.com/LogicIQ/konductor/sdk/go/client"
 	"github.com/LogicIQ/konductor/sdk/go/gate"
 	"github.com/LogicIQ/konductor/sdk/go/lease"
+	"github.com/LogicIQ/konductor/sdk/go/mutex"
 	"github.com/LogicIQ/konductor/sdk/go/semaphore"
 )
 
@@ -81,4 +82,16 @@ var (
 	LeaseTryAcquire  = lease.TryAcquire
 	LeaseWith        = lease.With
 	LeaseIsAvailable = lease.IsAvailable
+)
+
+// Mutex operations
+var (
+	MutexCreate   = mutex.Create
+	MutexDelete   = mutex.Delete
+	MutexGet      = mutex.Get
+	MutexList     = mutex.List
+	MutexLock     = mutex.Lock
+	MutexTryLock  = mutex.TryLock
+	MutexWith     = mutex.With
+	MutexIsLocked = mutex.IsLocked
 )

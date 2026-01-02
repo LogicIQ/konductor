@@ -27,6 +27,7 @@ rules:
   - barriers
   - gates
   - leases
+  - mutexes
   - semaphores
   verbs:
   - create
@@ -42,6 +43,7 @@ rules:
   - barriers/finalizers
   - gates/finalizers
   - leases/finalizers
+  - mutexes/finalizers
   - semaphores/finalizers
   verbs:
   - update
@@ -52,6 +54,7 @@ rules:
   - gates/status
   - leaserequests/status
   - leases/status
+  - mutexes/status
   - permits/status
   - semaphores/status
   verbs:
