@@ -1,6 +1,6 @@
 # Core Concepts
 
-Konductor provides four synchronization primitives that solve common coordination problems in Kubernetes workloads.
+Konductor provides five synchronization primitives that solve common coordination problems in Kubernetes workloads.
 
 ## Synchronization Primitives
 
@@ -44,6 +44,25 @@ Synchronizes multiple processes at a coordination point - all must arrive before
 - Multi-stage ETL pipelines
 - Coordinated batch job execution
 - MapReduce-style workflows
+
+### Mutex
+Provides mutual exclusion for critical sections - only one process can hold the lock at a time.
+
+```
+┌──────────┐     ┌─────────┐     ┌──────────┐
+│  Pod A   │────▶│  Mutex  │     │  Pod B   │
+│ (owner)  │     │ Owner:  │     │(waiting) │
+│          │     │  Pod A  │     │          │
+└──────────┘     │ TTL: 30m│     └──────────┘
+                 └─────────┘
+                      │
+              [Released → Available]
+```
+
+**Use Cases:**
+- Database schema migrations
+- Critical configuration updates
+- Exclusive resource access
 
 ### Lease
 Provides singleton execution and leader election with automatic expiration.
