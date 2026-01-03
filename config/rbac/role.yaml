@@ -28,6 +28,7 @@ rules:
   - gates
   - leases
   - mutexes
+  - rwmutexes
   - semaphores
   verbs:
   - create
@@ -44,6 +45,7 @@ rules:
   - gates/finalizers
   - leases/finalizers
   - mutexes/finalizers
+  - rwmutexes/finalizers
   - semaphores/finalizers
   verbs:
   - update
@@ -56,6 +58,7 @@ rules:
   - leases/status
   - mutexes/status
   - permits/status
+  - rwmutexes/status
   - semaphores/status
   verbs:
   - get

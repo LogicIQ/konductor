@@ -1,0 +1,7 @@
+apiVersion: sync.konductor.io/v1
+kind: RWMutex
+metadata:
+  name: cache-rwmutex
+  namespace: default
+spec:
+  ttl: 5m

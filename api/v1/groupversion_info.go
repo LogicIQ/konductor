@@ -28,4 +28,5 @@ func init() {
 	SchemeBuilder.Register(&LeaseRequest{}, &LeaseRequestList{})
 	SchemeBuilder.Register(&Gate{}, &GateList{})
 	SchemeBuilder.Register(&Mutex{}, &MutexList{})
+	SchemeBuilder.Register(&RWMutex{}, &RWMutexList{})
 }
