@@ -43,6 +43,7 @@ Konductor provides simple primitives to solve these problems natively in Kuberne
 - **Gate** - Wait for dependencies before starting Jobs
 - **Lease** - Singleton Job execution and leader election
 - **Mutex** - Mutual exclusion for critical sections
+- **RWMutex** - Read-write locks for concurrent reads
 - **Semaphore** - Control concurrent Job execution
 - **CLI** - Command-line tool for workflow management
 - **SDK** - Go SDK for programmatic integration
@@ -151,6 +152,28 @@ Mutual exclusion for critical sections.
 - Shared resource access serialization
 - Critical section protection
 - Simple mutual exclusion (simpler than Lease)
+
+### RWMutex
+Read-write locks allowing multiple concurrent readers or exclusive writer.
+
+```
+┌──────────┐     ┌─────────┐     ┌──────────┐
+│ Reader A │────▶│ RWMutex │◀────│ Reader B │
+│ (reading)│     │ Readers:│     │(reading) │
+└──────────┘     │    2    │     └──────────┘
+                 │ Writer: │
+┌──────────┐     │  None   │
+│ Writer C │────▶│         │
+│(waiting) │     └─────────┘
+└──────────┘          │
+              [Readers done → Writer]
+```
+
+**Use Cases:**
+- Cache coordination (multiple readers, single writer)
+- Configuration file access
+- Shared data structures
+- Read-heavy workloads
 
 ## Installation
 

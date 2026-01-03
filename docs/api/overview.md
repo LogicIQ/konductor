@@ -1,6 +1,6 @@
 # API Reference
 
-Konductor provides four Custom Resource Definitions (CRDs) that implement synchronization primitives for Kubernetes workloads.
+Konductor provides Custom Resource Definitions (CRDs) that implement synchronization primitives for Kubernetes workloads.
 
 ## Core Resources
 
@@ -11,6 +11,7 @@ Konductor provides four Custom Resource Definitions (CRDs) that implement synchr
 | [Lease](./lease.md) | Singleton execution | ✅ Available |
 | [Gate](./gate.md) | Dependency coordination | ✅ Available |
 | [Mutex](./mutex.md) | Mutual exclusion | ✅ Available |
+| [RWMutex](./rwmutex.md) | Read-write locks | ✅ Available |
 
 ## Common Fields
 
@@ -90,4 +91,5 @@ kubectl delete semaphore my-semaphore
 - [Lease API](./lease.md) - Singleton execution
 - [Gate API](./gate.md) - Dependency coordination
 - [Mutex API](./mutex.md) - Mutual exclusion
+- [RWMutex API](./rwmutex.md) - Read-write locks
 - [CLI Reference](../cli/overview.md) - Command-line usage

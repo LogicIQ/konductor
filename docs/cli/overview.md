@@ -110,6 +110,27 @@ koncli mutex status <name> [flags]
 - `--holder`: Lock holder identifier (default: auto-detected)
 - `--wait`: Wait for lock if not available
 
+### RWMutex Commands
+
+```bash
+# Acquire read lock
+koncli rwmutex rlock <name> [flags]
+
+# Acquire write lock
+koncli rwmutex lock <name> [flags]
+
+# Release lock
+koncli rwmutex unlock <name> [flags]
+
+# Check rwmutex status
+koncli rwmutex status <name> [flags]
+```
+
+**Flags:**
+- `--ttl`: Time-to-live for the lock (default: 5m)
+- `--holder`: Lock holder identifier (default: auto-detected)
+- `--timeout`: Wait timeout for lock acquisition
+
 ### Gate Commands
 
 ```bash
@@ -303,5 +324,6 @@ kubectl describe barrier my-barrier
 - [Barrier CLI](./barrier.md) - Detailed barrier commands  
 - [Lease CLI](./lease.md) - Detailed lease commands
 - [Mutex CLI](./mutex.md) - Detailed mutex commands
+- [RWMutex CLI](./rwmutex.md) - Detailed rwmutex commands
 - [Gate CLI](./gate.md) - Detailed gate commands
 - [Examples](../examples/overview.md) - Real-world usage examples
