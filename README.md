@@ -44,6 +44,7 @@ Konductor provides simple primitives to solve these problems natively in Kuberne
 - **Lease** - Singleton Job execution and leader election
 - **Mutex** - Mutual exclusion for critical sections
 - **RWMutex** - Read-write locks for concurrent reads
+- **Once** - One-time execution guarantee
 - **Semaphore** - Control concurrent Job execution
 - **CLI** - Command-line tool for workflow management
 - **SDK** - Go SDK for programmatic integration

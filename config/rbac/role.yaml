@@ -28,6 +28,7 @@ rules:
   - gates
   - leases
   - mutexes
+  - onces
   - rwmutexes
   - semaphores
   verbs:
@@ -45,6 +46,7 @@ rules:
   - gates/finalizers
   - leases/finalizers
   - mutexes/finalizers
+  - onces/finalizers
   - rwmutexes/finalizers
   - semaphores/finalizers
   verbs:
@@ -57,6 +59,7 @@ rules:
   - leaserequests/status
   - leases/status
   - mutexes/status
+  - onces/status
   - permits/status
   - rwmutexes/status
   - semaphores/status

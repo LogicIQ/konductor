@@ -1,0 +1,7 @@
+apiVersion: sync.konductor.io/v1
+kind: Once
+metadata:
+  name: app-init
+  namespace: default
+spec:
+  ttl: 1h

@@ -12,6 +12,7 @@ Konductor provides Custom Resource Definitions (CRDs) that implement synchroniza
 | [Gate](./gate.md) | Dependency coordination | ✅ Available |
 | [Mutex](./mutex.md) | Mutual exclusion | ✅ Available |
 | [RWMutex](./rwmutex.md) | Read-write locks | ✅ Available |
+| [Once](./once.md) | One-time execution | ✅ Available |
 
 ## Common Fields
 
@@ -92,4 +93,5 @@ kubectl delete semaphore my-semaphore
 - [Gate API](./gate.md) - Dependency coordination
 - [Mutex API](./mutex.md) - Mutual exclusion
 - [RWMutex API](./rwmutex.md) - Read-write locks
+- [Once API](./once.md) - One-time execution
 - [CLI Reference](../cli/overview.md) - Command-line usage

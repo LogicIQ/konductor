@@ -1,0 +1,49 @@
+### Cache Coordination with RWMutex
+
+```yaml
+apiVersion: konductor.io/v1
+kind: RWMutex
+metadata:
+  name: cache-lock
+spec:
+  ttl: 5m
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-reader
+spec:
+  parallelism: 3
+  template:
+    spec:
+      containers:
+      - name: reader
+        image: my-app:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          if koncli rwmutex rlock cache-lock --holder $HOSTNAME --timeout 30s; then
+            read-from-cache
+            koncli rwmutex unlock cache-lock --holder $HOSTNAME
+          fi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cache-writer
+spec:
+  template:
+    spec:
+      containers:
+      - name: writer
+        image: my-app:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          if koncli rwmutex lock cache-lock --holder $HOSTNAME --timeout 1m; then
+            update-cache
+            koncli rwmutex unlock cache-lock --holder $HOSTNAME
+          fi
+```
