@@ -79,6 +79,7 @@ func execute() error {
 	rootCmd.AddCommand(newMutexCmd())
 	rootCmd.AddCommand(newRWMutexCmd())
 	rootCmd.AddCommand(newOnceCmd())
+	rootCmd.AddCommand(newWaitGroupCmd())
 	rootCmd.AddCommand(newStatusCmd())
 
 	if err := rootCmd.Execute(); err != nil {

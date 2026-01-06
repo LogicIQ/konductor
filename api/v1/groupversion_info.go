@@ -30,4 +30,5 @@ func init() {
 	SchemeBuilder.Register(&Mutex{}, &MutexList{})
 	SchemeBuilder.Register(&RWMutex{}, &RWMutexList{})
 	SchemeBuilder.Register(&Once{}, &OnceList{})
+	SchemeBuilder.Register(&WaitGroup{}, &WaitGroupList{})
 }

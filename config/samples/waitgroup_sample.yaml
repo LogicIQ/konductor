@@ -1,0 +1,7 @@
+apiVersion: sync.konductor.io/v1
+kind: WaitGroup
+metadata:
+  name: worker-group
+  namespace: default
+spec:
+  ttl: 1h

@@ -31,6 +31,7 @@ rules:
   - onces
   - rwmutexes
   - semaphores
+  - waitgroups
   verbs:
   - create
   - delete
@@ -49,6 +50,7 @@ rules:
   - onces/finalizers
   - rwmutexes/finalizers
   - semaphores/finalizers
+  - waitgroups/finalizers
   verbs:
   - update
 - apiGroups:
@@ -63,6 +65,7 @@ rules:
   - permits/status
   - rwmutexes/status
   - semaphores/status
+  - waitgroups/status
   verbs:
   - get
   - patch
