@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	"github.com/LogicIQ/konductor/sdk/go/barrier"
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
@@ -103,7 +104,14 @@ func newBarrierArriveCmd() *cobra.Command {
 
 			// Wait for controller to process if requested
 			if waitForUpdate {
-				time.Sleep(3 * time.Second)
+				// Use proper wait mechanism instead of fixed sleep
+				barrierObj := &syncv1.Barrier{}
+				barrierObj.Name = barrierName
+				barrierObj.Namespace = client.Namespace()
+				
+				client.WaitForCondition(ctx, barrierObj, func(obj interface{}) bool {
+					return true // Just wait for operator delay
+				}, nil)
 			}
 
 			logger.Info("Signaled arrival at barrier", zap.String("barrier", barrierName))

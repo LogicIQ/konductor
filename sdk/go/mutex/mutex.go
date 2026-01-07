@@ -22,24 +22,27 @@ type Mutex struct {
 }
 
 func (m *Mutex) Unlock() error {
-	var mutex syncv1.Mutex
-	if err := m.client.K8sClient().Get(context.Background(), types.NamespacedName{
-		Name:      m.name,
-		Namespace: m.client.Namespace(),
-	}, &mutex); err != nil {
-		return fmt.Errorf("failed to get mutex: %w", err)
-	}
+	// Use retry for unlock to handle concurrent operations
+	return m.client.RetryWithBackoff(context.Background(), func() error {
+		var mutex syncv1.Mutex
+		if err := m.client.K8sClient().Get(context.Background(), types.NamespacedName{
+			Name:      m.name,
+			Namespace: m.client.Namespace(),
+		}, &mutex); err != nil {
+			return fmt.Errorf("failed to get mutex: %w", err)
+		}
 
-	if mutex.Status.Holder != m.holder {
-		return fmt.Errorf("cannot unlock: not the holder")
-	}
+		if mutex.Status.Holder != m.holder {
+			return fmt.Errorf("cannot unlock: not the holder")
+		}
 
-	mutex.Status.Phase = syncv1.MutexPhaseUnlocked
-	mutex.Status.Holder = ""
-	mutex.Status.LockedAt = nil
-	mutex.Status.ExpiresAt = nil
+		mutex.Status.Phase = syncv1.MutexPhaseUnlocked
+		mutex.Status.Holder = ""
+		mutex.Status.LockedAt = nil
+		mutex.Status.ExpiresAt = nil
 
-	return m.client.K8sClient().Status().Update(context.Background(), &mutex)
+		return m.client.K8sClient().Status().Update(context.Background(), &mutex)
+	}, nil)
 }
 
 func (m *Mutex) Holder() string {
@@ -64,53 +67,70 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 		}
 	}
 
-	startTime := time.Now()
+	mutex := &syncv1.Mutex{}
+	mutex.Name = name
+	mutex.Namespace = c.Namespace()
 
-	for {
-		var mutex syncv1.Mutex
-		if err := c.K8sClient().Get(ctx, types.NamespacedName{
-			Name:      name,
-			Namespace: c.Namespace(),
-		}, &mutex); err != nil {
-			return nil, fmt.Errorf("failed to get mutex: %w", err)
-		}
-
-		if mutex.Status.Phase == syncv1.MutexPhaseUnlocked || mutex.Status.Holder == "" {
-			mutex.Status.Phase = syncv1.MutexPhaseLocked
-			mutex.Status.Holder = holder
-			lockedAt := metav1.Now()
-			mutex.Status.LockedAt = &lockedAt
-
-			if mutex.Spec.TTL != nil {
-				expiresAt := metav1.NewTime(time.Now().Add(mutex.Spec.TTL.Duration))
-				mutex.Status.ExpiresAt = &expiresAt
-			}
-
-			if err := c.K8sClient().Status().Update(ctx, &mutex); err != nil {
-				if options.Timeout > 0 && time.Since(startTime) > options.Timeout {
-					return nil, fmt.Errorf("timeout acquiring mutex %s", name)
-				}
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-
-			return &Mutex{
-				client: c,
-				name:   name,
-				holder: holder,
-			}, nil
-		}
-
-		if options.Timeout > 0 && time.Since(startTime) > options.Timeout {
-			return nil, fmt.Errorf("timeout acquiring mutex %s", name)
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(1 * time.Second):
-		}
+	config := &konductor.WaitConfig{
+		InitialDelay: 1 * time.Second,
+		MaxDelay: 5 * time.Second,
+		Factor: 1.5,
+		Jitter: 0.1,
+		Timeout: 30 * time.Second,
 	}
+
+	if options.Timeout > 0 {
+		config.Timeout = options.Timeout
+	}
+
+	// Wait for mutex to be unlocked
+	err := c.WaitForCondition(ctx, mutex, func(obj interface{}) bool {
+		m := obj.(*syncv1.Mutex)
+		return m.Status.Phase != syncv1.MutexPhaseLocked || m.Status.Holder == ""
+	}, config)
+
+	if err != nil {
+		return nil, fmt.Errorf("timeout acquiring mutex %s: %w", name, err)
+	}
+
+	// Now try to acquire the lock
+	err = c.RetryWithBackoff(ctx, func() error {
+		var m syncv1.Mutex
+		if err := c.K8sClient().Get(ctx, types.NamespacedName{
+			Name: name, Namespace: c.Namespace(),
+		}, &m); err != nil {
+			return err
+		}
+
+		// Atomic check: only proceed if truly unlocked
+		if m.Status.Phase == syncv1.MutexPhaseLocked && m.Status.Holder != "" {
+			return fmt.Errorf("mutex locked by %s", m.Status.Holder)
+		}
+
+		// Atomic set: this will fail with 409 if another pod modified it
+		m.Status.Phase = syncv1.MutexPhaseLocked
+		m.Status.Holder = holder
+		lockedAt := metav1.Now()
+		m.Status.LockedAt = &lockedAt
+
+		if m.Spec.TTL != nil {
+			expiresAt := metav1.NewTime(time.Now().Add(m.Spec.TTL.Duration))
+			m.Status.ExpiresAt = &expiresAt
+		}
+
+		// Critical: Update will fail with conflict if resource version changed
+		return c.K8sClient().Status().Update(ctx, &m)
+	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 1 * time.Second, Timeout: 5 * time.Second})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Wait for confirmation
+	return &Mutex{client: c, name: name, holder: holder}, c.WaitForCondition(ctx, mutex, func(obj interface{}) bool {
+		m := obj.(*syncv1.Mutex)
+		return m.Status.Phase == syncv1.MutexPhaseLocked && m.Status.Holder == holder
+	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 1 * time.Second, Timeout: 2 * time.Second})
 }
 
 func TryLock(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*Mutex, error) {

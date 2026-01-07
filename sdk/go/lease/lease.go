@@ -36,7 +36,10 @@ func (l *Lease) Release() error {
 		},
 	}
 
-	return l.client.K8sClient().Delete(context.Background(), request)
+	// Use retry for release to handle concurrent operations
+	return l.client.RetryWithBackoff(context.Background(), func() error {
+		return l.client.K8sClient().Delete(context.Background(), request)
+	}, nil)
 }
 
 func (l *Lease) Holder() string {
@@ -47,12 +50,9 @@ func (l *Lease) Name() string {
 	return l.name
 }
 
+// Acquire attempts to acquire lease with retry and confirmation
 func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*Lease, error) {
-	options := &konductor.Options{
-		Timeout:  0,
-		Priority: 0,
-	}
-
+	options := &konductor.Options{Timeout: 0, Priority: 0}
 	for _, opt := range opts {
 		opt(options)
 	}
@@ -66,17 +66,14 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	}
 
 	requestID := fmt.Sprintf("%s-%s", name, holder)
-
 	request := &syncv1.LeaseRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      requestID,
+			Name: requestID,
 			Namespace: c.Namespace(),
-			Labels: map[string]string{
-				"lease": name,
-			},
+			Labels: map[string]string{"lease": name},
 		},
 		Spec: syncv1.LeaseRequestSpec{
-			Lease:  name,
+			Lease: name,
 			Holder: holder,
 		},
 	}
@@ -89,45 +86,47 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 		return nil, fmt.Errorf("failed to create lease request: %w", err)
 	}
 
-	startTime := time.Now()
-
-	for {
-		if err := c.K8sClient().Get(ctx, types.NamespacedName{
-			Name:      requestID,
-			Namespace: c.Namespace(),
-		}, request); err != nil {
-			return nil, fmt.Errorf("failed to get lease request: %w", err)
-		}
-
-		switch request.Status.Phase {
-		case syncv1.LeaseRequestPhaseGranted:
-			leaseCtx, cancelCtx := context.WithCancel(context.Background())
-			return &Lease{
-				client:    c,
-				name:      name,
-				requestID: requestID,
-				holder:    holder,
-				ctx:       leaseCtx,
-				cancelCtx: cancelCtx,
-			}, nil
-
-		case syncv1.LeaseRequestPhaseDenied:
-			return nil, fmt.Errorf("lease request denied for %s", name)
-
-		case syncv1.LeaseRequestPhasePending:
-			if options.Timeout > 0 && time.Since(startTime) > options.Timeout {
-				c.K8sClient().Delete(ctx, request)
-				return nil, fmt.Errorf("timeout waiting for lease %s", name)
-			}
-
-			select {
-			case <-ctx.Done():
-				c.K8sClient().Delete(context.Background(), request)
-				return nil, ctx.Err()
-			case <-time.After(5 * time.Second):
-			}
-		}
+	// Wait for lease decision with exponential backoff
+	config := &konductor.WaitConfig{
+		InitialDelay: 1 * time.Second,
+		MaxDelay: 5 * time.Second,
+		Factor: 1.5,
+		Jitter: 0.1,
+		Timeout: 30 * time.Second,
 	}
+
+	if options.Timeout > 0 {
+		config.Timeout = options.Timeout
+	}
+
+	err := c.WaitForCondition(ctx, request, func(obj interface{}) bool {
+		req := obj.(*syncv1.LeaseRequest)
+		return req.Status.Phase == syncv1.LeaseRequestPhaseGranted || req.Status.Phase == syncv1.LeaseRequestPhaseDenied
+	}, config)
+
+	if err != nil {
+		c.K8sClient().Delete(context.Background(), request)
+		return nil, err
+	}
+
+	// Check final status
+	if err := c.K8sClient().Get(ctx, client.ObjectKeyFromObject(request), request); err != nil {
+		return nil, err
+	}
+
+	if request.Status.Phase == syncv1.LeaseRequestPhaseDenied {
+		return nil, fmt.Errorf("lease request denied for %s", name)
+	}
+
+	leaseCtx, cancelCtx := context.WithCancel(context.Background())
+	return &Lease{
+		client: c,
+		name: name,
+		requestID: requestID,
+		holder: holder,
+		ctx: leaseCtx,
+		cancelCtx: cancelCtx,
+	}, nil
 }
 
 func With(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {

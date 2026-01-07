@@ -13,32 +13,51 @@ import (
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-// Add increments the counter by delta
+// Add increments the counter by delta with atomic operation protection
 func Add(c *konductor.Client, ctx context.Context, name string, delta int32) error {
-	var wg syncv1.WaitGroup
-	if err := c.K8sClient().Get(ctx, types.NamespacedName{
-		Name:      name,
-		Namespace: c.Namespace(),
-	}, &wg); err != nil {
-		return fmt.Errorf("failed to get waitgroup: %w", err)
-	}
-
-	wg.Status.Counter += delta
-	if wg.Status.Counter < 0 {
-		wg.Status.Counter = 0
-	}
-
-	if wg.Status.Counter <= 0 {
-		wg.Status.Phase = syncv1.WaitGroupPhaseDone
-	} else {
-		wg.Status.Phase = syncv1.WaitGroupPhaseWaiting
-	}
-
-	if err := c.K8sClient().Status().Update(ctx, &wg); err != nil {
+	var originalCounter int32
+	
+	// Retry on conflicts with atomic read-modify-write
+	err := c.RetryWithBackoff(ctx, func() error {
+		var wg syncv1.WaitGroup
+		if err := c.K8sClient().Get(ctx, types.NamespacedName{
+			Name: name, Namespace: c.Namespace(),
+		}, &wg); err != nil {
+			return err
+		}
+		
+		// Store original for confirmation
+		originalCounter = wg.Status.Counter
+		
+		// Atomic increment - this will fail with conflict if another pod modified it
+		wg.Status.Counter += delta
+		if wg.Status.Counter < 0 {
+			wg.Status.Counter = 0
+		}
+		
+		if wg.Status.Counter <= 0 {
+			wg.Status.Phase = syncv1.WaitGroupPhaseDone
+		} else {
+			wg.Status.Phase = syncv1.WaitGroupPhaseWaiting
+		}
+		
+		// This update will fail with 409 Conflict if resource version changed
+		return c.K8sClient().Status().Update(ctx, &wg)
+	}, nil)
+	
+	if err != nil {
 		return fmt.Errorf("failed to update waitgroup: %w", err)
 	}
-
-	return nil
+	
+	// Wait for confirmation of change
+	wg := &syncv1.WaitGroup{}
+	wg.Name = name
+	wg.Namespace = c.Namespace()
+	
+	return c.WaitForCondition(ctx, wg, func(obj interface{}) bool {
+		waitGroup := obj.(*syncv1.WaitGroup)
+		return waitGroup.Status.Counter != originalCounter
+	}, nil)
 }
 
 // Done decrements the counter by 1
@@ -46,38 +65,33 @@ func Done(c *konductor.Client, ctx context.Context, name string) error {
 	return Add(c, ctx, name, -1)
 }
 
-// Wait blocks until the counter is zero
+// Wait blocks until counter is zero with exponential backoff
 func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{Timeout: 0}
 	for _, opt := range opts {
 		opt(options)
 	}
-
-	startTime := time.Now()
-
-	for {
-		var wg syncv1.WaitGroup
-		if err := c.K8sClient().Get(ctx, types.NamespacedName{
-			Name:      name,
-			Namespace: c.Namespace(),
-		}, &wg); err != nil {
-			return fmt.Errorf("failed to get waitgroup: %w", err)
-		}
-
-		if wg.Status.Counter <= 0 {
-			return nil
-		}
-
-		if options.Timeout > 0 && time.Since(startTime) > options.Timeout {
-			return fmt.Errorf("timeout waiting for waitgroup %s", name)
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(1 * time.Second):
-		}
+	
+	wg := &syncv1.WaitGroup{}
+	wg.Name = name
+	wg.Namespace = c.Namespace()
+	
+	config := &konductor.WaitConfig{
+		InitialDelay: 500 * time.Millisecond,
+		MaxDelay: 5 * time.Second,
+		Factor: 1.5,
+		Jitter: 0.1,
+		Timeout: 30 * time.Second,
 	}
+	
+	if options.Timeout > 0 {
+		config.Timeout = options.Timeout
+	}
+	
+	return c.WaitForCondition(ctx, wg, func(obj interface{}) bool {
+		waitGroup := obj.(*syncv1.WaitGroup)
+		return waitGroup.Status.Counter <= 0
+	}, config)
 }
 
 // GetCounter returns the current counter value
@@ -107,7 +121,10 @@ func Create(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 		wg.Spec.TTL = &metav1.Duration{Duration: options.TTL}
 	}
 
-	return c.K8sClient().Create(ctx, wg)
+	// Use retry for create operations to handle name conflicts
+	return c.RetryWithBackoff(ctx, func() error {
+		return c.K8sClient().Create(ctx, wg)
+	}, nil)
 }
 
 func Delete(c *konductor.Client, ctx context.Context, name string) error {

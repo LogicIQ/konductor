@@ -14,42 +14,56 @@ import (
 )
 
 func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
-	options := &konductor.Options{
-		Timeout: 0,
-	}
-
+	options := &konductor.Options{Timeout: 0}
 	for _, opt := range opts {
 		opt(options)
 	}
 
-	startTime := time.Now()
+	gate := &syncv1.Gate{}
+	gate.Name = name
+	gate.Namespace = c.Namespace()
 
-	for {
-		var gate syncv1.Gate
-		if err := c.K8sClient().Get(ctx, types.NamespacedName{
-			Name:      name,
-			Namespace: c.Namespace(),
-		}, &gate); err != nil {
-			return fmt.Errorf("failed to get gate %s: %w", name, err)
-		}
-
-		switch gate.Status.Phase {
-		case syncv1.GatePhaseOpen:
-			return nil
-		case syncv1.GatePhaseFailed:
-			return fmt.Errorf("gate %s failed", name)
-		case syncv1.GatePhaseWaiting:
-			if options.Timeout > 0 && time.Since(startTime) > options.Timeout {
-				return fmt.Errorf("timeout waiting for gate %s", name)
-			}
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(10 * time.Second):
-			}
-		}
+	config := &konductor.WaitConfig{
+		InitialDelay: 2 * time.Second,
+		MaxDelay: 10 * time.Second,
+		Factor: 1.5,
+		Jitter: 0.1,
+		Timeout: 30 * time.Second,
 	}
+
+	if options.Timeout > 0 {
+		config.Timeout = options.Timeout
+	}
+
+	err := c.WaitForCondition(ctx, gate, func(obj interface{}) bool {
+		g := obj.(*syncv1.Gate)
+		switch g.Status.Phase {
+		case syncv1.GatePhaseOpen:
+			return true
+		case syncv1.GatePhaseFailed:
+			return true // Will be handled as error after condition returns
+		default:
+			return false
+		}
+	}, config)
+
+	if err != nil {
+		return err
+	}
+
+	// Check final state after wait completes
+	var finalGate syncv1.Gate
+	if err := c.K8sClient().Get(ctx, types.NamespacedName{
+		Name: name, Namespace: c.Namespace(),
+	}, &finalGate); err != nil {
+		return fmt.Errorf("failed to get gate %s: %w", name, err)
+	}
+
+	if finalGate.Status.Phase == syncv1.GatePhaseFailed {
+		return fmt.Errorf("gate %s failed", name)
+	}
+
+	return nil
 }
 
 func Check(c *konductor.Client, ctx context.Context, name string) (bool, error) {
@@ -189,19 +203,55 @@ func Update(c *konductor.Client, ctx context.Context, gate *syncv1.Gate) error {
 }
 
 func Open(c *konductor.Client, ctx context.Context, name string) error {
-	gate, err := Get(c, ctx, name)
+	gate := &syncv1.Gate{}
+	gate.Name = name
+	gate.Namespace = c.Namespace()
+
+	err := c.RetryWithBackoff(ctx, func() error {
+		var g syncv1.Gate
+		if err := c.K8sClient().Get(ctx, types.NamespacedName{
+			Name: name, Namespace: c.Namespace(),
+		}, &g); err != nil {
+			return err
+		}
+		g.Status.Phase = syncv1.GatePhaseOpen
+		return c.K8sClient().Status().Update(ctx, &g)
+	}, nil)
+
 	if err != nil {
 		return err
 	}
-	gate.Status.Phase = syncv1.GatePhaseOpen
-	return c.K8sClient().Status().Update(ctx, gate)
+
+	// Wait for confirmation
+	return c.WaitForCondition(ctx, gate, func(obj interface{}) bool {
+		g := obj.(*syncv1.Gate)
+		return g.Status.Phase == syncv1.GatePhaseOpen
+	}, nil)
 }
 
 func Close(c *konductor.Client, ctx context.Context, name string) error {
-	gate, err := Get(c, ctx, name)
+	gate := &syncv1.Gate{}
+	gate.Name = name
+	gate.Namespace = c.Namespace()
+
+	err := c.RetryWithBackoff(ctx, func() error {
+		var g syncv1.Gate
+		if err := c.K8sClient().Get(ctx, types.NamespacedName{
+			Name: name, Namespace: c.Namespace(),
+		}, &g); err != nil {
+			return err
+		}
+		g.Status.Phase = syncv1.GatePhaseWaiting
+		return c.K8sClient().Status().Update(ctx, &g)
+	}, nil)
+
 	if err != nil {
 		return err
 	}
-	gate.Status.Phase = syncv1.GatePhaseWaiting
-	return c.K8sClient().Status().Update(ctx, gate)
+
+	// Wait for confirmation
+	return c.WaitForCondition(ctx, gate, func(obj interface{}) bool {
+		g := obj.(*syncv1.Gate)
+		return g.Status.Phase == syncv1.GatePhaseWaiting
+	}, nil)
 }
