@@ -10,6 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
+	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
 func TestWaitGroupListCmd(t *testing.T) {
@@ -39,13 +40,13 @@ func TestWaitGroupListCmd(t *testing.T) {
 		},
 	}
 
-	k8sClient = fake.NewClientBuilder().
+	k8sClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(wgs...).
 		Build()
-	namespace = "default"
+	client := konductor.NewFromClient(k8sClient, "default")
 
-	cmd := newWaitGroupListCmd()
+	cmd := newWaitGroupListCmd(client)
 
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
@@ -58,12 +59,12 @@ func TestWaitGroupCreateCmd(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
-	k8sClient = fake.NewClientBuilder().
+	k8sClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		Build()
-	namespace = "default"
+	client := konductor.NewFromClient(k8sClient, "default")
 
-	cmd := newWaitGroupCreateCmd()
+	cmd := newWaitGroupCreateCmd(client)
 	cmd.SetArgs([]string{"test-wg"})
 
 	var buf bytes.Buffer
@@ -84,13 +85,13 @@ func TestWaitGroupDeleteCmd(t *testing.T) {
 		},
 	}
 
-	k8sClient = fake.NewClientBuilder().
+	k8sClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(wg).
 		Build()
-	namespace = "default"
+	client := konductor.NewFromClient(k8sClient, "default")
 
-	cmd := newWaitGroupDeleteCmd()
+	cmd := newWaitGroupDeleteCmd(client)
 	cmd.SetArgs([]string{"test-wg"})
 
 	var buf bytes.Buffer
@@ -114,14 +115,14 @@ func TestWaitGroupAddCmd(t *testing.T) {
 		},
 	}
 
-	k8sClient = fake.NewClientBuilder().
+	k8sClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(wg).
 		WithStatusSubresource(&syncv1.WaitGroup{}).
 		Build()
-	namespace = "default"
+	client := konductor.NewFromClient(k8sClient, "default")
 
-	cmd := newWaitGroupAddCmd()
+	cmd := newWaitGroupAddCmd(client)
 	cmd.SetArgs([]string{"test-wg", "--delta", "3"})
 
 	var buf bytes.Buffer
@@ -145,14 +146,14 @@ func TestWaitGroupDoneCmd(t *testing.T) {
 		},
 	}
 
-	k8sClient = fake.NewClientBuilder().
+	k8sClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(wg).
 		WithStatusSubresource(&syncv1.WaitGroup{}).
 		Build()
-	namespace = "default"
+	client := konductor.NewFromClient(k8sClient, "default")
 
-	cmd := newWaitGroupDoneCmd()
+	cmd := newWaitGroupDoneCmd(client)
 	cmd.SetArgs([]string{"test-wg"})
 
 	var buf bytes.Buffer
