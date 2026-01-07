@@ -77,7 +77,7 @@ const (
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-//+kubebuilder:printcolumn:name="Conditions",type=integer,JSONPath=`.spec.conditions[*].name`
+//+kubebuilder:printcolumn:name="Conditions",type=string,JSONPath=`.spec.conditions[*].name`
 
 // Gate is the Schema for the gates API
 type Gate struct {

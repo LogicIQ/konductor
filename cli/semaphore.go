@@ -128,6 +128,7 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 			}
 
 			if err := client.K8sClient().Delete(ctx, permitToDelete); err != nil {
+				logger.Error("Failed to delete permit", zap.Error(err))
 				return err
 			}
 

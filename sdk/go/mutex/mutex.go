@@ -123,7 +123,13 @@ func With(c *konductor.Client, ctx context.Context, name string, fn func() error
 	if err != nil {
 		return err
 	}
-	defer mutex.Unlock()
+	defer func() {
+		if unlockErr := mutex.Unlock(); unlockErr != nil {
+			// TODO: Add proper logging for unlock errors
+			// Cannot return error from defer, so we silently handle it for now
+			_ = unlockErr
+		}
+	}()
 
 	return fn()
 }

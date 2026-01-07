@@ -53,8 +53,8 @@ func newBarrierWaitCmd() *cobra.Command {
 			}
 
 			// Get barrier status to display info
-			barrierObj, _ := barrier.Get(client, ctx, barrierName)
-			if barrierObj != nil {
+			barrierObj, err := barrier.Get(client, ctx, barrierName)
+			if err == nil && barrierObj != nil {
 				logger.Info("Barrier is open",
 					zap.String("barrier", barrierName),
 					zap.Int32("arrived", barrierObj.Status.Arrived),

@@ -131,7 +131,10 @@ func (c *Client) ReleaseSemaphorePermit(ctx context.Context, semaphoreName, hold
 	permit := &syncv1.Permit{}
 	permit.Name = permitName
 	permit.Namespace = c.namespace
-	return c.k8sClient.Delete(ctx, permit)
+	if err := c.k8sClient.Delete(ctx, permit); err != nil {
+		return fmt.Errorf("failed to delete permit %s: %w", permitName, err)
+	}
+	return nil
 }
 
 // ReleaseLease releases a lease.
@@ -140,7 +143,10 @@ func (c *Client) ReleaseLease(ctx context.Context, leaseName, holder string) err
 	request := &syncv1.LeaseRequest{}
 	request.Name = requestName
 	request.Namespace = c.namespace
-	return c.k8sClient.Delete(ctx, request)
+	if err := c.k8sClient.Delete(ctx, request); err != nil {
+		return fmt.Errorf("failed to delete lease request %s: %w", requestName, err)
+	}
+	return nil
 }
 
 // ListPermits returns all permits for a specific semaphore.
@@ -207,7 +213,10 @@ func (p *Permit) Release() error {
 	if p.cancelCtx != nil {
 		p.cancelCtx()
 	}
-	return p.client.ReleaseSemaphorePermit(p.ctx, p.name, p.holder)
+	if err := p.client.ReleaseSemaphorePermit(p.ctx, p.name, p.holder); err != nil {
+		return fmt.Errorf("failed to release permit %s for holder %s: %w", p.name, p.holder, err)
+	}
+	return nil
 }
 
 // Holder returns the permit holder identifier.
@@ -234,7 +243,10 @@ func (l *LeaseHandle) Release() error {
 	if l.cancelCtx != nil {
 		l.cancelCtx()
 	}
-	return l.client.ReleaseLease(l.ctx, l.name, l.holder)
+	if err := l.client.ReleaseLease(l.ctx, l.name, l.holder); err != nil {
+		return fmt.Errorf("failed to release lease %s for holder %s: %w", l.name, l.holder, err)
+	}
+	return nil
 }
 
 // Holder returns the lease holder identifier.

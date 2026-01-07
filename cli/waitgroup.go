@@ -18,17 +18,20 @@ func newWaitGroupCmd() *cobra.Command {
 		Long:  "Coordinate dynamic number of workers",
 	}
 
-	cmd.AddCommand(newWaitGroupCreateCmd())
-	cmd.AddCommand(newWaitGroupDeleteCmd())
-	cmd.AddCommand(newWaitGroupAddCmd())
-	cmd.AddCommand(newWaitGroupDoneCmd())
-	cmd.AddCommand(newWaitGroupWaitCmd())
-	cmd.AddCommand(newWaitGroupListCmd())
+	// Create shared client for all waitgroup commands
+	client := konductor.NewFromClient(k8sClient, namespace)
+
+	cmd.AddCommand(newWaitGroupCreateCmd(client))
+	cmd.AddCommand(newWaitGroupDeleteCmd(client))
+	cmd.AddCommand(newWaitGroupAddCmd(client))
+	cmd.AddCommand(newWaitGroupDoneCmd(client))
+	cmd.AddCommand(newWaitGroupWaitCmd(client))
+	cmd.AddCommand(newWaitGroupListCmd(client))
 
 	return cmd
 }
 
-func newWaitGroupAddCmd() *cobra.Command {
+func newWaitGroupAddCmd(client *konductor.Client) *cobra.Command {
 	var delta int32
 
 	cmd := &cobra.Command{
@@ -38,8 +41,6 @@ func newWaitGroupAddCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			ctx := context.Background()
-
-			client := konductor.NewFromClient(k8sClient, namespace)
 
 			if err := waitgroup.Add(client, ctx, name, delta); err != nil {
 				return err
@@ -55,7 +56,7 @@ func newWaitGroupAddCmd() *cobra.Command {
 	return cmd
 }
 
-func newWaitGroupDoneCmd() *cobra.Command {
+func newWaitGroupDoneCmd(client *konductor.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "done <waitgroup-name>",
 		Short: "Decrement waitgroup counter",
@@ -63,8 +64,6 @@ func newWaitGroupDoneCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			ctx := context.Background()
-
-			client := konductor.NewFromClient(k8sClient, namespace)
 
 			if err := waitgroup.Done(client, ctx, name); err != nil {
 				return err
@@ -78,7 +77,7 @@ func newWaitGroupDoneCmd() *cobra.Command {
 	return cmd
 }
 
-func newWaitGroupWaitCmd() *cobra.Command {
+func newWaitGroupWaitCmd(client *konductor.Client) *cobra.Command {
 	var timeout time.Duration
 
 	cmd := &cobra.Command{
@@ -88,8 +87,6 @@ func newWaitGroupWaitCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			ctx := context.Background()
-
-			client := konductor.NewFromClient(k8sClient, namespace)
 
 			var opts []konductor.Option
 			if timeout > 0 {
@@ -110,14 +107,12 @@ func newWaitGroupWaitCmd() *cobra.Command {
 	return cmd
 }
 
-func newWaitGroupListCmd() *cobra.Command {
+func newWaitGroupListCmd(client *konductor.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all waitgroups",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
-
-			client := konductor.NewFromClient(k8sClient, namespace)
 
 			wgs, err := waitgroup.List(client, ctx)
 			if err != nil {
@@ -144,7 +139,7 @@ func newWaitGroupListCmd() *cobra.Command {
 	return cmd
 }
 
-func newWaitGroupCreateCmd() *cobra.Command {
+func newWaitGroupCreateCmd(client *konductor.Client) *cobra.Command {
 	var ttl time.Duration
 
 	cmd := &cobra.Command{
@@ -154,8 +149,6 @@ func newWaitGroupCreateCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			ctx := context.Background()
-
-			client := konductor.NewFromClient(k8sClient, namespace)
 
 			var opts []konductor.Option
 			if ttl > 0 {
@@ -175,7 +168,7 @@ func newWaitGroupCreateCmd() *cobra.Command {
 	return cmd
 }
 
-func newWaitGroupDeleteCmd() *cobra.Command {
+func newWaitGroupDeleteCmd(client *konductor.Client) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <waitgroup-name>",
 		Short: "Delete a waitgroup",
@@ -183,8 +176,6 @@ func newWaitGroupDeleteCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			ctx := context.Background()
-
-			client := konductor.NewFromClient(k8sClient, namespace)
 
 			if err := waitgroup.Delete(client, ctx, name); err != nil {
 				return err
