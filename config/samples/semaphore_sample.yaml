@@ -6,6 +6,8 @@ metadata:
 spec:
   permits: 5
   ttl: 10m
+  onExhaustion: queue
+  onFailure: release
 ---
 apiVersion: sync.konductor.io/v1
 kind: Permit
@@ -18,3 +20,5 @@ spec:
   semaphore: api-quota
   holder: job-worker-123
   ttl: 10m
+  timeout: 30s
+  onTimeout: release

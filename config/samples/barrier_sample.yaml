@@ -7,6 +7,8 @@ spec:
   expected: 10
   timeout: 30m
   quorum: 8
+  onTimeout: fail
+  onFailure: cleanup
 ---
 apiVersion: sync.konductor.io/v1
 kind: Arrival
@@ -18,3 +20,5 @@ metadata:
 spec:
   barrier: stage-2
   holder: job-extract-1
+  timeout: 5m
+  retryOnFailure: true

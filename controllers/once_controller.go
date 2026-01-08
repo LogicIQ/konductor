@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,7 +34,6 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, err
 	}
 
-	// Update phase based on execution status
 	if once.Status.Executed {
 		once.Status.Phase = syncv1.OncePhaseExecuted
 	} else {
@@ -42,7 +42,7 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	if err := r.Status().Update(ctx, &once); err != nil {
 		log.Error(err, "unable to update Once status")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: time.Second * 5}, err
 	}
 
 	return ctrl.Result{}, nil
