@@ -109,16 +109,20 @@ func newBarrierArriveCmd() *cobra.Command {
 				barrierObj.Name = barrierName
 				barrierObj.Namespace = client.Namespace()
 				
-				client.WaitForCondition(ctx, barrierObj, func(obj interface{}) bool {
+				if err := client.WaitForCondition(ctx, barrierObj, func(obj interface{}) bool {
 					return true // Just wait for operator delay
-				}, nil)
+				}, nil); err != nil {
+					logger.Warn("Failed to wait for barrier update", zap.Error(err))
+				}
 			}
 
 			logger.Info("Signaled arrival at barrier", zap.String("barrier", barrierName))
 
 			// Get barrier status to display info
 			barrierObj, err := barrier.Get(client, ctx, barrierName)
-			if err == nil {
+			if err != nil {
+				logger.Warn("Failed to get barrier status", zap.Error(err))
+			} else {
 				logger.Info("Barrier status",
 					zap.Int32("arrived", barrierObj.Status.Arrived),
 					zap.Int32("expected", barrierObj.Spec.Expected),
@@ -204,7 +208,7 @@ func newBarrierCreateCmd() *cobra.Command {
 				opts = append(opts, konductor.WithQuorum(quorum))
 			}
 
-			if err := barrier.Create(client, ctx, barrierName, expected); err != nil {
+			if err := barrier.Create(client, ctx, barrierName, expected, opts...); err != nil {
 				return err
 			}
 

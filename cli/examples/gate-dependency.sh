@@ -25,6 +25,8 @@ sleep 2
 echo "✓ Service started successfully"
 
 # Signal service is ready
-koncli gate open "${SERVICE_NAME}-ready" 2>/dev/null || true
+if ! koncli gate open "${SERVICE_NAME}-ready"; then
+    echo "Warning: Failed to signal service ready status" >&2
+fi
 
 echo "✓ Service $SERVICE_NAME is running"

@@ -108,7 +108,6 @@ func main() {
 	})
 	if err != nil {
 		logger.Error("Unable to start manager", zap.Error(err))
-		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
@@ -116,7 +115,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Semaphore")
+		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Semaphore"))
 		os.Exit(1)
 	}
 

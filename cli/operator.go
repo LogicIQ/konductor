@@ -60,6 +60,11 @@ func checkHealth(url string) string {
 }
 
 func checkHealthWithVersion(url string) (string, string) {
+	// Validate URL to prevent SSRF
+	if !isValidHealthURL(url) {
+		return "", "invalid URL"
+	}
+
 	cfg, _ := rest.InClusterConfig()
 	client := &http.Client{
 		Timeout:   2 * time.Second,
@@ -77,6 +82,23 @@ func checkHealthWithVersion(url string) (string, string) {
 		return version, "OK"
 	}
 	return version, resp.Status
+}
+
+func isValidHealthURL(url string) bool {
+	// Only allow cluster-local service URLs for health checks
+	return len(url) > 0 && 
+		(url[:7] == "http://" || url[:8] == "https://") &&
+		contains(url, ".svc.cluster.local:") &&
+		(contains(url, "/healthz") || contains(url, "/readyz"))
+}
+
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 func getTransport(cfg *rest.Config) http.RoundTripper {

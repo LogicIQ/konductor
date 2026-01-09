@@ -42,6 +42,9 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	if err := r.Status().Update(ctx, &once); err != nil {
 		log.Error(err, "unable to update Once status")
+		if errors.IsConflict(err) {
+			return ctrl.Result{Requeue: true}, nil
+		}
 		return ctrl.Result{RequeueAfter: time.Second * 5}, err
 	}
 

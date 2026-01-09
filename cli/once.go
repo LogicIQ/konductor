@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -36,6 +37,9 @@ func newOnceCheckCmd() *cobra.Command {
 			ctx := context.Background()
 
 			client := konductor.NewFromClient(k8sClient, namespace)
+			if client == nil {
+				return fmt.Errorf("failed to create konductor client")
+			}
 
 			executed, err := once.IsExecuted(client, ctx, name)
 			if err != nil {
@@ -44,10 +48,10 @@ func newOnceCheckCmd() *cobra.Command {
 
 			if executed {
 				logger.Info("Once has been executed", zap.String("once", name))
-				return nil
+			} else {
+				logger.Info("Once has not been executed", zap.String("once", name))
 			}
 
-			logger.Info("Once has not been executed", zap.String("once", name))
 			return nil
 		},
 	}
