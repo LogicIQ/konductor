@@ -7,6 +7,7 @@ set -e
 SEMAPHORE_NAME="batch-processor"
 MAX_CONCURRENT=5
 HOLDER="$HOSTNAME-$$"
+ERROR_FILE="/tmp/batch-errors-$$"
 
 # Create semaphore for concurrency control
 koncli semaphore create "$SEMAPHORE_NAME" --permits "$MAX_CONCURRENT" 2>/dev/null || true
@@ -29,14 +30,25 @@ for item in "${ITEMS[@]}"; do
             echo "  ✓ Completed $item"
             
             # Release permit
-            koncli semaphore release "$SEMAPHORE_NAME" --holder "$HOLDER-$item"
+            if ! koncli semaphore release "$SEMAPHORE_NAME" --holder "$HOLDER-$item"; then
+                echo "  Warning: Failed to release permit for $item" >&2
+            fi
         else
-            echo "  ✗ Failed to acquire permit for $item"
+            echo "  ✗ Failed to acquire permit for $item" >&2
+            echo "$item" >> "$ERROR_FILE"
+            exit 1
         fi
     ) &
 done
 
 # Wait for all background jobs
 wait
+
+# Check for errors
+if [[ -f "$ERROR_FILE" ]]; then
+    echo "✗ Processing failed for items: $(cat "$ERROR_FILE" | tr '\n' ' ')" >&2
+    rm -f "$ERROR_FILE"
+    exit 1
+fi
 
 echo "✓ All items processed"

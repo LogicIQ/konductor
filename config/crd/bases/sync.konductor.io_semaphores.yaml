@@ -55,6 +55,7 @@ spec:
               permits:
                 description: Permits is the maximum number of concurrent permits allowed
                 format: int32
+                minimum: 1
                 type: integer
               ttl:
                 description: TTL is the default time-to-live for permits

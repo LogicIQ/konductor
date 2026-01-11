@@ -7,6 +7,7 @@ spec:
   expected: 10
   timeout: 30m
   quorum: 8
+  ttl: 1h
   onTimeout: fail
   onFailure: cleanup
 ---
@@ -21,4 +22,6 @@ spec:
   barrier: stage-2
   holder: job-extract-1
   timeout: 5m
+  ttl: 10m
   retryOnFailure: true
+  maxRetries: 3

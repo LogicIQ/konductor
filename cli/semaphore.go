@@ -115,9 +115,9 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 			}
 
 			var permitToDelete *syncv1.Permit
-			for _, permit := range permits {
-				if permit.Spec.Holder == holder {
-					permitToDelete = &permit
+			for i := range permits {
+				if permits[i].Spec.Holder == holder {
+					permitToDelete = &permits[i]
 					break
 				}
 			}

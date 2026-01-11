@@ -7,6 +7,7 @@ import (
 // SemaphoreSpec defines the desired state of Semaphore
 type SemaphoreSpec struct {
 	// Permits is the maximum number of concurrent permits allowed
+	// +kubebuilder:validation:Minimum=1
 	Permits int32 `json:"permits"`
 
 	// TTL is the default time-to-live for permits

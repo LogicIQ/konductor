@@ -1,4 +1,4 @@
-apiVersion: sync.konductor.io/v1
+apiVersion: konductor.io/v1
 kind: Gate
 metadata:
   name: processing-gate
@@ -8,11 +8,17 @@ spec:
     - type: Job
       name: data-loader
       state: Complete
+      onNotFound: wait
     - type: Semaphore
       name: api-quota
       state: Available
       value: 2
+      onNotFound: fail
     - type: Barrier
       name: stage-1-complete
       state: Open
+      onNotFound: wait
   timeout: 1h
+  ttl: 2h
+  onTimeout: fail
+  retryInterval: 30s

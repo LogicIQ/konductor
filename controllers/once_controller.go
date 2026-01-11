@@ -34,10 +34,9 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, err
 	}
 
+	once.Status.Phase = syncv1.OncePhasePending
 	if once.Status.Executed {
 		once.Status.Phase = syncv1.OncePhaseExecuted
-	} else {
-		once.Status.Phase = syncv1.OncePhasePending
 	}
 
 	if err := r.Status().Update(ctx, &once); err != nil {

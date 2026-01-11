@@ -70,13 +70,17 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			validPermits++
 			if permit.Status.Phase != syncv1.PermitPhaseGranted {
 				permits.Items[i].Status.Phase = syncv1.PermitPhaseGranted
-				r.Status().Update(ctx, &permits.Items[i])
+				if err := r.Status().Update(ctx, &permits.Items[i]); err != nil {
+					log.Error(err, "failed to update permit status", "permit", permit.Name)
+				}
 			}
 		} else if permit.Status.ExpiresAt == nil {
 			validPermits++
 			if permit.Status.Phase != syncv1.PermitPhaseGranted {
 				permits.Items[i].Status.Phase = syncv1.PermitPhaseGranted
-				r.Status().Update(ctx, &permits.Items[i])
+				if err := r.Status().Update(ctx, &permits.Items[i]); err != nil {
+					log.Error(err, "failed to update permit status", "permit", permit.Name)
+				}
 			}
 		}
 	}

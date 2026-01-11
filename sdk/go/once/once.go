@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,8 +52,12 @@ func Do(c *konductor.Client, ctx context.Context, name string, fn func() error, 
 	once.Status.Phase = syncv1.OncePhaseExecuted
 
 	if err := c.K8sClient().Status().Update(ctx, &once); err != nil {
-		// Someone else got it first
-		return false, nil
+		// Check if it's a conflict error (someone else got it first)
+		if errors.IsConflict(err) {
+			return false, nil
+		}
+		// Other errors should be returned
+		return false, fmt.Errorf("failed to update once status: %w", err)
 	}
 
 	// Execute the function
@@ -91,7 +96,12 @@ func Create(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 		once.Spec.TTL = &metav1.Duration{Duration: options.TTL}
 	}
 
-	return c.K8sClient().Create(ctx, once)
+	err := c.K8sClient().Create(ctx, once)
+	if err != nil && errors.IsAlreadyExists(err) {
+		// Resource already exists, this is not an error for idempotent create
+		return nil
+	}
+	return err
 }
 
 func Delete(c *konductor.Client, ctx context.Context, name string) error {
@@ -101,7 +111,12 @@ func Delete(c *konductor.Client, ctx context.Context, name string) error {
 			Namespace: c.Namespace(),
 		},
 	}
-	return c.K8sClient().Delete(ctx, once)
+	err := c.K8sClient().Delete(ctx, once)
+	if err != nil && errors.IsNotFound(err) {
+		// Resource doesn't exist, this is not an error for idempotent delete
+		return nil
+	}
+	return err
 }
 
 func Get(c *konductor.Client, ctx context.Context, name string) (*syncv1.Once, error) {

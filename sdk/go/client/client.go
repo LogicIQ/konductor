@@ -208,12 +208,14 @@ func NewPermit(client *Client, name, holder string, ctx context.Context) *Permit
 	}
 }
 
-// Release releases the semaphore permit.
 func (p *Permit) Release() error {
 	if p.cancelCtx != nil {
 		p.cancelCtx()
 	}
 	if err := p.client.ReleaseSemaphorePermit(p.ctx, p.name, p.holder); err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			return nil
+		}
 		return fmt.Errorf("failed to release permit %s for holder %s: %w", p.name, p.holder, err)
 	}
 	return nil
@@ -244,6 +246,9 @@ func (l *LeaseHandle) Release() error {
 		l.cancelCtx()
 	}
 	if err := l.client.ReleaseLease(l.ctx, l.name, l.holder); err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			return nil
+		}
 		return fmt.Errorf("failed to release lease %s for holder %s: %w", l.name, l.holder, err)
 	}
 	return nil

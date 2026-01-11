@@ -25,20 +25,49 @@ spec:
         - /bin/sh
         - -c
         - |
-          # koncli will auto-detect namespace from service account
-          # No need to specify -n flag when running in pod
+          set -e
+          
+          # Set up cleanup function
+          cleanup() {
+            if [ "$PERMIT_ACQUIRED" = "true" ]; then
+              echo "Cleaning up: releasing permit..."
+              if ! koncli semaphore release api-quota; then
+                echo "Warning: Failed to release semaphore permit" >&2
+              fi
+            fi
+          }
+          trap cleanup EXIT
+          
+          PERMIT_ACQUIRED=false
           
           echo "Acquiring semaphore permit..."
-          koncli semaphore acquire api-quota --wait --ttl=10m
+          if koncli semaphore acquire api-quota --wait --ttl=10m; then
+            PERMIT_ACQUIRED=true
+          else
+            echo "Failed to acquire semaphore permit" >&2
+            exit 1
+          fi
           
           echo "Processing data..."
-          ./process-data.sh
+          if ! ./process-data.sh; then
+            echo "Data processing failed" >&2
+            exit 1
+          fi
           
           echo "Signaling completion..."
-          koncli barrier arrive processing-complete
+          if ! koncli barrier arrive processing-complete; then
+            echo "Failed to signal completion" >&2
+            exit 1
+          fi
           
           echo "Releasing permit..."
-          koncli semaphore release api-quota
+          if koncli semaphore release api-quota; then
+            PERMIT_ACQUIRED=false
+            echo "Successfully released permit"
+          else
+            echo "Failed to release permit" >&2
+            exit 1
+          fi
         volumeMounts:
         - name: koncli
           mountPath: /usr/local/bin/koncli
@@ -64,25 +93,37 @@ spec:
       - name: wait-for-dependencies
         image: konductor/koncli:latest
         command:
-        - koncli
-        - gate
-        - wait
-        - processing-gate
-        - --timeout=30m
-        # No namespace flag needed - auto-detected!
+        - /bin/sh
+        - -c
+        - |
+          if ! koncli gate wait processing-gate --timeout=30m; then
+            echo "Failed to wait for dependencies" >&2
+            exit 1
+          fi
+          echo "Dependencies ready"
       - name: acquire-resources
         image: konductor/koncli:latest
         command:
-        - koncli
-        - semaphore
-        - acquire
-        - api-quota
-        - --wait
-        - --ttl=30m
+        - /bin/sh
+        - -c
+        - |
+          if ! koncli semaphore acquire api-quota --wait --ttl=30m; then
+            echo "Failed to acquire semaphore permit" >&2
+            exit 1
+          fi
+          echo "Resource acquired"
       containers:
       - name: worker
         image: my-app:latest
-        command: ["./process-data.sh"]
+        command:
+        - /bin/sh
+        - -c
+        - |
+          if ! ./process-data.sh; then
+            echo "Data processing failed" >&2
+            exit 1
+          fi
+          echo "Processing completed successfully"
       restartPolicy: Never
 ---
 # ServiceAccount with proper RBAC

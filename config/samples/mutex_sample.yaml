@@ -21,12 +21,29 @@ spec:
         - /bin/sh
         - -c
         - |
+          # Set up cleanup trap
+          cleanup() {
+            if [ "$LOCK_ACQUIRED" = "true" ]; then
+              if ! koncli mutex unlock critical-section --holder $HOSTNAME; then
+                echo "Warning: Failed to release lock" >&2
+              fi
+            fi
+          }
+          trap cleanup EXIT
+          
+          LOCK_ACQUIRED=false
           if koncli mutex lock critical-section --holder $HOSTNAME --timeout 30s; then
+            LOCK_ACQUIRED=true
             echo "Acquired lock, performing critical work..."
             # Do critical work here
             sleep 5
-            koncli mutex unlock critical-section --holder $HOSTNAME
-            echo "Released lock"
+            if koncli mutex unlock critical-section --holder $HOSTNAME; then
+              LOCK_ACQUIRED=false
+              echo "Released lock"
+            else
+              echo "Failed to release lock" >&2
+              exit 1
+            fi
           else
             echo "Failed to acquire lock"
             exit 1

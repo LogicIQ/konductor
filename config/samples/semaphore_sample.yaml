@@ -1,4 +1,4 @@
-apiVersion: sync.konductor.io/v1
+apiVersion: konductor.io/v1
 kind: Semaphore
 metadata:
   name: api-quota
@@ -6,10 +6,12 @@ metadata:
 spec:
   permits: 5
   ttl: 10m
+  maxWaitTime: 5m
   onExhaustion: queue
   onFailure: release
+  onTimeout: fail
 ---
-apiVersion: sync.konductor.io/v1
+apiVersion: konductor.io/v1
 kind: Permit
 metadata:
   name: api-quota-permit-1

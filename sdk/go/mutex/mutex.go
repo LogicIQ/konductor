@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -90,6 +91,9 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	}, config)
 
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("context cancelled while waiting for mutex %s: %w", name, ctx.Err())
+		}
 		return nil, fmt.Errorf("timeout acquiring mutex %s: %w", name, err)
 	}
 
@@ -123,14 +127,22 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 1 * time.Second, Timeout: 5 * time.Second})
 
 	if err != nil {
-		return nil, err
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("context cancelled while acquiring mutex %s: %w", name, ctx.Err())
+		}
+		return nil, fmt.Errorf("failed to acquire mutex lock %s: %w", name, err)
 	}
 
 	// Wait for confirmation
-	return &Mutex{client: c, name: name, holder: holder}, c.WaitForCondition(ctx, mutex, func(obj interface{}) bool {
+	mutexObj := &Mutex{client: c, name: name, holder: holder}
+	if err := c.WaitForCondition(ctx, mutex, func(obj interface{}) bool {
 		m := obj.(*syncv1.Mutex)
 		return m.Status.Phase == syncv1.MutexPhaseLocked && m.Status.Holder == holder
-	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 1 * time.Second, Timeout: 2 * time.Second})
+	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 1 * time.Second, Timeout: 2 * time.Second}); err != nil {
+		return nil, fmt.Errorf("failed to confirm mutex lock: %w", err)
+	}
+	
+	return mutexObj, nil
 }
 
 func TryLock(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*Mutex, error) {
@@ -138,16 +150,16 @@ func TryLock(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	return Lock(c, ctx, name, opts...)
 }
 
-func With(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
+func With(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) (err error) {
 	mutex, err := Lock(c, ctx, name, opts...)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if unlockErr := mutex.Unlock(); unlockErr != nil {
-			// TODO: Add proper logging for unlock errors
-			// Cannot return error from defer, so we silently handle it for now
-			_ = unlockErr
+			if err == nil {
+				err = fmt.Errorf("function succeeded but failed to unlock mutex: %w", unlockErr)
+			}
 		}
 	}()
 
@@ -172,7 +184,11 @@ func Create(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 		mutex.Spec.TTL = &metav1.Duration{Duration: options.TTL}
 	}
 
-	return c.K8sClient().Create(ctx, mutex)
+	err := c.K8sClient().Create(ctx, mutex)
+	if err != nil && errors.IsAlreadyExists(err) {
+		return nil
+	}
+	return err
 }
 
 func Delete(c *konductor.Client, ctx context.Context, name string) error {
@@ -182,7 +198,11 @@ func Delete(c *konductor.Client, ctx context.Context, name string) error {
 			Namespace: c.Namespace(),
 		},
 	}
-	return c.K8sClient().Delete(ctx, mutex)
+	err := c.K8sClient().Delete(ctx, mutex)
+	if err != nil && errors.IsNotFound(err) {
+		return nil
+	}
+	return err
 }
 
 func Get(c *konductor.Client, ctx context.Context, name string) (*syncv1.Mutex, error) {
@@ -210,4 +230,27 @@ func IsLocked(c *konductor.Client, ctx context.Context, name string) (bool, erro
 		return false, err
 	}
 	return mutex.Status.Phase == syncv1.MutexPhaseLocked, nil
+}
+
+func Unlock(c *konductor.Client, ctx context.Context, name, holder string) error {
+	return c.RetryWithBackoff(ctx, func() error {
+		var mutex syncv1.Mutex
+		if err := c.K8sClient().Get(ctx, types.NamespacedName{
+			Name:      name,
+			Namespace: c.Namespace(),
+		}, &mutex); err != nil {
+			return fmt.Errorf("failed to get mutex: %w", err)
+		}
+
+		if mutex.Status.Holder != holder {
+			return fmt.Errorf("cannot unlock: not the holder")
+		}
+
+		mutex.Status.Phase = syncv1.MutexPhaseUnlocked
+		mutex.Status.Holder = ""
+		mutex.Status.LockedAt = nil
+		mutex.Status.ExpiresAt = nil
+
+		return c.K8sClient().Status().Update(ctx, &mutex)
+	}, nil)
 }

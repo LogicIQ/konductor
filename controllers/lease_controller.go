@@ -86,13 +86,16 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			lease.Status.Phase = syncv1.LeasePhaseHeld
 			acquiredAt := metav1.Now()
 			lease.Status.AcquiredAt = &acquiredAt
-			expiresAt := metav1.NewTime(now.Add(lease.Spec.TTL.Duration))
-			lease.Status.ExpiresAt = &expiresAt
+			if lease.Spec.TTL.Duration > 0 {
+				expiresAt := metav1.NewTime(now.Add(lease.Spec.TTL.Duration))
+				lease.Status.ExpiresAt = &expiresAt
+			}
 			lease.Status.RenewCount = 0
 
 			bestRequest.Status.Phase = syncv1.LeaseRequestPhaseGranted
 			if err := r.Status().Update(ctx, bestRequest); err != nil {
-				log.Error(err, "unable to update lease request status")
+				log.Error(err, "unable to update lease request status", "request", bestRequest.Name)
+				return ctrl.Result{RequeueAfter: time.Second * 5}, err
 			}
 		}
 	}

@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"math"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -47,11 +46,11 @@ func (c *Client) WaitForCondition(ctx context.Context, obj client.Object, condit
 		Duration: config.InitialDelay,
 		Factor:   config.Factor,
 		Jitter:   config.Jitter,
-		Steps:    int(math.Ceil(float64(config.Timeout) / float64(config.InitialDelay))),
+		Steps:    10, // Fixed reasonable number of steps
 		Cap:      config.MaxDelay,
 	}
 
-	return wait.ExponentialBackoff(backoff, func() (bool, error) {
+	return wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 		if err := c.k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
 			if errors.IsNotFound(err) {
 				return false, nil
@@ -71,11 +70,11 @@ func (c *Client) RetryWithBackoff(ctx context.Context, fn func() error, config *
 		Duration: config.InitialDelay,
 		Factor:   config.Factor,
 		Jitter:   config.Jitter,
-		Steps:    int(math.Ceil(float64(config.Timeout) / float64(config.InitialDelay))),
+		Steps:    10, // Fixed reasonable number of steps
 		Cap:      config.MaxDelay,
 	}
 
-	return wait.ExponentialBackoff(backoff, func() (bool, error) {
+	return wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
 		err := fn()
 		if err == nil {
 			return true, nil

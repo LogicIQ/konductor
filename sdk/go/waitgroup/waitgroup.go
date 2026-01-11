@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,10 +55,14 @@ func Add(c *konductor.Client, ctx context.Context, name string, delta int32) err
 	wg.Name = name
 	wg.Namespace = c.Namespace()
 	
-	return c.WaitForCondition(ctx, wg, func(obj interface{}) bool {
+	if err := c.WaitForCondition(ctx, wg, func(obj interface{}) bool {
 		waitGroup := obj.(*syncv1.WaitGroup)
 		return waitGroup.Status.Counter != originalCounter
-	}, nil)
+	}, nil); err != nil {
+		return fmt.Errorf("failed to confirm waitgroup update: %w", err)
+	}
+	
+	return nil
 }
 
 // Done decrements the counter by 1
@@ -88,10 +93,14 @@ func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 		config.Timeout = options.Timeout
 	}
 	
-	return c.WaitForCondition(ctx, wg, func(obj interface{}) bool {
+	if err := c.WaitForCondition(ctx, wg, func(obj interface{}) bool {
 		waitGroup := obj.(*syncv1.WaitGroup)
 		return waitGroup.Status.Counter <= 0
-	}, config)
+	}, config); err != nil {
+		return fmt.Errorf("failed to wait for waitgroup %s: %w", name, err)
+	}
+	
+	return nil
 }
 
 // GetCounter returns the current counter value
@@ -123,7 +132,12 @@ func Create(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 
 	// Use retry for create operations to handle name conflicts
 	return c.RetryWithBackoff(ctx, func() error {
-		return c.K8sClient().Create(ctx, wg)
+		err := c.K8sClient().Create(ctx, wg)
+		if err != nil && errors.IsAlreadyExists(err) {
+			// Resource already exists, this is not an error for idempotent create
+			return nil
+		}
+		return err
 	}, nil)
 }
 
@@ -134,7 +148,12 @@ func Delete(c *konductor.Client, ctx context.Context, name string) error {
 			Namespace: c.Namespace(),
 		},
 	}
-	return c.K8sClient().Delete(ctx, wg)
+	err := c.K8sClient().Delete(ctx, wg)
+	if err != nil && errors.IsNotFound(err) {
+		// Resource doesn't exist, this is not an error for idempotent delete
+		return nil
+	}
+	return err
 }
 
 func Get(c *konductor.Client, ctx context.Context, name string) (*syncv1.WaitGroup, error) {

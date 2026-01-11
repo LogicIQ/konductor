@@ -41,7 +41,12 @@ tasks:
     cmds:
       - echo "Running e2e tests..."
       - go mod tidy
-      - go test -v ./... -tags=e2e -timeout=1m
+      - |
+        if ! go test -v ./... -tags=e2e -timeout=1m; then
+          echo "E2E tests failed, collecting logs..."
+          kubectl logs -n konductor-system deployment/konductor-controller-manager --tail=50 || true
+          exit 1
+        fi
 
   cleanup:
     desc: Cleanup e2e environment

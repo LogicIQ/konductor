@@ -18,15 +18,45 @@ spec:
         app.kubernetes.io/name: konductor
         app.kubernetes.io/component: manager
     spec:
+      restartPolicy: Always
+      imagePullSecrets: []
       serviceAccountName: konductor-controller-manager
       containers:
       - name: manager
         image: konductor:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
+        terminationMessagePolicy: FallbackToLogsOnError
+        terminationMessagePath: /dev/termination-log
+        stdin: false
+        tty: false
         command:
         - /manager
         args:
-        - --log-level=debug
+        - --log-level=$(LOG_LEVEL)
+        startupProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 30
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
         env:
         - name: WATCH_NAMESPACE
           value: ""
@@ -35,6 +65,9 @@ spec:
         ports:
         - containerPort: 8080
           name: metrics
+          protocol: TCP
+        - containerPort: 8081
+          name: health
           protocol: TCP
         resources:
           limits:

@@ -92,6 +92,7 @@ var (
 	MutexList     = mutex.List
 	MutexLock     = mutex.Lock
 	MutexTryLock  = mutex.TryLock
+	MutexUnlock   = mutex.Unlock
 	MutexWith     = mutex.With
 	MutexIsLocked = mutex.IsLocked
 )
