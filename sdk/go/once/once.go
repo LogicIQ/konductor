@@ -56,12 +56,23 @@ func Do(c *konductor.Client, ctx context.Context, name string, fn func() error, 
 		if errors.IsConflict(err) {
 			return false, nil
 		}
+		if errors.IsNotFound(err) {
+			return false, fmt.Errorf("once resource was deleted: %w", err)
+		}
 		// Other errors should be returned
 		return false, fmt.Errorf("failed to update once status: %w", err)
 	}
 
 	// Execute the function
 	if err := fn(); err != nil {
+		// Rollback the execution status on failure
+		once.Status.Executed = false
+		once.Status.Executor = ""
+		once.Status.ExecutedAt = nil
+		once.Status.Phase = syncv1.OncePhasePending
+		if rollbackErr := c.K8sClient().Status().Update(ctx, &once); rollbackErr != nil {
+			return true, fmt.Errorf("execution failed and rollback failed: %w (rollback error: %v)", err, rollbackErr)
+		}
 		return true, fmt.Errorf("execution failed: %w", err)
 	}
 

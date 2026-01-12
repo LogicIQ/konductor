@@ -87,7 +87,7 @@ func checkHealthWithVersion(url string) (string, string) {
 			return "", "blocked"
 		}
 		// Log the error for debugging
-		logger.Debug("Health check failed", zap.String("url", url), zap.Error(err))
+		logger.Debug("Health check failed", zap.String("url", sanitizeURL(url)), zap.Error(err))
 		return "", "unavailable"
 	}
 	defer func() {
@@ -233,6 +233,21 @@ func isAllowedHost(host string) bool {
 		}
 	}
 	return false
+}
+
+func sanitizeURL(url string) string {
+	// Remove sensitive information from URL for logging
+	if len(url) == 0 {
+		return "<empty>"
+	}
+	// Only show the path component for security
+	if contains(url, "/healthz") {
+		return "<service>/healthz"
+	}
+	if contains(url, "/readyz") {
+		return "<service>/readyz"
+	}
+	return "<sanitized>"
 }
 
 func getTransport(cfg *rest.Config) http.RoundTripper {

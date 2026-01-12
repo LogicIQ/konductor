@@ -41,8 +41,18 @@ for item in "${ITEMS[@]}"; do
     ) &
 done
 
-# Wait for all background jobs
-wait
+# Wait for all background jobs and check exit codes
+failed_jobs=0
+for job in $(jobs -p); do
+    if ! wait "$job"; then
+        ((failed_jobs++))
+    fi
+done
+
+if [[ $failed_jobs -gt 0 ]]; then
+    echo "✗ $failed_jobs background jobs failed" >&2
+    exit 1
+fi
 
 # Check for errors
 if [[ -f "$ERROR_FILE" ]]; then

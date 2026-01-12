@@ -34,7 +34,10 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, err
 	}
 
-	once.Status.Phase = syncv1.OncePhasePending
+	// Initialize status if needed
+	if once.Status.Phase == "" {
+		once.Status.Phase = syncv1.OncePhasePending
+	}
 	if once.Status.Executed {
 		once.Status.Phase = syncv1.OncePhaseExecuted
 	}
@@ -43,6 +46,9 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		log.Error(err, "unable to update Once status")
 		if errors.IsConflict(err) {
 			return ctrl.Result{Requeue: true}, nil
+		}
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{RequeueAfter: time.Second * 5}, err
 	}

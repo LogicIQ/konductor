@@ -107,11 +107,23 @@ spec:
         - /bin/sh
         - -c
         - |
-          if ! koncli semaphore acquire api-quota --wait --ttl=30m; then
+          set -e
+          cleanup() {
+            if [ "$PERMIT_ACQUIRED" = "true" ]; then
+              echo "Cleaning up: releasing permit..."
+              koncli semaphore release api-quota || echo "Warning: Failed to release permit" >&2
+            fi
+          }
+          trap cleanup EXIT
+          
+          PERMIT_ACQUIRED=false
+          if koncli semaphore acquire api-quota --wait --ttl=30m; then
+            PERMIT_ACQUIRED=true
+            echo "Resource acquired"
+          else
             echo "Failed to acquire semaphore permit" >&2
             exit 1
           fi
-          echo "Resource acquired"
       containers:
       - name: worker
         image: my-app:latest
@@ -119,6 +131,15 @@ spec:
         - /bin/sh
         - -c
         - |
+          set -e
+          cleanup() {
+            echo "Cleaning up: releasing permit..."
+            if ! koncli semaphore release api-quota; then
+              echo "Warning: Failed to release permit" >&2
+            fi
+          }
+          trap cleanup EXIT
+          
           if ! ./process-data.sh; then
             echo "Data processing failed" >&2
             exit 1
@@ -142,6 +163,9 @@ rules:
 - apiGroups: ["sync.konductor.io"]
   resources: ["semaphores", "barriers", "leases", "gates", "permits", "arrivals", "leaserequests"]
   verbs: ["get", "list", "create", "update", "patch", "delete"]
+- apiGroups: ["sync.konductor.io"]
+  resources: ["semaphores/status", "barriers/status", "leases/status", "gates/status", "permits/status"]
+  verbs: ["get", "update", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

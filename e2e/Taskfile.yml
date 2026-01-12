@@ -7,7 +7,14 @@ tasks:
       - echo "Setting up e2e environment..."
       - go install sigs.k8s.io/kind@latest || echo "Kind already installed"
       - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest || echo "Controller-gen already installed"
-      - kind create cluster --config=kind-config.yaml || echo "Cluster exists, reusing..."
+      - |
+        if ! kind create cluster --config=kind-config.yaml; then
+          if kind get clusters | grep -q konductor-e2e; then
+            echo "Cluster exists, reusing..."
+          else
+            echo "Failed to create cluster" && exit 1
+          fi
+        fi
       - kubectl config use-context kind-konductor-e2e
       - echo "Building operator and CLI..."
       - cd .. && task go:build && task go:build:cli

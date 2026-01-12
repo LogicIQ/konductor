@@ -2,6 +2,7 @@ apiVersion: sync.konductor.io/v1
 kind: Mutex
 metadata:
   name: critical-section
+  namespace: default
 spec:
   # Optional: TTL for automatic unlock (e.g., 5m, 1h)
   # If not set, mutex must be explicitly unlocked

@@ -123,7 +123,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Barrier")
+		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Barrier"))
 		os.Exit(1)
 	}
 
@@ -131,7 +131,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Lease")
+		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Lease"))
 		os.Exit(1)
 	}
 
@@ -139,7 +139,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Gate")
+		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Gate"))
 		os.Exit(1)
 	}
 
@@ -147,7 +147,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Mutex")
+		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Mutex"))
 		os.Exit(1)
 	}
 
@@ -155,7 +155,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "RWMutex")
+		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "RWMutex"))
 		os.Exit(1)
 	}
 
@@ -163,7 +163,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Once")
+		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Once"))
 		os.Exit(1)
 	}
 
@@ -171,26 +171,24 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "WaitGroup")
+		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "WaitGroup"))
 		os.Exit(1)
 	}
 
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", versionHealthCheck()); err != nil {
-		setupLog.Error(err, "unable to set up health check")
+		logger.Error("Unable to set up health check", zap.Error(err))
 		os.Exit(1)
 	}
 	if err := mgr.AddReadyzCheck("readyz", versionHealthCheck()); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
+		logger.Error("Unable to set up ready check", zap.Error(err))
 		os.Exit(1)
 	}
 
 	logger.Info("Starting manager")
-	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		logger.Error("Problem running manager", zap.Error(err))
-		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
 }

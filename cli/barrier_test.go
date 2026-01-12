@@ -15,11 +15,19 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
-func TestBarrierWaitCmd_Open(t *testing.T) {
+func setupTestClient(t *testing.T, objects ...runtime.Object) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(objects...).
+		Build()
+	namespace = "default"
+}
+
+func TestBarrierWaitCmd_Open(t *testing.T) {
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-barrier",
@@ -34,11 +42,7 @@ func TestBarrierWaitCmd_Open(t *testing.T) {
 		},
 	}
 
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barrier).
-		Build()
-	namespace = "default"
+	setupTestClient(t, barrier)
 
 	cmd := newBarrierWaitCmd()
 	cmd.SetArgs([]string{"test-barrier"})
@@ -48,10 +52,6 @@ func TestBarrierWaitCmd_Open(t *testing.T) {
 }
 
 func TestBarrierWaitCmd_Failed(t *testing.T) {
-	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-barrier",
@@ -66,11 +66,7 @@ func TestBarrierWaitCmd_Failed(t *testing.T) {
 		},
 	}
 
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barrier).
-		Build()
-	namespace = "default"
+	setupTestClient(t, barrier)
 
 	cmd := newBarrierWaitCmd()
 	cmd.SetArgs([]string{"test-barrier"})
@@ -81,10 +77,6 @@ func TestBarrierWaitCmd_Failed(t *testing.T) {
 }
 
 func TestBarrierArriveCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-barrier",
@@ -99,11 +91,7 @@ func TestBarrierArriveCmd(t *testing.T) {
 		},
 	}
 
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barrier).
-		Build()
-	namespace = "default"
+	setupTestClient(t, barrier)
 
 	cmd := newBarrierArriveCmd()
 	cmd.SetArgs([]string{"test-barrier", "--holder", "test-holder"})
@@ -113,10 +101,6 @@ func TestBarrierArriveCmd(t *testing.T) {
 }
 
 func TestBarrierListCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	barriers := []runtime.Object{
 		&syncv1.Barrier{
 			ObjectMeta: metav1.ObjectMeta{
@@ -147,11 +131,7 @@ func TestBarrierListCmd(t *testing.T) {
 		},
 	}
 
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barriers...).
-		Build()
-	namespace = "default"
+	setupTestClient(t, barriers...)
 
 	cmd := newBarrierListCmd()
 
@@ -164,10 +144,6 @@ func TestBarrierCmd_DefaultHolder(t *testing.T) {
 	defer os.Setenv("HOSTNAME", originalHostname)
 
 	os.Setenv("HOSTNAME", "test-pod")
-
-	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	require.NoError(t, syncv1.AddToScheme(scheme))
 
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
@@ -183,11 +159,7 @@ func TestBarrierCmd_DefaultHolder(t *testing.T) {
 		},
 	}
 
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barrier).
-		Build()
-	namespace = "default"
+	setupTestClient(t, barrier)
 
 	cmd := newBarrierArriveCmd()
 	cmd.SetArgs([]string{"test-barrier"})
@@ -198,14 +170,7 @@ func TestBarrierCmd_DefaultHolder(t *testing.T) {
 }
 
 func TestBarrierCreateCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		Build()
-	namespace = "default"
+	setupTestClient(t)
 
 	cmd := newBarrierCreateCmd()
 	cmd.SetArgs([]string{"test-barrier", "--expected", "5"})
@@ -215,10 +180,6 @@ func TestBarrierCreateCmd(t *testing.T) {
 }
 
 func TestBarrierDeleteCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	barrier := &syncv1.Barrier{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-barrier",
@@ -226,11 +187,7 @@ func TestBarrierDeleteCmd(t *testing.T) {
 		},
 	}
 
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(barrier).
-		Build()
-	namespace = "default"
+	setupTestClient(t, barrier)
 
 	cmd := newBarrierDeleteCmd()
 	cmd.SetArgs([]string{"test-barrier"})

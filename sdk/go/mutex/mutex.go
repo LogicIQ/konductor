@@ -138,7 +138,7 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	if err := c.WaitForCondition(ctx, mutex, func(obj interface{}) bool {
 		m := obj.(*syncv1.Mutex)
 		return m.Status.Phase == syncv1.MutexPhaseLocked && m.Status.Holder == holder
-	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 1 * time.Second, Timeout: 2 * time.Second}); err != nil {
+	}, &konductor.WaitConfig{InitialDelay: 10 * time.Millisecond, MaxDelay: 100 * time.Millisecond, Timeout: 2 * time.Second}); err != nil {
 		return nil, fmt.Errorf("failed to confirm mutex lock: %w", err)
 	}
 	

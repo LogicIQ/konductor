@@ -112,7 +112,7 @@ func newBarrierArriveCmd() *cobra.Command {
 				if err := client.WaitForCondition(ctx, barrierObj, func(obj interface{}) bool {
 					return true // Just wait for operator delay
 				}, nil); err != nil {
-					logger.Warn("Failed to wait for barrier update", zap.Error(err))
+					return err
 				}
 			}
 
@@ -121,14 +121,13 @@ func newBarrierArriveCmd() *cobra.Command {
 			// Get barrier status to display info
 			barrierObj, err := barrier.Get(client, ctx, barrierName)
 			if err != nil {
-				logger.Warn("Failed to get barrier status", zap.Error(err))
-			} else {
-				logger.Info("Barrier status",
-					zap.Int32("arrived", barrierObj.Status.Arrived),
-					zap.Int32("expected", barrierObj.Spec.Expected),
-					zap.String("phase", string(barrierObj.Status.Phase)),
-				)
+				return err
 			}
+			logger.Info("Barrier status",
+				zap.Int32("arrived", barrierObj.Status.Arrived),
+				zap.Int32("expected", barrierObj.Spec.Expected),
+				zap.String("phase", string(barrierObj.Status.Phase)),
+			)
 
 			return nil
 		},

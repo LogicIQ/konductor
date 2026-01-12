@@ -102,7 +102,9 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 		}, config)
 
 		if err != nil {
-			c.K8sClient().Delete(context.Background(), permit)
+			if deleteErr := c.K8sClient().Delete(ctx, permit); deleteErr != nil {
+				return nil, fmt.Errorf("failed to wait for permit grant and failed to cleanup permit: %w (cleanup error: %v)", err, deleteErr)
+			}
 			return nil, err
 		}
 	}

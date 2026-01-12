@@ -55,6 +55,9 @@ func (c *Client) WaitForCondition(ctx context.Context, obj client.Object, condit
 			if errors.IsNotFound(err) {
 				return false, nil
 			}
+			if errors.IsServerTimeout(err) || errors.IsServiceUnavailable(err) || errors.IsTooManyRequests(err) {
+				return false, nil // Retry transient errors
+			}
 			return false, err
 		}
 		return condition(obj), nil
@@ -79,8 +82,8 @@ func (c *Client) RetryWithBackoff(ctx context.Context, fn func() error, config *
 		if err == nil {
 			return true, nil
 		}
-		if errors.IsConflict(err) {
-			return false, nil // Retry conflicts
+		if errors.IsConflict(err) || errors.IsServerTimeout(err) || errors.IsServiceUnavailable(err) || errors.IsTooManyRequests(err) {
+			return false, nil // Retry these errors
 		}
 		return false, err // Don't retry other errors
 	})

@@ -16,7 +16,10 @@ echo "✓ Phase 1 complete"
 
 # Signal arrival at barrier
 echo "Arriving at barrier: $BARRIER_NAME"
-koncli barrier arrive "$BARRIER_NAME" --holder "$WORKER_ID"
+if ! koncli barrier arrive "$BARRIER_NAME" --holder "$WORKER_ID"; then
+    echo "✗ Failed to arrive at barrier"
+    exit 1
+fi
 
 # Wait for all workers
 echo "Waiting for all workers at barrier..."
