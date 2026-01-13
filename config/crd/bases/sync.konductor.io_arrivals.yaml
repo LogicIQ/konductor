@@ -52,9 +52,13 @@ spec:
               barrier:
                 description: Barrier is the name of the barrier this arrival belongs
                   to
+                maxLength: 63
+                minLength: 1
                 type: string
               holder:
                 description: Holder is the pod/job that has arrived
+                maxLength: 253
+                minLength: 1
                 type: string
             required:
             - barrier

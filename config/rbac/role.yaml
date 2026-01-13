@@ -75,16 +75,8 @@ rules:
   resources:
   - permits
   verbs:
-  - create
-  - delete
   - get
   - list
   - patch
   - update
   - watch
-- apiGroups:
-  - sync.konductor.io
-  resources:
-  - permits/finalizers
-  verbs:
-  - update
