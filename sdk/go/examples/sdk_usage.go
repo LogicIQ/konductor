@@ -76,7 +76,7 @@ func demonstrateSemaphore(client *konductor.Client, ctx context.Context) {
 	}
 
 	// Release permit
-	err = permit.Release()
+	err = permit.Release(ctx)
 	if err != nil {
 		log.Printf("Release permit error: %v", err)
 	} else {
@@ -314,7 +314,7 @@ func demonstrateLease(client *konductor.Client, ctx context.Context) {
 		fmt.Printf("✓ Try-acquired lease (holder: %s)\n", leaseHandle.Holder())
 
 		// Release the lease
-		err = leaseHandle.Release()
+		err = leaseHandle.Release(ctx)
 		if err != nil {
 			log.Printf("Release lease error: %v", err)
 		} else {
@@ -340,7 +340,7 @@ func demonstrateLease(client *konductor.Client, ctx context.Context) {
 		}, konductor.WithHolder("auto-holder"))
 
 		// Release the lease
-		err = leaseHandle.Release()
+		err = leaseHandle.Release(ctx)
 		if err != nil {
 			log.Printf("Release lease error: %v", err)
 		} else {
@@ -390,7 +390,7 @@ func robustSemaphoreUsage(client *konductor.Client, ctx context.Context) error {
 
 	// Ensure cleanup on any exit path
 	defer func() {
-		if releaseErr := permit.Release(); releaseErr != nil {
+		if releaseErr := permit.Release(ctx); releaseErr != nil {
 			log.Printf("Failed to release permit: %v", releaseErr)
 		}
 	}()

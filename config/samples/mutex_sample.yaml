@@ -13,6 +13,8 @@ kind: Job
 metadata:
   name: exclusive-job
 spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
   template:
     spec:
       containers:

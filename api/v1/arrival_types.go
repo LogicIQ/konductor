@@ -7,9 +7,15 @@ import (
 // ArrivalSpec defines the desired state of Arrival
 type ArrivalSpec struct {
 	// Barrier is the name of the barrier this arrival belongs to
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
 	Barrier string `json:"barrier"`
 
 	// Holder is the pod/job that has arrived
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
 	Holder string `json:"holder"`
 }
 

@@ -208,11 +208,11 @@ func NewPermit(client *Client, name, holder string, ctx context.Context) *Permit
 	}
 }
 
-func (p *Permit) Release() error {
+func (p *Permit) Release(ctx context.Context) error {
 	if p.cancelCtx != nil {
 		p.cancelCtx()
 	}
-	if err := p.client.ReleaseSemaphorePermit(p.ctx, p.name, p.holder); err != nil {
+	if err := p.client.ReleaseSemaphorePermit(ctx, p.name, p.holder); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			return nil
 		}
@@ -241,11 +241,11 @@ type LeaseHandle struct {
 }
 
 // Release releases the lease.
-func (l *LeaseHandle) Release() error {
+func (l *LeaseHandle) Release(ctx context.Context) error {
 	if l.cancelCtx != nil {
 		l.cancelCtx()
 	}
-	if err := l.client.ReleaseLease(l.ctx, l.name, l.holder); err != nil {
+	if err := l.client.ReleaseLease(ctx, l.name, l.holder); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			return nil
 		}

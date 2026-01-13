@@ -22,11 +22,10 @@ type Mutex struct {
 	holder string
 }
 
-func (m *Mutex) Unlock() error {
-	// Use retry for unlock to handle concurrent operations
-	return m.client.RetryWithBackoff(context.Background(), func() error {
+func (m *Mutex) Unlock(ctx context.Context) error {
+	return m.client.RetryWithBackoff(ctx, func() error {
 		var mutex syncv1.Mutex
-		if err := m.client.K8sClient().Get(context.Background(), types.NamespacedName{
+		if err := m.client.K8sClient().Get(ctx, types.NamespacedName{
 			Name:      m.name,
 			Namespace: m.client.Namespace(),
 		}, &mutex); err != nil {
@@ -37,13 +36,16 @@ func (m *Mutex) Unlock() error {
 			return fmt.Errorf("cannot unlock: not the holder")
 		}
 
-		mutex.Status.Phase = syncv1.MutexPhaseUnlocked
-		mutex.Status.Holder = ""
-		mutex.Status.LockedAt = nil
-		mutex.Status.ExpiresAt = nil
-
-		return m.client.K8sClient().Status().Update(context.Background(), &mutex)
+		m.clearMutexStatus(&mutex)
+		return m.client.K8sClient().Status().Update(ctx, &mutex)
 	}, nil)
+}
+
+func (m *Mutex) clearMutexStatus(mutex *syncv1.Mutex) {
+	mutex.Status.Phase = syncv1.MutexPhaseUnlocked
+	mutex.Status.Holder = ""
+	mutex.Status.LockedAt = nil
+	mutex.Status.ExpiresAt = nil
 }
 
 func (m *Mutex) Holder() string {
@@ -138,7 +140,7 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	if err := c.WaitForCondition(ctx, mutex, func(obj interface{}) bool {
 		m := obj.(*syncv1.Mutex)
 		return m.Status.Phase == syncv1.MutexPhaseLocked && m.Status.Holder == holder
-	}, &konductor.WaitConfig{InitialDelay: 10 * time.Millisecond, MaxDelay: 100 * time.Millisecond, Timeout: 2 * time.Second}); err != nil {
+	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 500 * time.Millisecond, Timeout: 2 * time.Second}); err != nil {
 		return nil, fmt.Errorf("failed to confirm mutex lock: %w", err)
 	}
 	
@@ -156,7 +158,7 @@ func With(c *konductor.Client, ctx context.Context, name string, fn func() error
 		return err
 	}
 	defer func() {
-		if unlockErr := mutex.Unlock(); unlockErr != nil {
+		if unlockErr := mutex.Unlock(ctx); unlockErr != nil {
 			if err == nil {
 				err = fmt.Errorf("function succeeded but failed to unlock mutex: %w", unlockErr)
 			}

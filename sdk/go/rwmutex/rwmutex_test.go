@@ -137,16 +137,22 @@ func TestRLock_MultipleReaders(t *testing.T) {
 	assert.Contains(t, updated.Status.ReadHolders, "reader-2")
 }
 
-func TestLock(t *testing.T) {
-	rwmutex := &syncv1.RWMutex{
+func createTestRWMutex(name, namespace string, phase syncv1.RWMutexPhase, readHolders []string, writeHolder string) *syncv1.RWMutex {
+	return &syncv1.RWMutex{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-rwmutex",
-			Namespace: "test-ns",
+			Name:      name,
+			Namespace: namespace,
 		},
 		Status: syncv1.RWMutexStatus{
-			Phase: syncv1.RWMutexPhaseUnlocked,
+			Phase:       phase,
+			ReadHolders: readHolders,
+			WriteHolder: writeHolder,
 		},
 	}
+}
+
+func TestLock(t *testing.T) {
+	rwmutex := createTestRWMutex("test-rwmutex", "test-ns", syncv1.RWMutexPhaseUnlocked, nil, "")
 
 	client := setupTestClient(t, rwmutex)
 
@@ -155,6 +161,15 @@ func TestLock(t *testing.T) {
 	assert.Equal(t, "test-rwmutex", m.Name())
 	assert.Equal(t, "writer-1", m.Holder())
 	assert.False(t, m.isRead)
+}
+
+func createRWMutex(client *konductor.Client, name, holder string, isRead bool) *RWMutex {
+	return &RWMutex{
+		client: client,
+		name:   name,
+		holder: holder,
+		isRead: isRead,
+	}
 }
 
 func TestRUnlock(t *testing.T) {
@@ -170,15 +185,9 @@ func TestRUnlock(t *testing.T) {
 	}
 
 	client := setupTestClient(t, rwmutex)
+	m := createRWMutex(client, "test-rwmutex", "reader-1", true)
 
-	m := &RWMutex{
-		client: client,
-		name:   "test-rwmutex",
-		holder: "reader-1",
-		isRead: true,
-	}
-
-	err := m.Unlock()
+	err := m.Unlock(context.Background())
 	require.NoError(t, err)
 
 	updated, err := Get(client, context.Background(), "test-rwmutex")
@@ -200,15 +209,9 @@ func TestRUnlock_MultipleReaders(t *testing.T) {
 	}
 
 	client := setupTestClient(t, rwmutex)
+	m := createRWMutex(client, "test-rwmutex", "reader-1", true)
 
-	m := &RWMutex{
-		client: client,
-		name:   "test-rwmutex",
-		holder: "reader-1",
-		isRead: true,
-	}
-
-	err := m.Unlock()
+	err := m.Unlock(context.Background())
 	require.NoError(t, err)
 
 	updated, err := Get(client, context.Background(), "test-rwmutex")
@@ -231,15 +234,9 @@ func TestWUnlock(t *testing.T) {
 	}
 
 	client := setupTestClient(t, rwmutex)
+	m := createRWMutex(client, "test-rwmutex", "writer-1", false)
 
-	m := &RWMutex{
-		client: client,
-		name:   "test-rwmutex",
-		holder: "writer-1",
-		isRead: false,
-	}
-
-	err := m.Unlock()
+	err := m.Unlock(context.Background())
 	require.NoError(t, err)
 
 	updated, err := Get(client, context.Background(), "test-rwmutex")
@@ -261,15 +258,9 @@ func TestWUnlock_NotHolder(t *testing.T) {
 	}
 
 	client := setupTestClient(t, rwmutex)
+	m := createRWMutex(client, "test-rwmutex", "writer-1", false)
 
-	m := &RWMutex{
-		client: client,
-		name:   "test-rwmutex",
-		holder: "writer-1",
-		isRead: false,
-	}
-
-	err := m.Unlock()
+	err := m.Unlock(context.Background())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not the holder")
 }

@@ -35,11 +35,18 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// Initialize status if needed
+	updateNeeded := false
 	if once.Status.Phase == "" {
 		once.Status.Phase = syncv1.OncePhasePending
+		updateNeeded = true
 	}
-	if once.Status.Executed {
+	if once.Status.Executed && once.Status.Phase != syncv1.OncePhaseExecuted {
 		once.Status.Phase = syncv1.OncePhaseExecuted
+		updateNeeded = true
+	}
+
+	if !updateNeeded {
+		return ctrl.Result{}, nil
 	}
 
 	if err := r.Status().Update(ctx, &once); err != nil {

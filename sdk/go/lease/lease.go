@@ -24,7 +24,7 @@ type Lease struct {
 	cancelCtx context.CancelFunc
 }
 
-func (l *Lease) Release() error {
+func (l *Lease) Release(ctx context.Context) error {
 	if l.cancelCtx != nil {
 		l.cancelCtx()
 	}
@@ -36,9 +36,8 @@ func (l *Lease) Release() error {
 		},
 	}
 
-	// Use retry for release to handle concurrent operations
-	return l.client.RetryWithBackoff(context.Background(), func() error {
-		return l.client.K8sClient().Delete(context.Background(), request)
+	return l.client.RetryWithBackoff(ctx, func() error {
+		return l.client.K8sClient().Delete(ctx, request)
 	}, nil)
 }
 
@@ -134,7 +133,7 @@ func With(c *konductor.Client, ctx context.Context, name string, fn func() error
 	if err != nil {
 		return err
 	}
-	defer lease.Release()
+	defer lease.Release(ctx)
 
 	return fn()
 }

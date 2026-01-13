@@ -22,9 +22,9 @@ type RWMutex struct {
 	isRead bool
 }
 
-func (m *RWMutex) Unlock() error {
+func (m *RWMutex) Unlock(ctx context.Context) error {
 	var rwmutex syncv1.RWMutex
-	if err := m.client.K8sClient().Get(context.Background(), types.NamespacedName{
+	if err := m.client.K8sClient().Get(ctx, types.NamespacedName{
 		Name:      m.name,
 		Namespace: m.client.Namespace(),
 	}, &rwmutex); err != nil {
@@ -32,15 +32,15 @@ func (m *RWMutex) Unlock() error {
 	}
 
 	if m.isRead {
-		return m.runlock(&rwmutex)
+		return m.runlock(ctx)
 	}
-	return m.wunlock(&rwmutex)
+	return m.wunlock(ctx)
 }
 
-func (m *RWMutex) runlock(rwmutex *syncv1.RWMutex) error {
-	return m.client.RetryWithBackoff(context.Background(), func() error {
+func (m *RWMutex) runlock(ctx context.Context) error {
+	return m.client.RetryWithBackoff(ctx, func() error {
 		var rw syncv1.RWMutex
-		if err := m.client.K8sClient().Get(context.Background(), types.NamespacedName{
+		if err := m.client.K8sClient().Get(ctx, types.NamespacedName{
 			Name: m.name, Namespace: m.client.Namespace(),
 		}, &rw); err != nil {
 			return err
@@ -60,14 +60,14 @@ func (m *RWMutex) runlock(rwmutex *syncv1.RWMutex) error {
 			rw.Status.ExpiresAt = nil
 		}
 
-		return m.client.K8sClient().Status().Update(context.Background(), &rw)
+		return m.client.K8sClient().Status().Update(ctx, &rw)
 	}, nil)
 }
 
-func (m *RWMutex) wunlock(rwmutex *syncv1.RWMutex) error {
-	return m.client.RetryWithBackoff(context.Background(), func() error {
+func (m *RWMutex) wunlock(ctx context.Context) error {
+	return m.client.RetryWithBackoff(ctx, func() error {
 		var rw syncv1.RWMutex
-		if err := m.client.K8sClient().Get(context.Background(), types.NamespacedName{
+		if err := m.client.K8sClient().Get(ctx, types.NamespacedName{
 			Name: m.name, Namespace: m.client.Namespace(),
 		}, &rw); err != nil {
 			return err
@@ -82,7 +82,7 @@ func (m *RWMutex) wunlock(rwmutex *syncv1.RWMutex) error {
 		rw.Status.LockedAt = nil
 		rw.Status.ExpiresAt = nil
 
-		return m.client.K8sClient().Status().Update(context.Background(), &rw)
+		return m.client.K8sClient().Status().Update(ctx, &rw)
 	}, nil)
 }
 
@@ -94,35 +94,43 @@ func (m *RWMutex) Name() string {
 	return m.name
 }
 
+func getHolder(options *konductor.Options) string {
+	if options.Holder != "" {
+		return options.Holder
+	}
+	if hostname := os.Getenv("HOSTNAME"); hostname != "" {
+		return hostname
+	}
+	return fmt.Sprintf("sdk-%d", time.Now().Unix())
+}
+
+func getWaitConfig(timeout time.Duration) *konductor.WaitConfig {
+	config := &konductor.WaitConfig{
+		InitialDelay: 1 * time.Second,
+		MaxDelay:     5 * time.Second,
+		Factor:       1.5,
+		Jitter:       0.1,
+		Timeout:      30 * time.Second,
+	}
+	if timeout > 0 {
+		config.Timeout = timeout
+	}
+	return config
+}
+
 func RLock(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*RWMutex, error) {
 	options := &konductor.Options{Timeout: 0}
 	for _, opt := range opts {
 		opt(options)
 	}
 
-	holder := options.Holder
-	if holder == "" {
-		holder = os.Getenv("HOSTNAME")
-		if holder == "" {
-			holder = fmt.Sprintf("sdk-%d", time.Now().Unix())
-		}
-	}
+	holder := getHolder(options)
 
 	rwmutex := &syncv1.RWMutex{}
 	rwmutex.Name = name
 	rwmutex.Namespace = c.Namespace()
 
-	config := &konductor.WaitConfig{
-		InitialDelay: 1 * time.Second,
-		MaxDelay: 5 * time.Second,
-		Factor: 1.5,
-		Jitter: 0.1,
-		Timeout: 30 * time.Second,
-	}
-
-	if options.Timeout > 0 {
-		config.Timeout = options.Timeout
-	}
+	config := getWaitConfig(options.Timeout)
 
 	// Wait for write lock to be released
 	err := c.WaitForCondition(ctx, rwmutex, func(obj interface{}) bool {
@@ -186,29 +194,13 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 		opt(options)
 	}
 
-	holder := options.Holder
-	if holder == "" {
-		holder = os.Getenv("HOSTNAME")
-		if holder == "" {
-			holder = fmt.Sprintf("sdk-%d", time.Now().Unix())
-		}
-	}
+	holder := getHolder(options)
 
 	rwmutex := &syncv1.RWMutex{}
 	rwmutex.Name = name
 	rwmutex.Namespace = c.Namespace()
 
-	config := &konductor.WaitConfig{
-		InitialDelay: 1 * time.Second,
-		MaxDelay: 5 * time.Second,
-		Factor: 1.5,
-		Jitter: 0.1,
-		Timeout: 30 * time.Second,
-	}
-
-	if options.Timeout > 0 {
-		config.Timeout = options.Timeout
-	}
+	config := getWaitConfig(options.Timeout)
 
 	// Wait for rwmutex to be completely unlocked
 	err := c.WaitForCondition(ctx, rwmutex, func(obj interface{}) bool {

@@ -4,6 +4,8 @@ metadata:
   name: worker-with-koncli
   namespace: production
 spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 1800
   template:
     spec:
       serviceAccountName: konductor-user
@@ -86,6 +88,8 @@ metadata:
   name: worker-with-initcontainer
   namespace: production
 spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 2400
   template:
     spec:
       serviceAccountName: konductor-user

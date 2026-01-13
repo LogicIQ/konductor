@@ -91,7 +91,7 @@ tasks:
     cmds:
       - kubectl delete -f config/crd/bases/ --ignore-not-found=true
 
-  k8s:samples:
+  k8s:apply-samples:
     desc: Apply sample resources
     cmds:
       - kubectl apply -f config/samples/

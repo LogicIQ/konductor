@@ -31,11 +31,15 @@ for item in "${ITEMS[@]}"; do
             
             # Release permit
             if ! koncli semaphore release "$SEMAPHORE_NAME" --holder "$HOLDER-$item"; then
-                echo "  Warning: Failed to release permit for $item" >&2
+                echo "  ✗ Failed to release permit for $item" >&2
+                echo "$item" >> "$ERROR_FILE"
+                exit 1
             fi
         else
             echo "  ✗ Failed to acquire permit for $item" >&2
-            echo "$item" >> "$ERROR_FILE"
+            if ! echo "$item" >> "$ERROR_FILE"; then
+                echo "  ✗ Failed to write error for $item" >&2
+            fi
             exit 1
         fi
     ) &

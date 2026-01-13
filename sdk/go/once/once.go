@@ -36,6 +36,9 @@ func Do(c *konductor.Client, ctx context.Context, name string, fn func() error, 
 		Name:      name,
 		Namespace: c.Namespace(),
 	}, &once); err != nil {
+		if errors.IsNotFound(err) {
+			return false, fmt.Errorf("once resource not found: %w", err)
+		}
 		return false, fmt.Errorf("failed to get once: %w", err)
 	}
 
@@ -59,7 +62,6 @@ func Do(c *konductor.Client, ctx context.Context, name string, fn func() error, 
 		if errors.IsNotFound(err) {
 			return false, fmt.Errorf("once resource was deleted: %w", err)
 		}
-		// Other errors should be returned
 		return false, fmt.Errorf("failed to update once status: %w", err)
 	}
 
@@ -112,7 +114,10 @@ func Create(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 		// Resource already exists, this is not an error for idempotent create
 		return nil
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to create once %s: %w", name, err)
+	}
+	return nil
 }
 
 func Delete(c *konductor.Client, ctx context.Context, name string) error {

@@ -15,7 +15,7 @@ import (
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-func TestAdd_Basic(t *testing.T) {
+func TestAddBasic(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
@@ -54,7 +54,7 @@ func TestAdd_Basic(t *testing.T) {
 	assert.Equal(t, int32(7), final.Status.Counter)
 }
 
-func TestCreate_Basic(t *testing.T) {
+func TestCreateBasic(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
 

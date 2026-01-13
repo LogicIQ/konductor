@@ -15,10 +15,20 @@ import (
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-func TestAdd(t *testing.T) {
+func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
+	k8sClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(objects...).
+		WithStatusSubresource(&syncv1.WaitGroup{}).
+		Build()
+
+	return konductor.NewFromClient(k8sClient, "default")
+}
+
+func TestAdd(t *testing.T) {
 	wg := &syncv1.WaitGroup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-wg",
@@ -29,13 +39,7 @@ func TestAdd(t *testing.T) {
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(wg).
-		WithStatusSubresource(&syncv1.WaitGroup{}).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
+	client := setupTestClient(t, wg)
 	ctx := context.Background()
 
 	err := Add(client, ctx, "test-wg", 3)
@@ -47,9 +51,6 @@ func TestAdd(t *testing.T) {
 }
 
 func TestDone(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	wg := &syncv1.WaitGroup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-wg",
@@ -60,13 +61,7 @@ func TestDone(t *testing.T) {
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(wg).
-		WithStatusSubresource(&syncv1.WaitGroup{}).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
+	client := setupTestClient(t, wg)
 	ctx := context.Background()
 
 	err := Done(client, ctx, "test-wg")
@@ -78,14 +73,7 @@ func TestDone(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
+	client := setupTestClient(t)
 	ctx := context.Background()
 
 	err := Create(client, ctx, "test-wg", konductor.WithTTL(5*time.Minute))
@@ -93,9 +81,6 @@ func TestCreate(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	wg1 := &syncv1.WaitGroup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "wg1",
@@ -109,12 +94,7 @@ func TestList(t *testing.T) {
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(wg1, wg2).
-		Build()
-
-	client := konductor.NewFromClient(k8sClient, "default")
+	client := setupTestClient(t, wg1, wg2)
 	ctx := context.Background()
 
 	wgs, err := List(client, ctx)

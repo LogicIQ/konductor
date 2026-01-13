@@ -60,7 +60,7 @@ func semaphoreExample(ctx context.Context, client *konductor.Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to acquire semaphore: %w", err)
 	}
-	defer permit.Release()
+	defer permit.Release(ctx)
 
 	fmt.Printf("Acquired semaphore permit (holder: %s)\n", permit.Holder())
 
@@ -108,7 +108,7 @@ func leaseExample(ctx context.Context, client *konductor.Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to acquire lease: %w", err)
 	}
-	defer leaseHandle.Release()
+	defer leaseHandle.Release(ctx)
 
 	fmt.Printf("Acquired lease (holder: %s)\n", leaseHandle.Holder())
 

@@ -37,7 +37,7 @@ func main() {
     if err != nil {
         panic(err)
     }
-    defer permit.Release()
+    defer permit.Release(ctx)
     
     // Your rate-limited work here
     callExternalAPI()
@@ -57,7 +57,7 @@ permit, err := client.AcquireSemaphore(ctx, "db-connections",
 if err != nil {
     return err
 }
-defer permit.Release()
+defer permit.Release(ctx)
 
 // Or use helper for automatic management
 err := client.WithSemaphore(ctx, "api-quota", func() error {
@@ -94,7 +94,7 @@ lease, err := client.AcquireLease(ctx, "migration-lock",
 if err != nil {
     return err
 }
-defer lease.Release()
+defer lease.Release(ctx)
 
 // Run singleton task
 runMigration()
@@ -218,7 +218,7 @@ if err != nil {
    if err != nil {
        return err
    }
-   defer permit.Release() // Always release
+   defer permit.Release(ctx) // Always release
    ```
 
 2. **Set appropriate TTLs**:

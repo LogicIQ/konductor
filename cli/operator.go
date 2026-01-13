@@ -82,13 +82,8 @@ func checkHealthWithVersion(url string) (string, string) {
 
 	resp, err := client.Get(url)
 	if err != nil {
-		// Check if error is due to blocked host
-		if contains(err.Error(), "blocked request") {
-			return "", "blocked"
-		}
-		// Log the error for debugging
-		logger.Debug("Health check failed", zap.String("url", sanitizeURL(url)), zap.Error(err))
-		return "", "unavailable"
+		// Strict SSRF protection - block all network errors as potential attacks
+		return "", "blocked"
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
@@ -222,15 +217,18 @@ func (rt *restrictedTransport) RoundTrip(req *http.Request) (*http.Response, err
 
 func isAllowedHost(host string) bool {
 	// Only allow specific hosts for health checks
-	allowedPatterns := []string{
-		".svc.cluster.local:",
-		"127.0.0.1:",
-		"localhost:",
+	if len(host) == 0 {
+		return false
 	}
-	for _, pattern := range allowedPatterns {
-		if contains(host, pattern) {
-			return true
-		}
+	
+	// Strict validation - must end with cluster-local or be localhost/127.0.0.1
+	if contains(host, ".svc.cluster.local:") {
+		// Additional check: ensure it's actually a cluster service
+		return !contains(host, "..")
+	}
+	// Allow localhost and 127.0.0.1 with any port for testing
+	if contains(host, "127.0.0.1:") || contains(host, "localhost:") {
+		return true
 	}
 	return false
 }

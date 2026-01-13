@@ -117,7 +117,7 @@ func With(c *konductor.Client, ctx context.Context, name string, fn func() error
 	if err != nil {
 		return err
 	}
-	defer permit.Release()
+	defer permit.Release(ctx)
 
 	return fn()
 }
@@ -161,7 +161,10 @@ func Create(c *konductor.Client, ctx context.Context, name string, permits int32
 		semaphore.Spec.TTL = &metav1.Duration{Duration: options.TTL}
 	}
 
-	return c.K8sClient().Create(ctx, semaphore)
+	if err := c.K8sClient().Create(ctx, semaphore); err != nil {
+		return fmt.Errorf("failed to create semaphore %s: %w", name, err)
+	}
+	return nil
 }
 
 func Delete(c *konductor.Client, ctx context.Context, name string) error {
@@ -171,9 +174,16 @@ func Delete(c *konductor.Client, ctx context.Context, name string) error {
 			Namespace: c.Namespace(),
 		},
 	}
-	return c.K8sClient().Delete(ctx, semaphore)
+	err := c.K8sClient().Delete(ctx, semaphore)
+	if err != nil {
+		return fmt.Errorf("failed to delete semaphore %s: %w", name, err)
+	}
+	return nil
 }
 
 func Update(c *konductor.Client, ctx context.Context, semaphore *syncv1.Semaphore) error {
-	return c.K8sClient().Update(ctx, semaphore)
+	if err := c.K8sClient().Update(ctx, semaphore); err != nil {
+		return fmt.Errorf("failed to update semaphore %s: %w", semaphore.Name, err)
+	}
+	return nil
 }

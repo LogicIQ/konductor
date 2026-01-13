@@ -172,7 +172,7 @@ func TestUnlock(t *testing.T) {
 		holder: "test-holder",
 	}
 
-	err := m.Unlock()
+	err := m.Unlock(context.Background())
 	require.NoError(t, err)
 
 	updated, err := Get(client, context.Background(), "test-mutex")
@@ -201,7 +201,7 @@ func TestUnlock_NotHolder(t *testing.T) {
 		holder: "test-holder",
 	}
 
-	err := m.Unlock()
+	err := m.Unlock(context.Background())
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not the holder")
 }
