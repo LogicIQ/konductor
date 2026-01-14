@@ -12,9 +12,14 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
-func TestGateWaitCmd_Open(t *testing.T) {
+func setupGateTestScheme(t *testing.T) *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
+	return scheme
+}
+
+func TestGateWaitCmd_Open(t *testing.T) {
+	scheme := setupGateTestScheme(t)
 
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -44,8 +49,7 @@ func TestGateWaitCmd_Open(t *testing.T) {
 }
 
 func TestGateWaitCmd_Failed(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupGateTestScheme(t)
 
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -89,8 +93,7 @@ func TestGateWaitCmd_Failed(t *testing.T) {
 }
 
 func TestGateListCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupGateTestScheme(t)
 
 	gates := []runtime.Object{
 		&syncv1.Gate{
@@ -145,8 +148,7 @@ func TestGateListCmd(t *testing.T) {
 }
 
 func TestGateCreateCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupGateTestScheme(t)
 
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
@@ -161,8 +163,7 @@ func TestGateCreateCmd(t *testing.T) {
 }
 
 func TestGateDeleteCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupGateTestScheme(t)
 
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -185,8 +186,7 @@ func TestGateDeleteCmd(t *testing.T) {
 }
 
 func TestGateOpenCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupGateTestScheme(t)
 
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
@@ -213,8 +213,7 @@ func TestGateOpenCmd(t *testing.T) {
 }
 
 func TestGateCloseCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupGateTestScheme(t)
 
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{

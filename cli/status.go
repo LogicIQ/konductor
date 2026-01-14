@@ -58,7 +58,10 @@ func newStatusSemaphoreCmd() *cobra.Command {
 			)
 
 			// List permits using SDK
-			if permits, err := client.ListPermits(ctx, name); err == nil && len(permits) > 0 {
+			permits, err := client.ListPermits(ctx, name)
+			if err != nil {
+				logger.Warn("Failed to list permits", zap.Error(err))
+			} else if len(permits) > 0 {
 				for _, permit := range permits {
 					expires := "Active"
 					if permit.Status.ExpiresAt != nil {
@@ -166,7 +169,10 @@ func newStatusLeaseCmd() *cobra.Command {
 			logger.Info("Lease status", fields...)
 
 			// List lease requests using SDK
-			if requests, err := client.ListLeaseRequests(ctx, name); err == nil {
+			requests, err := client.ListLeaseRequests(ctx, name)
+			if err != nil {
+				logger.Warn("Failed to list lease requests", zap.Error(err))
+			} else {
 				for _, req := range requests {
 					if req.Status.Phase == syncv1.LeaseRequestPhasePending {
 						priority := int32(0)
@@ -265,7 +271,10 @@ func newStatusAllCmd() *cobra.Command {
 			logger.Info("Konductor Status Overview")
 
 			// List semaphores using SDK
-			if semaphores, err := semaphore.List(client, ctx); err == nil {
+			semaphores, err := semaphore.List(client, ctx)
+			if err != nil {
+				logger.Warn("Failed to list semaphores", zap.Error(err))
+			} else {
 				logger.Info("Semaphores", zap.Int("count", len(semaphores)))
 				for _, sem := range semaphores {
 					logger.Info("Semaphore",
@@ -278,7 +287,10 @@ func newStatusAllCmd() *cobra.Command {
 			}
 
 			// List barriers using SDK
-			if barriers, err := barrier.List(client, ctx); err == nil {
+			barriers, err := barrier.List(client, ctx)
+			if err != nil {
+				logger.Warn("Failed to list barriers", zap.Error(err))
+			} else {
 				logger.Info("Barriers", zap.Int("count", len(barriers)))
 				for _, b := range barriers {
 					logger.Info("Barrier",
@@ -291,7 +303,10 @@ func newStatusAllCmd() *cobra.Command {
 			}
 
 			// List leases using SDK
-			if leases, err := lease.List(client, ctx); err == nil {
+			leases, err := lease.List(client, ctx)
+			if err != nil {
+				logger.Warn("Failed to list leases", zap.Error(err))
+			} else {
 				logger.Info("Leases", zap.Int("count", len(leases)))
 				for _, l := range leases {
 					holder := "Available"
@@ -307,7 +322,10 @@ func newStatusAllCmd() *cobra.Command {
 			}
 
 			// List gates using SDK
-			if gates, err := gate.List(client, ctx); err == nil {
+			gates, err := gate.List(client, ctx)
+			if err != nil {
+				logger.Warn("Failed to list gates", zap.Error(err))
+			} else {
 				logger.Info("Gates", zap.Int("count", len(gates)))
 				for _, g := range gates {
 					metCount := 0

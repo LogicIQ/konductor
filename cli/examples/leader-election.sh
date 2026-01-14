@@ -15,7 +15,7 @@ if koncli lease acquire "$LEASE_NAME" --holder "$HOLDER" --ttl "$TTL"; then
     echo "✓ Leadership acquired"
     
     # Cleanup on exit
-    trap 'koncli lease release "$LEASE_NAME" --holder "$HOLDER"' EXIT
+    trap 'koncli lease release "$LEASE_NAME" --holder "$HOLDER" || echo "Warning: Failed to release lease" >&2' EXIT
     
     # Run singleton task
     echo "Running singleton task as leader..."

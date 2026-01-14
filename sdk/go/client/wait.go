@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -10,12 +11,12 @@ import (
 )
 
 type WaitConfig struct {
-	InitialDelay    time.Duration
-	MaxDelay        time.Duration
-	Factor          float64
-	Jitter          float64
-	Timeout         time.Duration
-	OperatorDelay   time.Duration
+	InitialDelay  time.Duration
+	MaxDelay      time.Duration
+	Factor        float64
+	Jitter        float64
+	Timeout       time.Duration
+	OperatorDelay time.Duration
 }
 
 func DefaultWaitConfig() *WaitConfig {
@@ -46,17 +47,14 @@ func (c *Client) WaitForCondition(ctx context.Context, obj client.Object, condit
 		Duration: config.InitialDelay,
 		Factor:   config.Factor,
 		Jitter:   config.Jitter,
-		Steps:    10, // Fixed reasonable number of steps
+		Steps:    int(math.Ceil(float64(config.Timeout) / float64(config.InitialDelay))),
 		Cap:      config.MaxDelay,
 	}
 
-	return wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+	return wait.ExponentialBackoff(backoff, func() (bool, error) {
 		if err := c.k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
 			if errors.IsNotFound(err) {
 				return false, nil
-			}
-			if errors.IsServerTimeout(err) || errors.IsServiceUnavailable(err) || errors.IsTooManyRequests(err) {
-				return false, nil // Retry transient errors
 			}
 			return false, err
 		}
@@ -73,17 +71,17 @@ func (c *Client) RetryWithBackoff(ctx context.Context, fn func() error, config *
 		Duration: config.InitialDelay,
 		Factor:   config.Factor,
 		Jitter:   config.Jitter,
-		Steps:    10, // Fixed reasonable number of steps
+		Steps:    int(math.Ceil(float64(config.Timeout) / float64(config.InitialDelay))),
 		Cap:      config.MaxDelay,
 	}
 
-	return wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+	return wait.ExponentialBackoff(backoff, func() (bool, error) {
 		err := fn()
 		if err == nil {
 			return true, nil
 		}
-		if errors.IsConflict(err) || errors.IsServerTimeout(err) || errors.IsServiceUnavailable(err) || errors.IsTooManyRequests(err) {
-			return false, nil // Retry these errors
+		if errors.IsConflict(err) {
+			return false, nil // Retry conflicts
 		}
 		return false, err // Don't retry other errors
 	})

@@ -34,7 +34,7 @@ func runOperatorStatus(cmd *cobra.Command, args []string, svcName, operatorNames
 	if !isValidServiceName(svcName) || !isValidNamespace(operatorNamespace) {
 		return fmt.Errorf("invalid service name or namespace")
 	}
-	
+
 	healthURL := "http://" + svcName + "." + operatorNamespace + ".svc.cluster.local:8081"
 
 	version, health := checkHealthWithVersion(healthURL + "/healthz")
@@ -107,7 +107,7 @@ func isValidHealthURL(url string) bool {
 	if len(url) == 0 {
 		return false
 	}
-	
+
 	// Check protocol
 	if len(url) < 7 {
 		return false
@@ -117,7 +117,7 @@ func isValidHealthURL(url string) bool {
 			return false
 		}
 	}
-	
+
 	// Check for allowed hosts
 	allowedHosts := []string{".svc.cluster.local:", "127.0.0.1:", "localhost:"}
 	hostFound := false
@@ -130,7 +130,7 @@ func isValidHealthURL(url string) bool {
 	if !hostFound {
 		return false
 	}
-	
+
 	// Check for allowed endpoints
 	allowedEndpoints := []string{"/healthz", "/readyz"}
 	for _, endpoint := range allowedEndpoints {
@@ -138,7 +138,7 @@ func isValidHealthURL(url string) bool {
 			return true
 		}
 	}
-	
+
 	// Allow test URLs without specific endpoints
 	return isTestURL(url)
 }
@@ -220,7 +220,7 @@ func isAllowedHost(host string) bool {
 	if len(host) == 0 {
 		return false
 	}
-	
+
 	// Strict validation - must end with cluster-local or be localhost/127.0.0.1
 	if contains(host, ".svc.cluster.local:") {
 		// Additional check: ensure it's actually a cluster service

@@ -67,12 +67,12 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	requestID := fmt.Sprintf("%s-%s", name, holder)
 	request := &syncv1.LeaseRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: requestID,
+			Name:      requestID,
 			Namespace: c.Namespace(),
-			Labels: map[string]string{"lease": name},
+			Labels:    map[string]string{"lease": name},
 		},
 		Spec: syncv1.LeaseRequestSpec{
-			Lease: name,
+			Lease:  name,
 			Holder: holder,
 		},
 	}
@@ -88,10 +88,10 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	// Wait for lease decision with exponential backoff
 	config := &konductor.WaitConfig{
 		InitialDelay: 1 * time.Second,
-		MaxDelay: 5 * time.Second,
-		Factor: 1.5,
-		Jitter: 0.1,
-		Timeout: 30 * time.Second,
+		MaxDelay:     5 * time.Second,
+		Factor:       1.5,
+		Jitter:       0.1,
+		Timeout:      30 * time.Second,
 	}
 
 	if options.Timeout > 0 {
@@ -119,11 +119,11 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 
 	leaseCtx, cancelCtx := context.WithCancel(context.Background())
 	return &Lease{
-		client: c,
-		name: name,
+		client:    c,
+		name:      name,
 		requestID: requestID,
-		holder: holder,
-		ctx: leaseCtx,
+		holder:    holder,
+		ctx:       leaseCtx,
 		cancelCtx: cancelCtx,
 	}, nil
 }

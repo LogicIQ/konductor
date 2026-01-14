@@ -29,6 +29,10 @@ func newMutexCmd() *cobra.Command {
 	return cmd
 }
 
+func createMutexClient() *konductor.Client {
+	return konductor.NewFromClient(k8sClient, namespace)
+}
+
 func newMutexLockCmd() *cobra.Command {
 	var (
 		timeout time.Duration
@@ -43,7 +47,7 @@ func newMutexLockCmd() *cobra.Command {
 			mutexName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createMutexClient()
 
 			var opts []konductor.Option
 			if holder != "" {
@@ -87,7 +91,7 @@ func newMutexUnlockCmd() *cobra.Command {
 				}
 			}
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createMutexClient()
 
 			mutexObj := &mutex.Mutex{}
 			*mutexObj = mutex.Mutex{} // Placeholder, need to get actual mutex
@@ -128,7 +132,7 @@ func newMutexListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createMutexClient()
 
 			mutexes, err := mutex.List(client, ctx)
 			if err != nil {
@@ -177,7 +181,7 @@ func newMutexCreateCmd() *cobra.Command {
 			mutexName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createMutexClient()
 
 			var opts []konductor.Option
 			if ttl > 0 {
@@ -206,7 +210,7 @@ func newMutexDeleteCmd() *cobra.Command {
 			mutexName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createMutexClient()
 
 			if err := mutex.Delete(client, ctx, mutexName); err != nil {
 				return err

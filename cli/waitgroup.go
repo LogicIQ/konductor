@@ -43,6 +43,7 @@ func newWaitGroupAddCmd(client *konductor.Client) *cobra.Command {
 			ctx := context.Background()
 
 			if err := waitgroup.Add(client, ctx, name, delta); err != nil {
+				logger.Error("Failed to add to waitgroup", zap.Error(err))
 				return err
 			}
 
@@ -66,6 +67,7 @@ func newWaitGroupDoneCmd(client *konductor.Client) *cobra.Command {
 			ctx := context.Background()
 
 			if err := waitgroup.Done(client, ctx, name); err != nil {
+				logger.Error("Failed to call done on waitgroup", zap.Error(err))
 				return err
 			}
 
@@ -94,6 +96,7 @@ func newWaitGroupWaitCmd(client *konductor.Client) *cobra.Command {
 			}
 
 			if err := waitgroup.Wait(client, ctx, name, opts...); err != nil {
+				logger.Error("Failed to wait for waitgroup", zap.Error(err))
 				return err
 			}
 
@@ -116,6 +119,7 @@ func newWaitGroupListCmd(client *konductor.Client) *cobra.Command {
 
 			wgs, err := waitgroup.List(client, ctx)
 			if err != nil {
+				logger.Error("Failed to list waitgroups", zap.Error(err))
 				return err
 			}
 

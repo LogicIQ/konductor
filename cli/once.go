@@ -27,6 +27,10 @@ func newOnceCmd() *cobra.Command {
 	return cmd
 }
 
+func createOnceClient() *konductor.Client {
+	return konductor.NewFromClient(k8sClient, namespace)
+}
+
 func newOnceCheckCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check <once-name>",
@@ -36,7 +40,7 @@ func newOnceCheckCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createOnceClient()
 			if client == nil {
 				return fmt.Errorf("failed to create konductor client")
 			}
@@ -66,7 +70,7 @@ func newOnceListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createOnceClient()
 
 			onces, err := once.List(client, ctx)
 			if err != nil {
@@ -116,7 +120,7 @@ func newOnceCreateCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createOnceClient()
 
 			var opts []konductor.Option
 			if ttl > 0 {
@@ -145,7 +149,7 @@ func newOnceDeleteCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createOnceClient()
 
 			if err := once.Delete(client, ctx, name); err != nil {
 				return err

@@ -29,6 +29,10 @@ func newLeaseCmd() *cobra.Command {
 	return cmd
 }
 
+func createLeaseClient() *konductor.Client {
+	return konductor.NewFromClient(k8sClient, namespace)
+}
+
 func newLeaseAcquireCmd() *cobra.Command {
 	var (
 		wait     bool
@@ -45,8 +49,7 @@ func newLeaseAcquireCmd() *cobra.Command {
 			leaseName := args[0]
 			ctx := context.Background()
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createLeaseClient()
 
 			// Build options
 			var opts []konductor.Option
@@ -97,8 +100,7 @@ func newLeaseReleaseCmd() *cobra.Command {
 				}
 			}
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createLeaseClient()
 
 			// Release lease using SDK
 			if err := client.ReleaseLease(ctx, leaseName, holder); err != nil {
@@ -122,8 +124,7 @@ func newLeaseListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createLeaseClient()
 
 			// List leases using SDK
 			leases, err := lease.List(client, ctx)
@@ -174,7 +175,7 @@ func newLeaseCreateCmd() *cobra.Command {
 			leaseName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createLeaseClient()
 
 			var opts []konductor.Option
 			if ttl > 0 {
@@ -203,7 +204,7 @@ func newLeaseDeleteCmd() *cobra.Command {
 			leaseName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createLeaseClient()
 
 			if err := lease.Delete(client, ctx, leaseName); err != nil {
 				return err

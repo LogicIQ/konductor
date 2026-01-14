@@ -132,7 +132,7 @@ func TestWaitForCondition_Timeout(t *testing.T) {
 
 func TestDefaultWaitConfig(t *testing.T) {
 	config := DefaultWaitConfig()
-	
+
 	assert.Equal(t, 500*time.Millisecond, config.InitialDelay)
 	assert.Equal(t, 5*time.Second, config.MaxDelay)
 	assert.Equal(t, 1.5, config.Factor)

@@ -37,7 +37,7 @@ func DefaultRetryConfig() *RetryConfig {
 // RetryOnConflict retries operations that may have resource version conflicts
 func (c *Client) RetryOnConflict(ctx context.Context, fn func() error) error {
 	config := DefaultRetryConfig()
-	
+
 	backoff := wait.Backoff{
 		Duration: config.InitialDelay,
 		Factor:   config.Factor,
@@ -65,7 +65,7 @@ func (c *Client) RetryOnConflict(ctx context.Context, fn func() error) error {
 // WaitForUpdate waits for operator to process changes before continuing
 func (c *Client) WaitForUpdate(ctx context.Context, obj client.Object, checkFn func(client.Object) bool) error {
 	config := DefaultRetryConfig()
-	
+
 	// First wait for operator processing time
 	select {
 	case <-ctx.Done():

@@ -22,6 +22,8 @@ type ArrivalSpec struct {
 // ArrivalStatus defines the observed state of Arrival
 type ArrivalStatus struct {
 	// Phase represents the current state of the arrival
+	// +kubebuilder:validation:Enum=Recorded
+	// +kubebuilder:default=Recorded
 	Phase ArrivalPhase `json:"phase"`
 
 	// ArrivedAt is when the arrival was recorded

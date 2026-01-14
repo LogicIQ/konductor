@@ -48,7 +48,7 @@ const (
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="WriteHolder",type=string,JSONPath=`.status.writeHolder`
-//+kubebuilder:printcolumn:name="Readers",type=string,JSONPath=`.status.readHolders`
+//+kubebuilder:printcolumn:name="ReadCount",type=integer,JSONPath=`.status.readHolders[*]`,priority=1
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 //+kubebuilder:printcolumn:name="Locked",type=date,JSONPath=`.status.lockedAt`
 

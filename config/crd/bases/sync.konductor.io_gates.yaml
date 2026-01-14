@@ -53,6 +53,7 @@ spec:
                   properties:
                     name:
                       description: Name of the resource to check
+                      minLength: 1
                       type: string
                     namespace:
                       description: Namespace of the resource (optional, defaults to
@@ -63,6 +64,15 @@ spec:
                       type: string
                     type:
                       description: Type of condition (Job, Semaphore, Barrier, Lease)
+                      enum:
+                      - Job
+                      - Semaphore
+                      - Barrier
+                      - Lease
+                      - Gate
+                      - Mutex
+                      - Once
+                      - WaitGroup
                       type: string
                     value:
                       description: Value for numeric conditions (e.g., semaphore permits)
@@ -70,7 +80,6 @@ spec:
                       type: integer
                   required:
                   - name
-                  - state
                   - type
                   type: object
                 type: array

@@ -53,10 +53,12 @@ spec:
                 description: Expected is the number of arrivals required to open the
                   barrier
                 format: int32
+                minimum: 1
                 type: integer
               quorum:
                 description: Quorum is the minimum number of arrivals to open (optional)
                 format: int32
+                minimum: 1
                 type: integer
               timeout:
                 description: Timeout is the maximum time to wait for all arrivals

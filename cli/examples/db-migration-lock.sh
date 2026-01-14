@@ -15,7 +15,7 @@ if koncli lease acquire "$LEASE_NAME" --holder "$HOLDER" --ttl "$TTL"; then
     echo "✓ Migration lock acquired"
     
     # Cleanup on exit
-    trap "koncli lease release $LEASE_NAME --holder $HOLDER" EXIT
+    trap "koncli lease release $LEASE_NAME --holder $HOLDER || echo 'Warning: Failed to release lease' >&2" EXIT
     
     echo "Running database migrations..."
     

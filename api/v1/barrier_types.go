@@ -7,6 +7,8 @@ import (
 // BarrierSpec defines the desired state of Barrier
 type BarrierSpec struct {
 	// Expected is the number of arrivals required to open the barrier
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Minimum=1
 	Expected int32 `json:"expected"`
 
 	// Timeout is the maximum time to wait for all arrivals
@@ -15,6 +17,7 @@ type BarrierSpec struct {
 
 	// Quorum is the minimum number of arrivals to open (optional)
 	// +optional
+	// +kubebuilder:validation:Minimum=1
 	Quorum *int32 `json:"quorum,omitempty"`
 }
 

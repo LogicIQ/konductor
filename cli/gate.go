@@ -28,6 +28,10 @@ func newGateCmd() *cobra.Command {
 	return cmd
 }
 
+func createGateClient() *konductor.Client {
+	return konductor.NewFromClient(k8sClient, namespace)
+}
+
 func newGateWaitCmd() *cobra.Command {
 	var timeout time.Duration
 
@@ -39,8 +43,7 @@ func newGateWaitCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := context.Background()
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createGateClient()
 
 			// Build options
 			var opts []konductor.Option
@@ -70,8 +73,7 @@ func newGateListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createGateClient()
 
 			// List gates using SDK
 			gates, err := gate.List(client, ctx)
@@ -133,7 +135,7 @@ func newGateCreateCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createGateClient()
 
 			if err := gate.Create(client, ctx, gateName); err != nil {
 				return err
@@ -156,7 +158,7 @@ func newGateDeleteCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createGateClient()
 
 			if err := gate.Delete(client, ctx, gateName); err != nil {
 				return err
@@ -179,7 +181,7 @@ func newGateOpenCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createGateClient()
 
 			if err := gate.Open(client, ctx, gateName); err != nil {
 				return err
@@ -202,7 +204,7 @@ func newGateCloseCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createGateClient()
 
 			if err := gate.Close(client, ctx, gateName); err != nil {
 				return err

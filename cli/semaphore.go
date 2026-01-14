@@ -30,6 +30,10 @@ func newSemaphoreCmd() *cobra.Command {
 	return cmd
 }
 
+func createSemaphoreClient() *konductor.Client {
+	return konductor.NewFromClient(k8sClient, namespace)
+}
+
 func newSemaphoreAcquireCmd() *cobra.Command {
 	var (
 		wait          bool
@@ -47,8 +51,7 @@ func newSemaphoreAcquireCmd() *cobra.Command {
 			semaphoreName := args[0]
 			ctx := context.Background()
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createSemaphoreClient()
 
 			// Build options
 			var opts []konductor.Option
@@ -105,8 +108,7 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 				}
 			}
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createSemaphoreClient()
 
 			// Find and release permit by holder
 			permits, err := client.ListPermits(ctx, semaphoreName)
@@ -149,8 +151,7 @@ func newSemaphoreListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createSemaphoreClient()
 
 			// List semaphores using SDK
 			semaphores, err := semaphore.List(client, ctx)
@@ -194,7 +195,7 @@ func newSemaphoreCreateCmd() *cobra.Command {
 			semaphoreName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createSemaphoreClient()
 
 			var opts []konductor.Option
 			if ttl > 0 {
@@ -224,7 +225,7 @@ func newSemaphoreDeleteCmd() *cobra.Command {
 			semaphoreName := args[0]
 			ctx := context.Background()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createSemaphoreClient()
 
 			if err := semaphore.Delete(client, ctx, semaphoreName); err != nil {
 				return err

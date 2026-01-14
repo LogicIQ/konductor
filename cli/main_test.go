@@ -73,7 +73,11 @@ func TestRootCommand(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Initialize logger
 			outputFormat = "text"
-			logger, _ = zap.NewDevelopment()
+			var err error
+			logger, err = zap.NewDevelopment()
+			if err != nil {
+				t.Fatalf("Failed to initialize logger: %v", err)
+			}
 
 			// Create a new root command for each test to avoid state pollution
 			rootCmd := &cobra.Command{
@@ -98,13 +102,13 @@ func TestRootCommand(t *testing.T) {
 			rootCmd.SetErr(&output)
 
 			rootCmd.SetArgs(tt.args)
-			err := rootCmd.Execute()
+			execErr := rootCmd.Execute()
 
-			if tt.expectError && err == nil {
+			if tt.expectError && execErr == nil {
 				t.Errorf("Expected error but got none")
 			}
-			if !tt.expectError && err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if !tt.expectError && execErr != nil {
+				t.Errorf("Unexpected error: %v", execErr)
 			}
 
 			if tt.checkFunc != nil {

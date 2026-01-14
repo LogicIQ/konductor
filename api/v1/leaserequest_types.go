@@ -7,9 +7,13 @@ import (
 // LeaseRequestSpec defines the desired state of LeaseRequest
 type LeaseRequestSpec struct {
 	// Lease is the name of the lease being requested
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Lease string `json:"lease"`
 
 	// Holder is the pod/job requesting the lease
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Holder string `json:"holder"`
 
 	// Priority for lease acquisition (higher wins)

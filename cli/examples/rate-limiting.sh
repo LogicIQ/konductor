@@ -18,7 +18,7 @@ if koncli semaphore acquire "$SEMAPHORE_NAME" --holder "$HOLDER" --timeout 30s; 
     echo "✓ Permit acquired"
     
     # Cleanup on exit
-    trap "koncli semaphore release $SEMAPHORE_NAME --holder $HOLDER" EXIT
+    trap "koncli semaphore release $SEMAPHORE_NAME --holder $HOLDER || echo 'Warning: Failed to release semaphore' >&2" EXIT
     
     # Simulate API call
     echo "Calling external API..."

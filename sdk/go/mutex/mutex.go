@@ -76,10 +76,10 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 
 	config := &konductor.WaitConfig{
 		InitialDelay: 1 * time.Second,
-		MaxDelay: 5 * time.Second,
-		Factor: 1.5,
-		Jitter: 0.1,
-		Timeout: 30 * time.Second,
+		MaxDelay:     5 * time.Second,
+		Factor:       1.5,
+		Jitter:       0.1,
+		Timeout:      30 * time.Second,
 	}
 
 	if options.Timeout > 0 {
@@ -143,7 +143,7 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 500 * time.Millisecond, Timeout: 2 * time.Second}); err != nil {
 		return nil, fmt.Errorf("failed to confirm mutex lock: %w", err)
 	}
-	
+
 	return mutexObj, nil
 }
 

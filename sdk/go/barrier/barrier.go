@@ -26,10 +26,10 @@ func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 
 	config := &konductor.WaitConfig{
 		InitialDelay: 1 * time.Second,
-		MaxDelay: 5 * time.Second,
-		Factor: 1.5,
-		Jitter: 0.1,
-		Timeout: 30 * time.Second,
+		MaxDelay:     5 * time.Second,
+		Factor:       1.5,
+		Jitter:       0.1,
+		Timeout:      30 * time.Second,
 	}
 
 	if options.Timeout > 0 {
@@ -94,21 +94,21 @@ func Arrive(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 	ctrlTrue := true
 	arrival := &syncv1.Arrival{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", name, holder),
+			Name:      fmt.Sprintf("%s-%s", name, holder),
 			Namespace: c.Namespace(),
-			Labels: map[string]string{"barrier": name},
+			Labels:    map[string]string{"barrier": name},
 			OwnerReferences: []metav1.OwnerReference{{
-				APIVersion: "sync.konductor.io/v1",
-				Kind: "Barrier",
-				Name: barrier.Name,
-				UID: barrier.UID,
-				Controller: &ctrlTrue,
+				APIVersion:         "sync.konductor.io/v1",
+				Kind:               "Barrier",
+				Name:               barrier.Name,
+				UID:                barrier.UID,
+				Controller:         &ctrlTrue,
 				BlockOwnerDeletion: &ctrlTrue,
 			}},
 		},
 		Spec: syncv1.ArrivalSpec{
 			Barrier: name,
-			Holder: holder,
+			Holder:  holder,
 		},
 	}
 

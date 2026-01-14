@@ -51,9 +51,11 @@ spec:
             properties:
               holder:
                 description: Holder is the pod/job requesting the lease
+                minLength: 1
                 type: string
               lease:
                 description: Lease is the name of the lease being requested
+                minLength: 1
                 type: string
               priority:
                 description: Priority for lease acquisition (higher wins)

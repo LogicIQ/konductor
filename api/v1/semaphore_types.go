@@ -18,9 +18,11 @@ type SemaphoreSpec struct {
 // SemaphoreStatus defines the observed state of Semaphore
 type SemaphoreStatus struct {
 	// InUse is the current number of permits in use
+	// +kubebuilder:validation:Minimum=0
 	InUse int32 `json:"inUse"`
 
 	// Available is the number of available permits
+	// +kubebuilder:validation:Minimum=0
 	Available int32 `json:"available"`
 
 	// Phase represents the current state of the semaphore

@@ -7,9 +7,13 @@ import (
 // GateCondition defines a condition that must be met
 type GateCondition struct {
 	// Type of condition (Job, Semaphore, Barrier, Lease)
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=Job;Semaphore;Barrier;Lease;Gate;Mutex;Once;WaitGroup
 	Type string `json:"type"`
 
 	// Name of the resource to check
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 
 	// Namespace of the resource (optional, defaults to gate's namespace)
@@ -17,7 +21,8 @@ type GateCondition struct {
 	Namespace string `json:"namespace,omitempty"`
 
 	// State required for the condition to be met
-	State string `json:"state"`
+	// +optional
+	State string `json:"state,omitempty"`
 
 	// Value for numeric conditions (e.g., semaphore permits)
 	// +optional

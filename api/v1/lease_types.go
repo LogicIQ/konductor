@@ -7,6 +7,7 @@ import (
 // LeaseSpec defines the desired state of Lease
 type LeaseSpec struct {
 	// TTL is the time-to-live for the lease
+	// +kubebuilder:validation:Required
 	TTL metav1.Duration `json:"ttl"`
 
 	// Priority for lease acquisition (higher wins)

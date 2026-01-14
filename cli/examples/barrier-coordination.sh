@@ -17,7 +17,7 @@ echo "✓ Phase 1 complete"
 # Signal arrival at barrier
 echo "Arriving at barrier: $BARRIER_NAME"
 if ! koncli barrier arrive "$BARRIER_NAME" --holder "$WORKER_ID"; then
-    echo "✗ Failed to arrive at barrier"
+    echo "✗ Failed to arrive at barrier" >&2
     exit 1
 fi
 

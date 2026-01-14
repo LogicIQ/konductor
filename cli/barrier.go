@@ -104,15 +104,14 @@ func newBarrierArriveCmd() *cobra.Command {
 
 			// Wait for controller to process if requested
 			if waitForUpdate {
-				// Use proper wait mechanism instead of fixed sleep
 				barrierObj := &syncv1.Barrier{}
 				barrierObj.Name = barrierName
 				barrierObj.Namespace = client.Namespace()
-				
+
 				if err := client.WaitForCondition(ctx, barrierObj, func(obj interface{}) bool {
-					return true // Just wait for operator delay
-				}, nil); err != nil {
-					return err
+					return obj != nil
+				}, &konductor.WaitConfig{Timeout: 5 * time.Second}); err != nil {
+					logger.Warn("Failed to wait for condition", zap.Error(err))
 				}
 			}
 
@@ -121,7 +120,12 @@ func newBarrierArriveCmd() *cobra.Command {
 			// Get barrier status to display info
 			barrierObj, err := barrier.Get(client, ctx, barrierName)
 			if err != nil {
-				return err
+				logger.Warn("Failed to get barrier status", zap.Error(err))
+				return nil
+			}
+			if barrierObj == nil {
+				logger.Warn("Barrier not found")
+				return nil
 			}
 			logger.Info("Barrier status",
 				zap.Int32("arrived", barrierObj.Status.Arrived),

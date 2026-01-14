@@ -39,10 +39,10 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	if semaphore.Status.Available <= 0 && options.Timeout > 0 {
 		config := &konductor.WaitConfig{
 			InitialDelay: 1 * time.Second,
-			MaxDelay: 5 * time.Second,
-			Factor: 1.5,
-			Jitter: 0.1,
-			Timeout: options.Timeout,
+			MaxDelay:     5 * time.Second,
+			Factor:       1.5,
+			Jitter:       0.1,
+			Timeout:      options.Timeout,
 		}
 
 		// Wait for available permits
@@ -62,21 +62,21 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	ctrlTrue := true
 	permit := &syncv1.Permit{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: permitID,
+			Name:      permitID,
 			Namespace: c.Namespace(),
-			Labels: map[string]string{"semaphore": name},
+			Labels:    map[string]string{"semaphore": name},
 			OwnerReferences: []metav1.OwnerReference{{
-				APIVersion: "sync.konductor.io/v1",
-				Kind: "Semaphore",
-				Name: semaphore.Name,
-				UID: semaphore.UID,
-				Controller: &ctrlTrue,
+				APIVersion:         "sync.konductor.io/v1",
+				Kind:               "Semaphore",
+				Name:               semaphore.Name,
+				UID:                semaphore.UID,
+				Controller:         &ctrlTrue,
 				BlockOwnerDeletion: &ctrlTrue,
 			}},
 		},
 		Spec: syncv1.PermitSpec{
 			Semaphore: name,
-			Holder: holder,
+			Holder:    holder,
 		},
 	}
 
@@ -92,8 +92,8 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	if options.Timeout > 0 {
 		config := &konductor.WaitConfig{
 			InitialDelay: 100 * time.Millisecond,
-			MaxDelay: 1 * time.Second,
-			Timeout: 5 * time.Second,
+			MaxDelay:     1 * time.Second,
+			Timeout:      5 * time.Second,
 		}
 
 		err := c.WaitForCondition(ctx, permit, func(obj interface{}) bool {

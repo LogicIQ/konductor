@@ -17,7 +17,7 @@ import (
 // Add increments the counter by delta with atomic operation protection
 func Add(c *konductor.Client, ctx context.Context, name string, delta int32) error {
 	var originalCounter int32
-	
+
 	// Retry on conflicts with atomic read-modify-write
 	err := c.RetryWithBackoff(ctx, func() error {
 		var wg syncv1.WaitGroup
@@ -26,42 +26,42 @@ func Add(c *konductor.Client, ctx context.Context, name string, delta int32) err
 		}, &wg); err != nil {
 			return err
 		}
-		
+
 		// Store original for confirmation
 		originalCounter = wg.Status.Counter
-		
+
 		// Atomic increment - this will fail with conflict if another pod modified it
 		wg.Status.Counter += delta
 		if wg.Status.Counter < 0 {
 			wg.Status.Counter = 0
 		}
-		
+
 		if wg.Status.Counter <= 0 {
 			wg.Status.Phase = syncv1.WaitGroupPhaseDone
 		} else {
 			wg.Status.Phase = syncv1.WaitGroupPhaseWaiting
 		}
-		
+
 		// This update will fail with 409 Conflict if resource version changed
 		return c.K8sClient().Status().Update(ctx, &wg)
 	}, nil)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to update waitgroup: %w", err)
 	}
-	
+
 	// Wait for confirmation of change
 	wg := &syncv1.WaitGroup{}
 	wg.Name = name
 	wg.Namespace = c.Namespace()
-	
+
 	if err := c.WaitForCondition(ctx, wg, func(obj interface{}) bool {
 		waitGroup := obj.(*syncv1.WaitGroup)
 		return waitGroup.Status.Counter != originalCounter
 	}, nil); err != nil {
 		return fmt.Errorf("failed to confirm waitgroup update: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -76,30 +76,30 @@ func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	for _, opt := range opts {
 		opt(options)
 	}
-	
+
 	wg := &syncv1.WaitGroup{}
 	wg.Name = name
 	wg.Namespace = c.Namespace()
-	
+
 	config := &konductor.WaitConfig{
 		InitialDelay: 500 * time.Millisecond,
-		MaxDelay: 5 * time.Second,
-		Factor: 1.5,
-		Jitter: 0.1,
-		Timeout: 30 * time.Second,
+		MaxDelay:     5 * time.Second,
+		Factor:       1.5,
+		Jitter:       0.1,
+		Timeout:      30 * time.Second,
 	}
-	
+
 	if options.Timeout > 0 {
 		config.Timeout = options.Timeout
 	}
-	
+
 	if err := c.WaitForCondition(ctx, wg, func(obj interface{}) bool {
 		waitGroup := obj.(*syncv1.WaitGroup)
 		return waitGroup.Status.Counter <= 0
 	}, config); err != nil {
 		return fmt.Errorf("failed to wait for waitgroup %s: %w", name, err)
 	}
-	
+
 	return nil
 }
 

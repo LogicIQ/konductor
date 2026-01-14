@@ -25,10 +25,10 @@ func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 
 	config := &konductor.WaitConfig{
 		InitialDelay: 2 * time.Second,
-		MaxDelay: 10 * time.Second,
-		Factor: 1.5,
-		Jitter: 0.1,
-		Timeout: 30 * time.Second,
+		MaxDelay:     10 * time.Second,
+		Factor:       1.5,
+		Jitter:       0.1,
+		Timeout:      30 * time.Second,
 	}
 
 	if options.Timeout > 0 {
