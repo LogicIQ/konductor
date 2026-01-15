@@ -5,6 +5,7 @@ import (
 )
 
 // BarrierSpec defines the desired state of Barrier
+// +kubebuilder:validation:XValidation:rule="!has(self.quorum) || self.quorum <= self.expected",message="quorum must not exceed expected"
 type BarrierSpec struct {
 	// Expected is the number of arrivals required to open the barrier
 	// +kubebuilder:validation:Required

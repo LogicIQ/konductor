@@ -44,8 +44,8 @@ tasks:
       - go test -v -race -coverprofile=sdk-coverage.out ./sdk/go/...
       - go tool cover -func=sdk-coverage.out
 
-  go:test:watch:
-    desc: Run tests in watch mode
+  go:test:nocache:
+    desc: Run tests without cache
     cmds:
       - go test -v ./... -count=1
 

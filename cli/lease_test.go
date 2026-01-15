@@ -26,7 +26,7 @@ func _TestLeaseAcquireCmd(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: syncv1.LeaseSpec{
-			TTL: metav1.Duration{Duration: time.Hour},
+			TTL: &metav1.Duration{Duration: time.Hour},
 		},
 		Status: syncv1.LeaseStatus{
 			Phase: syncv1.LeasePhaseAvailable,
@@ -63,7 +63,7 @@ func _TestLeaseAcquireCmd_NotAvailable(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: syncv1.LeaseSpec{
-			TTL: metav1.Duration{Duration: time.Hour},
+			TTL: &metav1.Duration{Duration: time.Hour},
 		},
 		Status: syncv1.LeaseStatus{
 			Phase:  syncv1.LeasePhaseHeld,
@@ -144,7 +144,7 @@ func TestLeaseListCmd(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: syncv1.LeaseSpec{
-				TTL: metav1.Duration{Duration: time.Hour},
+				TTL: &metav1.Duration{Duration: time.Hour},
 			},
 			Status: syncv1.LeaseStatus{
 				Phase:  syncv1.LeasePhaseAvailable,
@@ -157,7 +157,7 @@ func TestLeaseListCmd(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: syncv1.LeaseSpec{
-				TTL: metav1.Duration{Duration: time.Hour},
+				TTL: &metav1.Duration{Duration: time.Hour},
 			},
 			Status: syncv1.LeaseStatus{
 				Phase:      syncv1.LeasePhaseHeld,
@@ -201,7 +201,7 @@ func TestLeaseCmd_DefaultHolder(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: syncv1.LeaseSpec{
-			TTL: metav1.Duration{Duration: time.Hour},
+			TTL: &metav1.Duration{Duration: time.Hour},
 		},
 		Status: syncv1.LeaseStatus{
 			Phase: syncv1.LeasePhaseAvailable,

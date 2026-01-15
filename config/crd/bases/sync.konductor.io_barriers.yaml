@@ -66,6 +66,9 @@ spec:
             required:
             - expected
             type: object
+            x-kubernetes-validations:
+            - message: quorum must not exceed expected
+              rule: '!has(self.quorum) || self.quorum <= self.expected'
           status:
             description: BarrierStatus defines the observed state of Barrier
             properties:

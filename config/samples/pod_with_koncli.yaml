@@ -105,8 +105,9 @@ spec:
             exit 1
           fi
           echo "Dependencies ready"
-      - name: acquire-resources
-        image: konductor/koncli:latest
+      containers:
+      - name: worker
+        image: my-app:latest
         command:
         - /bin/sh
         - -c
@@ -115,7 +116,9 @@ spec:
           cleanup() {
             if [ "$PERMIT_ACQUIRED" = "true" ]; then
               echo "Cleaning up: releasing permit..."
-              koncli semaphore release api-quota || echo "Warning: Failed to release permit" >&2
+              if ! koncli semaphore release api-quota; then
+                echo "Warning: Failed to release permit" >&2
+              fi
             fi
           }
           trap cleanup EXIT
@@ -128,21 +131,6 @@ spec:
             echo "Failed to acquire semaphore permit" >&2
             exit 1
           fi
-      containers:
-      - name: worker
-        image: my-app:latest
-        command:
-        - /bin/sh
-        - -c
-        - |
-          set -e
-          cleanup() {
-            echo "Cleaning up: releasing permit..."
-            if ! koncli semaphore release api-quota; then
-              echo "Warning: Failed to release permit" >&2
-            fi
-          }
-          trap cleanup EXIT
           
           if ! ./process-data.sh; then
             echo "Data processing failed" >&2
@@ -164,10 +152,10 @@ metadata:
   namespace: production
   name: konductor-user
 rules:
-- apiGroups: ["sync.konductor.io"]
+- apiGroups: ["konductor.io"]
   resources: ["semaphores", "barriers", "leases", "gates", "permits", "arrivals", "leaserequests"]
   verbs: ["get", "list", "create", "update", "patch", "delete"]
-- apiGroups: ["sync.konductor.io"]
+- apiGroups: ["konductor.io"]
   resources: ["semaphores/status", "barriers/status", "leases/status", "gates/status", "permits/status"]
   verbs: ["get", "update", "patch"]
 ---

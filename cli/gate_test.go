@@ -35,6 +35,13 @@ func TestGateWaitCmd_Open(t *testing.T) {
 		},
 	}
 
+	oldClient := k8sClient
+	oldNamespace := namespace
+	defer func() {
+		k8sClient = oldClient
+		namespace = oldNamespace
+	}()
+
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(gate).
@@ -77,6 +84,13 @@ func TestGateWaitCmd_Failed(t *testing.T) {
 			},
 		},
 	}
+
+	oldClient := k8sClient
+	oldNamespace := namespace
+	defer func() {
+		k8sClient = oldClient
+		namespace = oldNamespace
+	}()
 
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
@@ -135,6 +149,13 @@ func TestGateListCmd(t *testing.T) {
 		},
 	}
 
+	oldClient := k8sClient
+	oldNamespace := namespace
+	defer func() {
+		k8sClient = oldClient
+		namespace = oldNamespace
+	}()
+
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(gates...).
@@ -149,6 +170,13 @@ func TestGateListCmd(t *testing.T) {
 
 func TestGateCreateCmd(t *testing.T) {
 	scheme := setupGateTestScheme(t)
+
+	oldClient := k8sClient
+	oldNamespace := namespace
+	defer func() {
+		k8sClient = oldClient
+		namespace = oldNamespace
+	}()
 
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
@@ -171,6 +199,13 @@ func TestGateDeleteCmd(t *testing.T) {
 			Namespace: "default",
 		},
 	}
+
+	oldClient := k8sClient
+	oldNamespace := namespace
+	defer func() {
+		k8sClient = oldClient
+		namespace = oldNamespace
+	}()
 
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
@@ -198,6 +233,13 @@ func TestGateOpenCmd(t *testing.T) {
 		},
 	}
 
+	oldClient := k8sClient
+	oldNamespace := namespace
+	defer func() {
+		k8sClient = oldClient
+		namespace = oldNamespace
+	}()
+
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(gate).
@@ -224,6 +266,13 @@ func TestGateCloseCmd(t *testing.T) {
 			Phase: syncv1.GatePhaseOpen,
 		},
 	}
+
+	oldClient := k8sClient
+	oldNamespace := namespace
+	defer func() {
+		k8sClient = oldClient
+		namespace = oldNamespace
+	}()
 
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).

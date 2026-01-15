@@ -182,7 +182,7 @@ func Create(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 			Namespace: c.Namespace(),
 		},
 		Spec: syncv1.LeaseSpec{
-			TTL: metav1.Duration{Duration: options.TTL},
+			TTL: &metav1.Duration{Duration: options.TTL},
 		},
 	}
 	return c.K8sClient().Create(ctx, lease)
@@ -217,7 +217,7 @@ func CreateLease(c *konductor.Client, ctx context.Context, name string, opts ...
 	}
 
 	if options.TTL > 0 {
-		lease.Spec.TTL = metav1.Duration{Duration: options.TTL}
+		lease.Spec.TTL = &metav1.Duration{Duration: options.TTL}
 	}
 
 	if err := c.K8sClient().Create(ctx, lease); err != nil {

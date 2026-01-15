@@ -19,8 +19,7 @@ func BasicUsageExample() {
 		Namespace: "default",
 	})
 	if err != nil {
-		log.Printf("Failed to create client: %v", err)
-		return
+		log.Fatalf("Failed to create client: %v", err)
 	}
 
 	ctx := context.Background()

@@ -63,9 +63,6 @@ func init() {
 
 func versionHealthCheck() healthz.Checker {
 	return func(req *http.Request) error {
-		req.Response = &http.Response{
-			Header: http.Header{"X-Konductor-Version": []string{version}},
-		}
 		return nil
 	}
 }

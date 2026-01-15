@@ -35,32 +35,32 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// Initialize status if needed
-	updateNeeded := false
 	if once.Status.Phase == "" {
 		once.Status.Phase = syncv1.OncePhasePending
-		updateNeeded = true
-	}
-	if once.Status.Executed && once.Status.Phase != syncv1.OncePhaseExecuted {
-		once.Status.Phase = syncv1.OncePhaseExecuted
-		updateNeeded = true
-	}
-
-	if !updateNeeded {
+		once.Status.Executed = false
+		if err := r.Status().Update(ctx, &once); err != nil {
+			log.Error(err, "unable to initialize Once status")
+			return ctrl.Result{RequeueAfter: time.Second}, err
+		}
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.Status().Update(ctx, &once); err != nil {
-		log.Error(err, "unable to update Once status")
-		if errors.IsConflict(err) {
-			return ctrl.Result{Requeue: true}, nil
+	// If already executed, ensure phase is correct
+	if once.Status.Executed {
+		if once.Status.Phase != syncv1.OncePhaseExecuted {
+			once.Status.Phase = syncv1.OncePhaseExecuted
+			if err := r.Status().Update(ctx, &once); err != nil {
+				log.Error(err, "unable to update Once phase")
+				return ctrl.Result{RequeueAfter: time.Second}, err
+			}
 		}
-		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{RequeueAfter: time.Second * 5}, err
+		return ctrl.Result{}, nil
 	}
 
+	// Once is pending and not executed - no action needed
+	// External processes will mark it as executed when they complete
 	return ctrl.Result{}, nil
+
 }
 
 func (r *OnceReconciler) SetupWithManager(mgr ctrl.Manager) error {

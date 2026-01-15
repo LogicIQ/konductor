@@ -7,9 +7,13 @@ import (
 // PermitSpec defines the desired state of Permit
 type PermitSpec struct {
 	// Semaphore is the name of the semaphore this permit belongs to
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Semaphore string `json:"semaphore"`
 
 	// Holder is the pod/job that owns this permit
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Holder string `json:"holder"`
 
 	// TTL is the time-to-live for this permit

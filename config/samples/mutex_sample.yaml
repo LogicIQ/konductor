@@ -1,4 +1,4 @@
-apiVersion: sync.konductor.io/v1
+apiVersion: konductor.io/v1
 kind: Mutex
 metadata:
   name: critical-section

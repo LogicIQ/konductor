@@ -35,7 +35,7 @@ func TestLeaseReconciler_Reconcile(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: syncv1.LeaseSpec{
-					TTL: metav1.Duration{Duration: time.Hour},
+					TTL: &metav1.Duration{Duration: time.Hour},
 				},
 			},
 			requests:       []syncv1.LeaseRequest{},
@@ -50,7 +50,7 @@ func TestLeaseReconciler_Reconcile(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: syncv1.LeaseSpec{
-					TTL: metav1.Duration{Duration: time.Hour},
+					TTL: &metav1.Duration{Duration: time.Hour},
 				},
 			},
 			requests: []syncv1.LeaseRequest{
@@ -77,7 +77,7 @@ func TestLeaseReconciler_Reconcile(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: syncv1.LeaseSpec{
-					TTL: metav1.Duration{Duration: time.Hour},
+					TTL: &metav1.Duration{Duration: time.Hour},
 				},
 			},
 			requests: []syncv1.LeaseRequest{
@@ -165,7 +165,7 @@ func TestLeaseReconciler_Expiration(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: syncv1.LeaseSpec{
-			TTL: metav1.Duration{Duration: time.Hour},
+			TTL: &metav1.Duration{Duration: time.Hour},
 		},
 		Status: syncv1.LeaseStatus{
 			Phase:     syncv1.LeasePhaseHeld,

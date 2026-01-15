@@ -36,7 +36,7 @@ func TestList(t *testing.T) {
 			Namespace: "test-ns",
 		},
 		Spec: syncv1.LeaseSpec{
-			TTL: metav1.Duration{Duration: 300},
+			TTL: &metav1.Duration{Duration: 300},
 		},
 	}
 
@@ -55,7 +55,7 @@ func TestGet(t *testing.T) {
 			Namespace: "test-ns",
 		},
 		Spec: syncv1.LeaseSpec{
-			TTL: metav1.Duration{Duration: 300},
+			TTL: &metav1.Duration{Duration: 300},
 		},
 	}
 
@@ -130,13 +130,13 @@ func TestUpdate(t *testing.T) {
 			Namespace: "test-ns",
 		},
 		Spec: syncv1.LeaseSpec{
-			TTL: metav1.Duration{Duration: 300},
+			TTL: &metav1.Duration{Duration: 300},
 		},
 	}
 	client := setupTestClient(t, lease)
 
 	// Update TTL
-	lease.Spec.TTL = metav1.Duration{Duration: 600}
+	lease.Spec.TTL = &metav1.Duration{Duration: 600}
 	err := Update(client, context.Background(), lease)
 	assert.NoError(t, err)
 }

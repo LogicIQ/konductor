@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"math"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +29,21 @@ func DefaultWaitConfig() *WaitConfig {
 	}
 }
 
+func calculateBackoffSteps(initialDelay, maxDelay time.Duration, factor float64, timeout time.Duration) int {
+	elapsed := time.Duration(0)
+	current := initialDelay
+	steps := 0
+	for elapsed < timeout {
+		steps++
+		elapsed += current
+		current = time.Duration(float64(current) * factor)
+		if current > maxDelay {
+			current = maxDelay
+		}
+	}
+	return steps
+}
+
 func (c *Client) WaitForCondition(ctx context.Context, obj client.Object, condition func(interface{}) bool, config *WaitConfig) error {
 	if config == nil {
 		config = DefaultWaitConfig()
@@ -47,7 +61,7 @@ func (c *Client) WaitForCondition(ctx context.Context, obj client.Object, condit
 		Duration: config.InitialDelay,
 		Factor:   config.Factor,
 		Jitter:   config.Jitter,
-		Steps:    int(math.Ceil(float64(config.Timeout) / float64(config.InitialDelay))),
+		Steps:    calculateBackoffSteps(config.InitialDelay, config.MaxDelay, config.Factor, config.Timeout),
 		Cap:      config.MaxDelay,
 	}
 
@@ -71,7 +85,7 @@ func (c *Client) RetryWithBackoff(ctx context.Context, fn func() error, config *
 		Duration: config.InitialDelay,
 		Factor:   config.Factor,
 		Jitter:   config.Jitter,
-		Steps:    int(math.Ceil(float64(config.Timeout) / float64(config.InitialDelay))),
+		Steps:    calculateBackoffSteps(config.InitialDelay, config.MaxDelay, config.Factor, config.Timeout),
 		Cap:      config.MaxDelay,
 	}
 

@@ -56,8 +56,6 @@ spec:
               ttl:
                 description: TTL is the time-to-live for the lease
                 type: string
-            required:
-            - ttl
             type: object
           status:
             description: LeaseStatus defines the observed state of Lease

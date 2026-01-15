@@ -60,7 +60,7 @@ func _TestStatusCommands(t *testing.T) {
 				Namespace: "default",
 			},
 			Spec: syncv1.LeaseSpec{
-				TTL: metav1.Duration{Duration: 5 * time.Minute},
+				TTL: &metav1.Duration{Duration: 5 * time.Minute},
 			},
 			Status: syncv1.LeaseStatus{
 				Holder:     "test-holder",

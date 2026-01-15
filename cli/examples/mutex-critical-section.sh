@@ -20,6 +20,7 @@ koncli mutex create "$MUTEX_NAME" --ttl 5m || echo "Mutex already exists"
 echo "Attempting to acquire lock..."
 if koncli mutex lock "$MUTEX_NAME" --holder "$HOLDER" --timeout 30s; then
     echo "✓ Lock acquired!"
+    trap 'koncli mutex unlock "$MUTEX_NAME" --holder "$HOLDER" 2>/dev/null || true' EXIT INT TERM
     
     # Critical section - only one process can be here at a time
     echo "Executing critical section..."
