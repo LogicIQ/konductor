@@ -28,8 +28,11 @@ func newGateCmd() *cobra.Command {
 	return cmd
 }
 
-func createGateClient() *konductor.Client {
-	return konductor.NewFromClient(k8sClient, namespace)
+func createGateClient() (*konductor.Client, error) {
+	if k8sClient == nil {
+		return nil, fmt.Errorf("kubernetes client not initialized")
+	}
+	return konductor.NewFromClient(k8sClient, namespace), nil
 }
 
 func newGateWaitCmd() *cobra.Command {
@@ -41,7 +44,7 @@ func newGateWaitCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gateName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createGateClient()
 
@@ -71,7 +74,7 @@ func newGateListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all gates",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createGateClient()
 
@@ -133,7 +136,7 @@ func newGateCreateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gateName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createGateClient()
 
@@ -156,7 +159,7 @@ func newGateDeleteCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gateName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createGateClient()
 
@@ -179,7 +182,7 @@ func newGateOpenCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gateName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createGateClient()
 
@@ -202,7 +205,7 @@ func newGateCloseCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gateName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createGateClient()
 

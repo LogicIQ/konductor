@@ -104,9 +104,6 @@ func TestList(t *testing.T) {
 }
 
 func TestAdd_Basic(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	wg := &syncv1.WaitGroup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-wg",
@@ -118,53 +115,25 @@ func TestAdd_Basic(t *testing.T) {
 		},
 	}
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(wg).
-		WithStatusSubresource(&syncv1.WaitGroup{}).
-		Build()
-	client := konductor.NewFromClient(k8sClient, "default")
+	client := setupTestClient(t, wg)
+	ctx := context.Background()
 
-	// Test basic functionality without retry logic
-	var updated syncv1.WaitGroup
-	err := k8sClient.Get(context.Background(), types.NamespacedName{
-		Name: "test-wg", Namespace: "default",
-	}, &updated)
+	err := Add(client, ctx, "test-wg", 2)
 	require.NoError(t, err)
 
-	updated.Status.Counter += 2
-	err = k8sClient.Status().Update(context.Background(), &updated)
-	require.NoError(t, err)
-
-	// Verify the counter was updated
-	final, err := Get(client, context.Background(), "test-wg")
+	final, err := Get(client, ctx, "test-wg")
 	require.NoError(t, err)
 	assert.Equal(t, int32(7), final.Status.Counter)
 }
 
 func TestCreate_Basic(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	client := setupTestClient(t)
+	ctx := context.Background()
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		Build()
-	client := konductor.NewFromClient(k8sClient, "default")
+	err := Create(client, ctx, "test-wg")
+	require.NoError(t, err)
 
-	// Test basic create without retry
-	wg := &syncv1.WaitGroup{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-wg",
-			Namespace: "default",
-		},
-		Spec: syncv1.WaitGroupSpec{},
-	}
-
-	err := k8sClient.Create(context.Background(), wg)
-	assert.NoError(t, err)
-
-	// Verify creation
-	created, err := Get(client, context.Background(), "test-wg")
+	created, err := Get(client, ctx, "test-wg")
 	require.NoError(t, err)
 	assert.Equal(t, "test-wg", created.Name)
 }

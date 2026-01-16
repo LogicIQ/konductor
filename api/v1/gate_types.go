@@ -32,6 +32,7 @@ type GateCondition struct {
 // GateSpec defines the desired state of Gate
 type GateSpec struct {
 	// Conditions that must be met for the gate to open
+	// +kubebuilder:validation:MinItems=1
 	Conditions []GateCondition `json:"conditions"`
 
 	// Timeout for waiting for conditions

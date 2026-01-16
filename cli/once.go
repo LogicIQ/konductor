@@ -27,8 +27,11 @@ func newOnceCmd() *cobra.Command {
 	return cmd
 }
 
-func createOnceClient() *konductor.Client {
-	return konductor.NewFromClient(k8sClient, namespace)
+func createOnceClient() (*konductor.Client, error) {
+	if k8sClient == nil {
+		return nil, fmt.Errorf("kubernetes client not initialized")
+	}
+	return konductor.NewFromClient(k8sClient, namespace), nil
 }
 
 func newOnceCheckCmd() *cobra.Command {
@@ -40,9 +43,9 @@ func newOnceCheckCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			client := createOnceClient()
-			if client == nil {
-				return fmt.Errorf("failed to create konductor client")
+			client, err := createOnceClient()
+			if err != nil {
+				return err
 			}
 
 			executed, err := once.IsExecuted(client, ctx, name)
@@ -70,7 +73,10 @@ func newOnceListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
-			client := createOnceClient()
+			client, err := createOnceClient()
+			if err != nil {
+				return err
+			}
 
 			onces, err := once.List(client, ctx)
 			if err != nil {
@@ -120,7 +126,10 @@ func newOnceCreateCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			client := createOnceClient()
+			client, err := createOnceClient()
+			if err != nil {
+				return err
+			}
 
 			var opts []konductor.Option
 			if ttl > 0 {
@@ -149,7 +158,10 @@ func newOnceDeleteCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			client := createOnceClient()
+			client, err := createOnceClient()
+			if err != nil {
+				return err
+			}
 
 			if err := once.Delete(client, ctx, name); err != nil {
 				return err

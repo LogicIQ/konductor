@@ -108,69 +108,45 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.SemaphoreReconciler{
+	setupController(mgr, &controllers.SemaphoreReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Semaphore"))
-		os.Exit(1)
-	}
+	}, "Semaphore", logger)
 
-	if err = (&controllers.BarrierReconciler{
+	setupController(mgr, &controllers.BarrierReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Barrier"))
-		os.Exit(1)
-	}
+	}, "Barrier", logger)
 
-	if err = (&controllers.LeaseReconciler{
+	setupController(mgr, &controllers.LeaseReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Lease"))
-		os.Exit(1)
-	}
+	}, "Lease", logger)
 
-	if err = (&controllers.GateReconciler{
+	setupController(mgr, &controllers.GateReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Gate"))
-		os.Exit(1)
-	}
+	}, "Gate", logger)
 
-	if err = (&controllers.MutexReconciler{
+	setupController(mgr, &controllers.MutexReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Mutex"))
-		os.Exit(1)
-	}
+	}, "Mutex", logger)
 
-	if err = (&controllers.RWMutexReconciler{
+	setupController(mgr, &controllers.RWMutexReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "RWMutex"))
-		os.Exit(1)
-	}
+	}, "RWMutex", logger)
 
-	if err = (&controllers.OnceReconciler{
+	setupController(mgr, &controllers.OnceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "Once"))
-		os.Exit(1)
-	}
+	}, "Once", logger)
 
-	if err = (&controllers.WaitGroupReconciler{
+	setupController(mgr, &controllers.WaitGroupReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", "WaitGroup"))
-		os.Exit(1)
-	}
+	}, "WaitGroup", logger)
 
 	//+kubebuilder:scaffold:builder
 
@@ -186,6 +162,17 @@ func main() {
 	logger.Info("Starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		logger.Error("Problem running manager", zap.Error(err))
+		os.Exit(1)
+	}
+}
+
+type reconciler interface {
+	SetupWithManager(mgr ctrl.Manager) error
+}
+
+func setupController(mgr ctrl.Manager, r reconciler, name string, logger *zap.Logger) {
+	if err := r.SetupWithManager(mgr); err != nil {
+		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", name))
 		os.Exit(1)
 	}
 }

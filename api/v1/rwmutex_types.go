@@ -8,6 +8,8 @@ import (
 type RWMutexSpec struct {
 	// TTL is the optional time-to-live for automatic unlock
 	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format=duration
 	TTL *metav1.Duration `json:"ttl,omitempty"`
 }
 
@@ -20,6 +22,10 @@ type RWMutexStatus struct {
 	// ReadHolders is the list of current read lock holders
 	// +optional
 	ReadHolders []string `json:"readHolders,omitempty"`
+
+	// ReadCount is the number of current read lock holders
+	// +optional
+	ReadCount int32 `json:"readCount,omitempty"`
 
 	// LockedAt is when the lock was acquired
 	// +optional
@@ -48,7 +54,7 @@ const (
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="WriteHolder",type=string,JSONPath=`.status.writeHolder`
-//+kubebuilder:printcolumn:name="ReadCount",type=string,JSONPath=`.status.readHolders`,priority=1
+//+kubebuilder:printcolumn:name="ReadCount",type=integer,JSONPath=`.status.readCount`,priority=1
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 //+kubebuilder:printcolumn:name="Locked",type=date,JSONPath=`.status.lockedAt`
 

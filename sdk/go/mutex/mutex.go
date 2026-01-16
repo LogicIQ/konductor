@@ -57,6 +57,10 @@ func (m *Mutex) Name() string {
 }
 
 func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*Mutex, error) {
+	if name == "" {
+		return nil, fmt.Errorf("mutex name cannot be empty")
+	}
+
 	options := &konductor.Options{Timeout: 0}
 	for _, opt := range opts {
 		opt(options)
@@ -235,24 +239,6 @@ func IsLocked(c *konductor.Client, ctx context.Context, name string) (bool, erro
 }
 
 func Unlock(c *konductor.Client, ctx context.Context, name, holder string) error {
-	return c.RetryWithBackoff(ctx, func() error {
-		var mutex syncv1.Mutex
-		if err := c.K8sClient().Get(ctx, types.NamespacedName{
-			Name:      name,
-			Namespace: c.Namespace(),
-		}, &mutex); err != nil {
-			return fmt.Errorf("failed to get mutex: %w", err)
-		}
-
-		if mutex.Status.Holder != holder {
-			return fmt.Errorf("cannot unlock: not the holder")
-		}
-
-		mutex.Status.Phase = syncv1.MutexPhaseUnlocked
-		mutex.Status.Holder = ""
-		mutex.Status.LockedAt = nil
-		mutex.Status.ExpiresAt = nil
-
-		return c.K8sClient().Status().Update(ctx, &mutex)
-	}, nil)
+	m := &Mutex{client: c, name: name, holder: holder}
+	return m.Unlock(ctx)
 }

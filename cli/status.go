@@ -30,6 +30,10 @@ func newStatusCmd() *cobra.Command {
 	return cmd
 }
 
+func createStatusClient() *konductor.Client {
+	return konductor.NewFromClient(k8sClient, namespace)
+}
+
 func newStatusSemaphoreCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "semaphore <name>",
@@ -37,7 +41,7 @@ func newStatusSemaphoreCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			// Create SDK client
 			client := konductor.NewFromClient(k8sClient, namespace)
@@ -88,7 +92,7 @@ func newStatusBarrierCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			// Create SDK client
 			client := konductor.NewFromClient(k8sClient, namespace)
@@ -137,7 +141,7 @@ func newStatusLeaseCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			// Create SDK client
 			client := konductor.NewFromClient(k8sClient, namespace)
@@ -201,7 +205,7 @@ func newStatusGateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			// Create SDK client
 			client := konductor.NewFromClient(k8sClient, namespace)
@@ -263,7 +267,7 @@ func newStatusAllCmd() *cobra.Command {
 		Use:   "all",
 		Short: "Show status of all coordination primitives",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			// Create SDK client
 			client := konductor.NewFromClient(k8sClient, namespace)

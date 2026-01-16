@@ -17,6 +17,8 @@ import (
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
+const testTimeout = 500 * time.Millisecond
+
 func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -281,7 +283,7 @@ func TestRLock_Timeout(t *testing.T) {
 
 	_, err := RLock(client, context.Background(), "test-rwmutex",
 		konductor.WithHolder("reader-1"),
-		konductor.WithTimeout(100*time.Millisecond))
+		konductor.WithTimeout(testTimeout))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "timeout")
 }
@@ -302,7 +304,7 @@ func TestLock_Timeout(t *testing.T) {
 
 	_, err := Lock(client, context.Background(), "test-rwmutex",
 		konductor.WithHolder("writer-1"),
-		konductor.WithTimeout(100*time.Millisecond))
+		konductor.WithTimeout(testTimeout))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "timeout")
 }

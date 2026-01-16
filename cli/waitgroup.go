@@ -159,6 +159,7 @@ func newWaitGroupCreateCmd(client *konductor.Client) *cobra.Command {
 				opts = append(opts, konductor.WithTTL(ttl))
 			}
 			if err := waitgroup.Create(client, ctx, name, opts...); err != nil {
+				logger.Error("Failed to create waitgroup", zap.Error(err))
 				return err
 			}
 
@@ -182,6 +183,7 @@ func newWaitGroupDeleteCmd(client *konductor.Client) *cobra.Command {
 			ctx := context.Background()
 
 			if err := waitgroup.Delete(client, ctx, name); err != nil {
+				logger.Error("Failed to delete waitgroup", zap.Error(err))
 				return err
 			}
 

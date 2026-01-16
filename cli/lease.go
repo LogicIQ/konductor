@@ -35,7 +35,6 @@ func createLeaseClient() *konductor.Client {
 
 func newLeaseAcquireCmd() *cobra.Command {
 	var (
-		wait     bool
 		timeout  time.Duration
 		priority int32
 		holder   string
@@ -74,7 +73,6 @@ func newLeaseAcquireCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&wait, "wait", false, "Wait for lease to become available")
 	cmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for waiting (e.g., 30s, 5m)")
 	cmd.Flags().Int32Var(&priority, "priority", 0, "Priority for lease acquisition (higher wins)")
 	cmd.Flags().StringVar(&holder, "holder", "", "Lease holder identifier (defaults to hostname)")

@@ -161,37 +161,52 @@ func initKubeClient(cmd *cobra.Command) error {
 }
 
 func detectNamespace() string {
-	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-		ns := strings.TrimSpace(string(data))
-		if ns != "" {
-			logger.Debug("Auto-detected namespace from pod service account", zap.String("namespace", ns))
-			return ns
-		}
-	}
-
-	if ns := os.Getenv("POD_NAMESPACE"); ns != "" {
-		logger.Debug("Auto-detected namespace from POD_NAMESPACE env", zap.String("namespace", ns))
+	// Try pod service account
+	if ns := readPodNamespace(); ns != "" {
+		logger.Debug("Auto-detected namespace from pod service account", zap.String("namespace", ns))
 		return ns
 	}
 
-	if ns := os.Getenv("NAMESPACE"); ns != "" {
-		logger.Debug("Auto-detected namespace from NAMESPACE env", zap.String("namespace", ns))
+	// Try environment variables
+	if ns := getNamespaceFromEnv(); ns != "" {
+		logger.Debug("Auto-detected namespace from environment", zap.String("namespace", ns))
 		return ns
 	}
 
-	if kubeconfig == "" {
-		kubeconfig = clientcmd.RecommendedHomeFile
-	}
-
-	if config, err := clientcmd.LoadFromFile(kubeconfig); err == nil {
-		if config.Contexts[config.CurrentContext] != nil {
-			if ns := config.Contexts[config.CurrentContext].Namespace; ns != "" {
-				logger.Debug("Auto-detected namespace from kubeconfig context", zap.String("namespace", ns))
-				return ns
-			}
-		}
+	// Try kubeconfig
+	if ns := getNamespaceFromKubeconfig(); ns != "" {
+		logger.Debug("Auto-detected namespace from kubeconfig context", zap.String("namespace", ns))
+		return ns
 	}
 
 	logger.Debug("Using default namespace (no auto-detection available)")
 	return "default"
+}
+
+func readPodNamespace() string {
+	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+	return ""
+}
+
+func getNamespaceFromEnv() string {
+	if ns := os.Getenv("POD_NAMESPACE"); ns != "" {
+		return ns
+	}
+	return os.Getenv("NAMESPACE")
+}
+
+func getNamespaceFromKubeconfig() string {
+	kubeconfigPath := kubeconfig
+	if kubeconfigPath == "" {
+		kubeconfigPath = clientcmd.RecommendedHomeFile
+	}
+
+	if config, err := clientcmd.LoadFromFile(kubeconfigPath); err == nil {
+		if config.Contexts[config.CurrentContext] != nil {
+			return config.Contexts[config.CurrentContext].Namespace
+		}
+	}
+	return ""
 }

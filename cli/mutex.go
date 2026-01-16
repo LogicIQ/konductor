@@ -93,25 +93,7 @@ func newMutexUnlockCmd() *cobra.Command {
 
 			client := createMutexClient()
 
-			mutexObj := &mutex.Mutex{}
-			*mutexObj = mutex.Mutex{} // Placeholder, need to get actual mutex
-
-			// Get mutex and unlock
-			m, err := mutex.Get(client, ctx, mutexName)
-			if err != nil {
-				return err
-			}
-
-			if m.Status.Holder != holder {
-				return errors.New("cannot unlock: not the holder")
-			}
-
-			m.Status.Phase = "Unlocked"
-			m.Status.Holder = ""
-			m.Status.LockedAt = nil
-			m.Status.ExpiresAt = nil
-
-			if err := client.K8sClient().Status().Update(ctx, m); err != nil {
+			if err := mutex.Unlock(client, ctx, mutexName, holder); err != nil {
 				return err
 			}
 

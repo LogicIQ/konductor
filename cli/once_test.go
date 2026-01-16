@@ -42,6 +42,11 @@ func TestOnceListCmd(t *testing.T) {
 		},
 	}
 
+	t.Cleanup(func() {
+		k8sClient = nil
+		namespace = ""
+	})
+
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(onces...).
@@ -61,6 +66,11 @@ func TestOnceCreateCmd(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
+	t.Cleanup(func() {
+		k8sClient = nil
+		namespace = ""
+	})
+
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
 		Build()
@@ -79,6 +89,11 @@ func TestOnceCreateCmd(t *testing.T) {
 func TestOnceCreateCmd_WithTTL(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	t.Cleanup(func() {
+		k8sClient = nil
+		namespace = ""
+	})
 
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
@@ -105,6 +120,11 @@ func TestOnceDeleteCmd(t *testing.T) {
 			Namespace: "default",
 		},
 	}
+
+	t.Cleanup(func() {
+		k8sClient = nil
+		namespace = ""
+	})
 
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
@@ -137,6 +157,11 @@ func TestOnceCheckCmd(t *testing.T) {
 		},
 	}
 
+	t.Cleanup(func() {
+		k8sClient = nil
+		namespace = ""
+	})
+
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithRuntimeObjects(once).
@@ -156,6 +181,11 @@ func TestOnceCheckCmd(t *testing.T) {
 func TestOnceListCmd_Empty(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	t.Cleanup(func() {
+		k8sClient = nil
+		namespace = ""
+	})
 
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).

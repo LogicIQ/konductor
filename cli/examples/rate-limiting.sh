@@ -8,8 +8,10 @@ SEMAPHORE_NAME="external-api-limit"
 PERMITS=10
 HOLDER="$HOSTNAME-$$"
 
-# Create semaphore (idempotent)
-koncli semaphore create "$SEMAPHORE_NAME" --permits "$PERMITS" 2>/dev/null || true
+# Create semaphore (idempotent - ignore "already exists" errors)
+if ! koncli semaphore create "$SEMAPHORE_NAME" --permits "$PERMITS" 2>&1 | grep -q "already exists"; then
+    koncli semaphore create "$SEMAPHORE_NAME" --permits "$PERMITS" || true
+fi
 
 echo "Acquiring permit from $SEMAPHORE_NAME..."
 
@@ -18,7 +20,7 @@ if koncli semaphore acquire "$SEMAPHORE_NAME" --holder "$HOLDER" --timeout 30s; 
     echo "✓ Permit acquired"
     
     # Cleanup on exit
-    trap "koncli semaphore release $SEMAPHORE_NAME --holder $HOLDER || echo 'Warning: Failed to release semaphore' >&2" EXIT
+    trap 'koncli semaphore release "$SEMAPHORE_NAME" --holder "$HOLDER" || echo "Warning: Failed to release semaphore" >&2' EXIT
     
     # Simulate API call
     echo "Calling external API..."

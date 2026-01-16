@@ -142,6 +142,10 @@ func Get(c *konductor.Client, ctx context.Context, name string) (*syncv1.Semapho
 }
 
 func Create(c *konductor.Client, ctx context.Context, name string, permits int32, opts ...konductor.Option) error {
+	if permits <= 0 {
+		return fmt.Errorf("permits must be positive, got %d", permits)
+	}
+
 	options := &konductor.Options{}
 	for _, opt := range opts {
 		opt(options)

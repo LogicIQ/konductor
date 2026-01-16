@@ -101,6 +101,14 @@ func _TestStatusCommands(t *testing.T) {
 		WithObjects(testResources...).
 		Build()
 
+	// Store original values
+	originalClient := k8sClient
+	originalNamespace := namespace
+	defer func() {
+		k8sClient = originalClient
+		namespace = originalNamespace
+	}()
+
 	k8sClient = fakeClient
 	namespace = "default"
 
@@ -255,6 +263,18 @@ func TestStatusAllEmpty(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		Build()
+
+	// Store original values
+	originalClient := k8sClient
+	originalNamespace := namespace
+	originalFormat := outputFormat
+	originalLogger := logger
+	defer func() {
+		k8sClient = originalClient
+		namespace = originalNamespace
+		outputFormat = originalFormat
+		logger = originalLogger
+	}()
 
 	k8sClient = fakeClient
 	namespace = "default"

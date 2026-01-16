@@ -43,7 +43,6 @@ if ! wait; then
 fi
 
 echo ""
-if ! echo "=== Example Complete ==="; then
-    exit 1
-fi
-echo "Cleanup: koncli rwmutex delete $RWMUTEX_NAME"
+echo "=== Example Complete ==="
+echo "Cleaning up..."
+koncli rwmutex delete $RWMUTEX_NAME

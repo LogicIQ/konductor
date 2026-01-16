@@ -36,7 +36,6 @@ func createSemaphoreClient() *konductor.Client {
 
 func newSemaphoreAcquireCmd() *cobra.Command {
 	var (
-		wait          bool
 		timeout       time.Duration
 		ttl           time.Duration
 		holder        string
@@ -81,7 +80,6 @@ func newSemaphoreAcquireCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&wait, "wait", false, "Wait for permit to become available")
 	cmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for waiting (e.g., 30s, 5m)")
 	cmd.Flags().DurationVar(&ttl, "ttl", 10*time.Minute, "Time-to-live for the permit")
 	cmd.Flags().StringVar(&holder, "holder", "", "Permit holder identifier (defaults to hostname)")
