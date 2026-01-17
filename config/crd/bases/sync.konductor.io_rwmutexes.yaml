@@ -19,7 +19,7 @@ spec:
       name: WriteHolder
       type: string
     - jsonPath: .status.readHolders
-      name: ReadCount
+      name: ReadHolders
       priority: 1
       type: string
     - jsonPath: .status.phase
@@ -55,6 +55,7 @@ spec:
             properties:
               ttl:
                 description: TTL is the optional time-to-live for automatic unlock
+                format: duration
                 type: string
             type: object
           status:

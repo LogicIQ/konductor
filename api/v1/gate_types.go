@@ -21,7 +21,15 @@ type GateCondition struct {
 	Namespace string `json:"namespace,omitempty"`
 
 	// State required for the condition to be met
+	// For Job: Complete, Failed, or Active
+	// For Barrier: Open or Closed
+	// For Lease: Acquired or Available
+	// For Gate: Open or Closed
+	// For Mutex: Locked or Unlocked
+	// For Once: Done or Pending
+	// For WaitGroup: Zero or NonZero
 	// +optional
+	// +kubebuilder:validation:Enum=Complete;Failed;Active;Open;Closed;Acquired;Available;Locked;Unlocked;Done;Pending;Zero;NonZero
 	State string `json:"state,omitempty"`
 
 	// Value for numeric conditions (e.g., semaphore permits)

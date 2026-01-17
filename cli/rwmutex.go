@@ -30,6 +30,16 @@ func newRWMutexCmd() *cobra.Command {
 	return cmd
 }
 
+func validateHolder(holder string) (string, error) {
+	if holder == "" {
+		holder = os.Getenv("HOSTNAME")
+		if holder == "" {
+			return "", errors.New("holder must be specified or HOSTNAME must be set")
+		}
+	}
+	return holder, nil
+}
+
 func newRWMutexRLockCmd() *cobra.Command {
 	var (
 		timeout time.Duration
@@ -44,17 +54,17 @@ func newRWMutexRLockCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			if holder == "" {
-				holder = os.Getenv("HOSTNAME")
-				if holder == "" {
-					return errors.New("holder must be specified or HOSTNAME must be set")
-				}
+			var err error
+			holder, err = validateHolder(holder)
+			if err != nil {
+				return err
 			}
 
 			client := konductor.NewFromClient(k8sClient, namespace)
 
-			var opts []konductor.Option
-			opts = append(opts, konductor.WithHolder(holder))
+			opts := []konductor.Option{
+				konductor.WithHolder(holder),
+			}
 			if timeout > 0 {
 				opts = append(opts, konductor.WithTimeout(timeout))
 			}
@@ -89,17 +99,17 @@ func newRWMutexLockCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			if holder == "" {
-				holder = os.Getenv("HOSTNAME")
-				if holder == "" {
-					return errors.New("holder must be specified or HOSTNAME must be set")
-				}
+			var err error
+			holder, err = validateHolder(holder)
+			if err != nil {
+				return err
 			}
 
 			client := konductor.NewFromClient(k8sClient, namespace)
 
-			var opts []konductor.Option
-			opts = append(opts, konductor.WithHolder(holder))
+			opts := []konductor.Option{
+				konductor.WithHolder(holder),
+			}
 			if timeout > 0 {
 				opts = append(opts, konductor.WithTimeout(timeout))
 			}
@@ -131,11 +141,10 @@ func newRWMutexUnlockCmd() *cobra.Command {
 			name := args[0]
 			ctx := context.Background()
 
-			if holder == "" {
-				holder = os.Getenv("HOSTNAME")
-				if holder == "" {
-					return errors.New("holder must be specified or HOSTNAME must be set")
-				}
+			var err error
+			holder, err = validateHolder(holder)
+			if err != nil {
+				return err
 			}
 
 			client := konductor.NewFromClient(k8sClient, namespace)

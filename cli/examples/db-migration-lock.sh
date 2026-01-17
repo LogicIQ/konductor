@@ -15,7 +15,7 @@ if koncli lease acquire "$LEASE_NAME" --holder "$HOLDER" --ttl "$TTL"; then
     echo "✓ Migration lock acquired"
     
     # Cleanup on exit
-    trap "koncli lease release '$LEASE_NAME' --holder '$HOLDER' || echo 'Warning: Failed to release lease' >&2" EXIT
+    trap 'koncli lease release "$LEASE_NAME" --holder "$HOLDER" || echo "Warning: Failed to release lease" >&2' EXIT
     
     echo "Running database migrations..."
     
@@ -40,7 +40,8 @@ else
         # Try to acquire lease briefly to check if available
         if koncli lease acquire "$LEASE_NAME" --holder "$HOLDER" --ttl 1s 2>/dev/null; then
             if ! koncli lease release "$LEASE_NAME" --holder "$HOLDER"; then
-                echo "Warning: Failed to release temporary lease" >&2
+                echo "✗ Failed to release temporary lease" >&2
+                exit 1
             fi
             echo "✓ Migrations completed (by another pod)"
             exit 0

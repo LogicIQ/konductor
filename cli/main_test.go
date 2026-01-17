@@ -71,6 +71,14 @@ func TestRootCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Save and restore global variables
+			origOutputFormat := outputFormat
+			origLogger := logger
+			defer func() {
+				outputFormat = origOutputFormat
+				logger = origLogger
+			}()
+
 			// Initialize logger
 			outputFormat = "text"
 			var err error
@@ -159,7 +167,9 @@ func TestGlobalFlags(t *testing.T) {
 			rootCmd.SetErr(&output)
 
 			rootCmd.SetArgs(tt.args)
-			rootCmd.Execute() // Ignore error for flag testing
+			if err := rootCmd.Execute(); err != nil {
+				t.Errorf("Unexpected error executing command: %v", err)
+			}
 
 			if tt.checkFunc != nil {
 				tt.checkFunc(t)
@@ -269,8 +279,16 @@ func TestDetectNamespace(t *testing.T) {
 
 	// Clean up after test
 	defer func() {
-		os.Setenv("POD_NAMESPACE", origPodNS)
-		os.Setenv("NAMESPACE", origNS)
+		if origPodNS == "" {
+			os.Unsetenv("POD_NAMESPACE")
+		} else {
+			os.Setenv("POD_NAMESPACE", origPodNS)
+		}
+		if origNS == "" {
+			os.Unsetenv("NAMESPACE")
+		} else {
+			os.Setenv("NAMESPACE", origNS)
+		}
 		kubeconfig = origKubeconfig
 	}()
 
@@ -323,8 +341,16 @@ func TestDetectNamespacePriority(t *testing.T) {
 	origNS := os.Getenv("NAMESPACE")
 
 	defer func() {
-		os.Setenv("POD_NAMESPACE", origPodNS)
-		os.Setenv("NAMESPACE", origNS)
+		if origPodNS == "" {
+			os.Unsetenv("POD_NAMESPACE")
+		} else {
+			os.Setenv("POD_NAMESPACE", origPodNS)
+		}
+		if origNS == "" {
+			os.Unsetenv("NAMESPACE")
+		} else {
+			os.Setenv("NAMESPACE", origNS)
+		}
 	}()
 
 	// Set both environment variables

@@ -30,15 +30,24 @@ func DefaultWaitConfig() *WaitConfig {
 }
 
 func calculateBackoffSteps(initialDelay, maxDelay time.Duration, factor float64, timeout time.Duration) int {
+	if factor <= 1.0 {
+		factor = 1.1
+	}
 	elapsed := time.Duration(0)
 	current := initialDelay
 	steps := 0
 	for elapsed < timeout {
 		steps++
 		elapsed += current
+		prev := current
 		current = time.Duration(float64(current) * factor)
 		if current > maxDelay {
 			current = maxDelay
+		}
+		if current == prev && current == maxDelay {
+			remaining := timeout - elapsed
+			steps += int(remaining / current)
+			break
 		}
 	}
 	return steps

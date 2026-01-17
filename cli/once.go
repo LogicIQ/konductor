@@ -41,7 +41,8 @@ func newOnceCheckCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 
 			client, err := createOnceClient()
 			if err != nil {
@@ -71,7 +72,8 @@ func newOnceListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all onces",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 
 			client, err := createOnceClient()
 			if err != nil {
@@ -124,7 +126,8 @@ func newOnceCreateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 
 			client, err := createOnceClient()
 			if err != nil {
@@ -156,7 +159,8 @@ func newOnceDeleteCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 
 			client, err := createOnceClient()
 			if err != nil {

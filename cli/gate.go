@@ -1,7 +1,7 @@
 package main
 
 import (
-	"context"
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -46,7 +46,10 @@ func newGateWaitCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := cmd.Context()
 
-			client := createGateClient()
+			client, err := createGateClient()
+			if err != nil {
+				return err
+			}
 
 			// Build options
 			var opts []konductor.Option
@@ -76,7 +79,10 @@ func newGateListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			client := createGateClient()
+			client, err := createGateClient()
+			if err != nil {
+				return err
+			}
 
 			// List gates using SDK
 			gates, err := gate.List(client, ctx)
@@ -138,7 +144,10 @@ func newGateCreateCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := cmd.Context()
 
-			client := createGateClient()
+			client, err := createGateClient()
+			if err != nil {
+				return err
+			}
 
 			if err := gate.Create(client, ctx, gateName); err != nil {
 				return err
@@ -161,7 +170,10 @@ func newGateDeleteCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := cmd.Context()
 
-			client := createGateClient()
+			client, err := createGateClient()
+			if err != nil {
+				return err
+			}
 
 			if err := gate.Delete(client, ctx, gateName); err != nil {
 				return err
@@ -184,7 +196,10 @@ func newGateOpenCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := cmd.Context()
 
-			client := createGateClient()
+			client, err := createGateClient()
+			if err != nil {
+				return err
+			}
 
 			if err := gate.Open(client, ctx, gateName); err != nil {
 				return err
@@ -207,7 +222,10 @@ func newGateCloseCmd() *cobra.Command {
 			gateName := args[0]
 			ctx := cmd.Context()
 
-			client := createGateClient()
+			client, err := createGateClient()
+			if err != nil {
+				return err
+			}
 
 			if err := gate.Close(client, ctx, gateName); err != nil {
 				return err

@@ -18,9 +18,43 @@ func setupGateTestScheme(t *testing.T) *runtime.Scheme {
 	return scheme
 }
 
-func TestGateWaitCmd_Open(t *testing.T) {
+func setupGateTestClient(t *testing.T, objects ...runtime.Object) func() {
 	scheme := setupGateTestScheme(t)
+	oldClient := k8sClient
+	oldNamespace := namespace
 
+	builder := fake.NewClientBuilder().WithScheme(scheme)
+	if len(objects) > 0 {
+		builder = builder.WithRuntimeObjects(objects...)
+	}
+	k8sClient = builder.Build()
+	namespace = "default"
+
+	return func() {
+		k8sClient = oldClient
+		namespace = oldNamespace
+	}
+}
+
+func setupGateTestClientWithStatus(t *testing.T, objects ...runtime.Object) func() {
+	scheme := setupGateTestScheme(t)
+	oldClient := k8sClient
+	oldNamespace := namespace
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(objects...).
+		WithStatusSubresource(&syncv1.Gate{}).
+		Build()
+	namespace = "default"
+
+	return func() {
+		k8sClient = oldClient
+		namespace = oldNamespace
+	}
+}
+
+func TestGateWaitCmd_Open(t *testing.T) {
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
@@ -35,18 +69,7 @@ func TestGateWaitCmd_Open(t *testing.T) {
 		},
 	}
 
-	oldClient := k8sClient
-	oldNamespace := namespace
-	defer func() {
-		k8sClient = oldClient
-		namespace = oldNamespace
-	}()
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
-	namespace = "default"
+	defer setupGateTestClient(t, gate)()
 
 	cmd := newGateWaitCmd()
 	cmd.SetArgs([]string{"test-gate"})
@@ -56,8 +79,6 @@ func TestGateWaitCmd_Open(t *testing.T) {
 }
 
 func TestGateWaitCmd_Failed(t *testing.T) {
-	scheme := setupGateTestScheme(t)
-
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
@@ -85,18 +106,7 @@ func TestGateWaitCmd_Failed(t *testing.T) {
 		},
 	}
 
-	oldClient := k8sClient
-	oldNamespace := namespace
-	defer func() {
-		k8sClient = oldClient
-		namespace = oldNamespace
-	}()
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
-	namespace = "default"
+	defer setupGateTestClient(t, gate)()
 
 	cmd := newGateWaitCmd()
 	cmd.SetArgs([]string{"test-gate"})
@@ -107,8 +117,6 @@ func TestGateWaitCmd_Failed(t *testing.T) {
 }
 
 func TestGateListCmd(t *testing.T) {
-	scheme := setupGateTestScheme(t)
-
 	gates := []runtime.Object{
 		&syncv1.Gate{
 			ObjectMeta: metav1.ObjectMeta{
@@ -149,18 +157,7 @@ func TestGateListCmd(t *testing.T) {
 		},
 	}
 
-	oldClient := k8sClient
-	oldNamespace := namespace
-	defer func() {
-		k8sClient = oldClient
-		namespace = oldNamespace
-	}()
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gates...).
-		Build()
-	namespace = "default"
+	defer setupGateTestClient(t, gates...)()
 
 	cmd := newGateListCmd()
 
@@ -169,19 +166,7 @@ func TestGateListCmd(t *testing.T) {
 }
 
 func TestGateCreateCmd(t *testing.T) {
-	scheme := setupGateTestScheme(t)
-
-	oldClient := k8sClient
-	oldNamespace := namespace
-	defer func() {
-		k8sClient = oldClient
-		namespace = oldNamespace
-	}()
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		Build()
-	namespace = "default"
+	defer setupGateTestClient(t)()
 
 	cmd := newGateCreateCmd()
 	cmd.SetArgs([]string{"test-gate"})
@@ -191,8 +176,6 @@ func TestGateCreateCmd(t *testing.T) {
 }
 
 func TestGateDeleteCmd(t *testing.T) {
-	scheme := setupGateTestScheme(t)
-
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
@@ -200,18 +183,7 @@ func TestGateDeleteCmd(t *testing.T) {
 		},
 	}
 
-	oldClient := k8sClient
-	oldNamespace := namespace
-	defer func() {
-		k8sClient = oldClient
-		namespace = oldNamespace
-	}()
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		Build()
-	namespace = "default"
+	defer setupGateTestClient(t, gate)()
 
 	cmd := newGateDeleteCmd()
 	cmd.SetArgs([]string{"test-gate"})
@@ -221,8 +193,6 @@ func TestGateDeleteCmd(t *testing.T) {
 }
 
 func TestGateOpenCmd(t *testing.T) {
-	scheme := setupGateTestScheme(t)
-
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
@@ -233,19 +203,7 @@ func TestGateOpenCmd(t *testing.T) {
 		},
 	}
 
-	oldClient := k8sClient
-	oldNamespace := namespace
-	defer func() {
-		k8sClient = oldClient
-		namespace = oldNamespace
-	}()
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		WithStatusSubresource(&syncv1.Gate{}).
-		Build()
-	namespace = "default"
+	defer setupGateTestClientWithStatus(t, gate)()
 
 	cmd := newGateOpenCmd()
 	cmd.SetArgs([]string{"test-gate"})
@@ -255,8 +213,6 @@ func TestGateOpenCmd(t *testing.T) {
 }
 
 func TestGateCloseCmd(t *testing.T) {
-	scheme := setupGateTestScheme(t)
-
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
@@ -267,19 +223,7 @@ func TestGateCloseCmd(t *testing.T) {
 		},
 	}
 
-	oldClient := k8sClient
-	oldNamespace := namespace
-	defer func() {
-		k8sClient = oldClient
-		namespace = oldNamespace
-	}()
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(gate).
-		WithStatusSubresource(&syncv1.Gate{}).
-		Build()
-	namespace = "default"
+	defer setupGateTestClientWithStatus(t, gate)()
 
 	cmd := newGateCloseCmd()
 	cmd.SetArgs([]string{"test-gate"})

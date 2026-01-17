@@ -38,9 +38,7 @@ koncli rwmutex unlock $RWMUTEX_NAME --holder "writer-1"
 echo "Writer: Released write lock"
 
 # Wait for all background jobs
-if ! wait; then
-    echo "Warning: Some background jobs failed" >&2
-fi
+wait
 
 echo ""
 echo "=== Example Complete ==="

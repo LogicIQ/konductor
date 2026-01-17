@@ -99,12 +99,17 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	}
 
 	err := c.WaitForCondition(ctx, request, func(obj interface{}) bool {
-		req := obj.(*syncv1.LeaseRequest)
+		req, ok := obj.(*syncv1.LeaseRequest)
+		if !ok {
+			return false
+		}
 		return req.Status.Phase == syncv1.LeaseRequestPhaseGranted || req.Status.Phase == syncv1.LeaseRequestPhaseDenied
 	}, config)
 
 	if err != nil {
-		c.K8sClient().Delete(context.Background(), request)
+		if deleteErr := c.K8sClient().Delete(ctx, request); deleteErr != nil {
+			return nil, fmt.Errorf("%w (cleanup failed: %v)", err, deleteErr)
+		}
 		return nil, err
 	}
 
@@ -114,6 +119,9 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	}
 
 	if request.Status.Phase == syncv1.LeaseRequestPhaseDenied {
+		if deleteErr := c.K8sClient().Delete(ctx, request); deleteErr != nil {
+			return nil, fmt.Errorf("lease request denied for %s (cleanup failed: %v)", name, deleteErr)
+		}
 		return nil, fmt.Errorf("lease request denied for %s", name)
 	}
 

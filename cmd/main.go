@@ -19,6 +19,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	"github.com/LogicIQ/konductor/controllers"
@@ -97,11 +98,13 @@ func main() {
 		zap.Bool("leader-election", enableLeaderElection))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "konductor.io",
-		WebhookServer:          nil,
 	})
 	if err != nil {
 		logger.Error("Unable to start manager", zap.Error(err))

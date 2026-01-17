@@ -16,7 +16,7 @@ jobs:
       uses: actions/setup-go@v4
       timeout-minutes: 5
       with:
-        go-version: '1.25'
+        go-version-file: 'go.mod'
         cache: true
     
     - name: Verify Go installation

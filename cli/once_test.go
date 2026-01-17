@@ -12,9 +12,23 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
-func TestOnceListCmd(t *testing.T) {
+func setupOnceTest(t *testing.T, objects ...runtime.Object) func() {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
+
+	k8sClient = fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithRuntimeObjects(objects...).
+		Build()
+	namespace = "default"
+
+	return func() {
+		k8sClient = nil
+		namespace = ""
+	}
+}
+
+func TestOnceListCmd(t *testing.T) {
 
 	onces := []runtime.Object{
 		&syncv1.Once{
@@ -42,16 +56,7 @@ func TestOnceListCmd(t *testing.T) {
 		},
 	}
 
-	t.Cleanup(func() {
-		k8sClient = nil
-		namespace = ""
-	})
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(onces...).
-		Build()
-	namespace = "default"
+	defer setupOnceTest(t, onces...)()
 
 	cmd := newOnceListCmd()
 
@@ -63,18 +68,7 @@ func TestOnceListCmd(t *testing.T) {
 }
 
 func TestOnceCreateCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	t.Cleanup(func() {
-		k8sClient = nil
-		namespace = ""
-	})
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		Build()
-	namespace = "default"
+	defer setupOnceTest(t)()
 
 	cmd := newOnceCreateCmd()
 	cmd.SetArgs([]string{"test-once"})
@@ -87,18 +81,7 @@ func TestOnceCreateCmd(t *testing.T) {
 }
 
 func TestOnceCreateCmd_WithTTL(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	t.Cleanup(func() {
-		k8sClient = nil
-		namespace = ""
-	})
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		Build()
-	namespace = "default"
+	defer setupOnceTest(t)()
 
 	cmd := newOnceCreateCmd()
 	cmd.SetArgs([]string{"test-once", "--ttl", "5m"})
@@ -111,9 +94,6 @@ func TestOnceCreateCmd_WithTTL(t *testing.T) {
 }
 
 func TestOnceDeleteCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	once := &syncv1.Once{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-once",
@@ -121,16 +101,7 @@ func TestOnceDeleteCmd(t *testing.T) {
 		},
 	}
 
-	t.Cleanup(func() {
-		k8sClient = nil
-		namespace = ""
-	})
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(once).
-		Build()
-	namespace = "default"
+	defer setupOnceTest(t, once)()
 
 	cmd := newOnceDeleteCmd()
 	cmd.SetArgs([]string{"test-once"})
@@ -143,9 +114,6 @@ func TestOnceDeleteCmd(t *testing.T) {
 }
 
 func TestOnceCheckCmd(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
 	once := &syncv1.Once{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-once",
@@ -157,16 +125,7 @@ func TestOnceCheckCmd(t *testing.T) {
 		},
 	}
 
-	t.Cleanup(func() {
-		k8sClient = nil
-		namespace = ""
-	})
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(once).
-		Build()
-	namespace = "default"
+	defer setupOnceTest(t, once)()
 
 	cmd := newOnceCheckCmd()
 	cmd.SetArgs([]string{"test-once"})
@@ -179,18 +138,7 @@ func TestOnceCheckCmd(t *testing.T) {
 }
 
 func TestOnceListCmd_Empty(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
-
-	t.Cleanup(func() {
-		k8sClient = nil
-		namespace = ""
-	})
-
-	k8sClient = fake.NewClientBuilder().
-		WithScheme(scheme).
-		Build()
-	namespace = "default"
+	defer setupOnceTest(t)()
 
 	cmd := newOnceListCmd()
 

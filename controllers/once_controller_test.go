@@ -44,6 +44,7 @@ func TestOnceReconciler_Reconcile(t *testing.T) {
 				},
 				Spec: syncv1.OnceSpec{},
 				Status: syncv1.OnceStatus{
+					Phase:    syncv1.OncePhasePending,
 					Executed: true,
 					Executor: "pod-1",
 				},

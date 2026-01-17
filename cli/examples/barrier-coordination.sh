@@ -5,7 +5,7 @@
 set -e
 
 BARRIER_NAME="worker-sync-point"
-WORKER_ID="${1:-worker-$RANDOM}"
+WORKER_ID="${1:-worker-${HOSTNAME}-$$}"
 
 echo "Worker: $WORKER_ID"
 

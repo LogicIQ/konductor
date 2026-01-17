@@ -82,8 +82,8 @@ func checkHealthWithVersion(url string) (string, string) {
 
 	resp, err := client.Get(url)
 	if err != nil {
-		// Strict SSRF protection - block all network errors as potential attacks
-		return "", "blocked"
+		logger.Debug("Health check failed", zap.String("url", sanitizeURL(url)), zap.Error(err))
+		return "", "unavailable"
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {

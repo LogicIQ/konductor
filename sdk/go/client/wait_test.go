@@ -55,6 +55,8 @@ func TestRetryWithBackoff_NonConflictError(t *testing.T) {
 		return errors.New("non-conflict error")
 	}, &WaitConfig{
 		InitialDelay: 10 * time.Millisecond,
+		MaxDelay:     100 * time.Millisecond,
+		Factor:       1.5,
 		Timeout:      1 * time.Second,
 	})
 

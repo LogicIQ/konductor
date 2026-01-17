@@ -240,7 +240,7 @@ func TestTryLock_Locked(t *testing.T) {
 
 	_, err := TryLock(client, context.Background(), "test-mutex", konductor.WithHolder("test-holder"))
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "timeout")
+	assert.Contains(t, err.Error(), "locked")
 }
 
 func TestWith(t *testing.T) {

@@ -92,8 +92,11 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 
 	// Wait for mutex to be unlocked
 	err := c.WaitForCondition(ctx, mutex, func(obj interface{}) bool {
-		m := obj.(*syncv1.Mutex)
-		return m.Status.Phase != syncv1.MutexPhaseLocked || m.Status.Holder == ""
+		m, ok := obj.(*syncv1.Mutex)
+		if !ok {
+			return false
+		}
+		return m.Status.Phase != syncv1.MutexPhaseLocked
 	}, config)
 
 	if err != nil {
@@ -141,10 +144,19 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 
 	// Wait for confirmation
 	mutexObj := &Mutex{client: c, name: name, holder: holder}
+	confirmConfig := &konductor.WaitConfig{
+		InitialDelay: 100 * time.Millisecond,
+		MaxDelay:     500 * time.Millisecond,
+		Factor:       1.5,
+		Timeout:      2 * time.Second,
+	}
 	if err := c.WaitForCondition(ctx, mutex, func(obj interface{}) bool {
-		m := obj.(*syncv1.Mutex)
+		m, ok := obj.(*syncv1.Mutex)
+		if !ok {
+			return false
+		}
 		return m.Status.Phase == syncv1.MutexPhaseLocked && m.Status.Holder == holder
-	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 500 * time.Millisecond, Timeout: 2 * time.Second}); err != nil {
+	}, confirmConfig); err != nil {
 		return nil, fmt.Errorf("failed to confirm mutex lock: %w", err)
 	}
 
@@ -152,8 +164,52 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 }
 
 func TryLock(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*Mutex, error) {
-	opts = append(opts, konductor.WithTimeout(1*time.Millisecond))
-	return Lock(c, ctx, name, opts...)
+	if name == "" {
+		return nil, fmt.Errorf("mutex name cannot be empty")
+	}
+
+	options := &konductor.Options{Timeout: 100 * time.Millisecond}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	holder := options.Holder
+	if holder == "" {
+		holder = os.Getenv("HOSTNAME")
+		if holder == "" {
+			holder = fmt.Sprintf("sdk-%d", time.Now().Unix())
+		}
+	}
+
+	var m syncv1.Mutex
+	if err := c.K8sClient().Get(ctx, types.NamespacedName{
+		Name: name, Namespace: c.Namespace(),
+	}, &m); err != nil {
+		return nil, fmt.Errorf("failed to get mutex: %w", err)
+	}
+
+	if m.Status.Phase == syncv1.MutexPhaseLocked && m.Status.Holder != "" {
+		return nil, fmt.Errorf("mutex already locked by %s", m.Status.Holder)
+	}
+
+	m.Status.Phase = syncv1.MutexPhaseLocked
+	m.Status.Holder = holder
+	lockedAt := metav1.Now()
+	m.Status.LockedAt = &lockedAt
+
+	if m.Spec.TTL != nil {
+		expiresAt := metav1.NewTime(time.Now().Add(m.Spec.TTL.Duration))
+		m.Status.ExpiresAt = &expiresAt
+	}
+
+	if err := c.K8sClient().Status().Update(ctx, &m); err != nil {
+		if errors.IsConflict(err) {
+			return nil, fmt.Errorf("mutex locked by another process")
+		}
+		return nil, fmt.Errorf("failed to acquire mutex: %w", err)
+	}
+
+	return &Mutex{client: c, name: name, holder: holder}, nil
 }
 
 func With(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) (err error) {

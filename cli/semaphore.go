@@ -36,10 +36,10 @@ func createSemaphoreClient() *konductor.Client {
 
 func newSemaphoreAcquireCmd() *cobra.Command {
 	var (
-		timeout       time.Duration
-		ttl           time.Duration
-		holder        string
-		waitForUpdate bool
+		timeout      time.Duration
+		ttl          time.Duration
+		holder       string
+		waitDuration time.Duration
 	)
 
 	cmd := &cobra.Command{
@@ -71,8 +71,8 @@ func newSemaphoreAcquireCmd() *cobra.Command {
 			}
 
 			// Wait for controller to process if requested
-			if waitForUpdate {
-				time.Sleep(3 * time.Second)
+			if waitDuration > 0 {
+				time.Sleep(waitDuration)
 			}
 
 			logger.Info("Acquired permit for semaphore", zap.String("semaphore", semaphoreName), zap.String("holder", permit.Holder()))
@@ -83,7 +83,7 @@ func newSemaphoreAcquireCmd() *cobra.Command {
 	cmd.Flags().DurationVar(&timeout, "timeout", 0, "Timeout for waiting (e.g., 30s, 5m)")
 	cmd.Flags().DurationVar(&ttl, "ttl", 10*time.Minute, "Time-to-live for the permit")
 	cmd.Flags().StringVar(&holder, "holder", "", "Permit holder identifier (defaults to hostname)")
-	cmd.Flags().BoolVar(&waitForUpdate, "wait-for-update", false, "Wait for controller to process the change")
+	cmd.Flags().DurationVar(&waitDuration, "wait-duration", 0, "Duration to wait for controller to process (e.g., 3s)")
 
 	return cmd
 }

@@ -8,10 +8,8 @@ SEMAPHORE_NAME="external-api-limit"
 PERMITS=10
 HOLDER="$HOSTNAME-$$"
 
-# Create semaphore (idempotent - ignore "already exists" errors)
-if ! koncli semaphore create "$SEMAPHORE_NAME" --permits "$PERMITS" 2>&1 | grep -q "already exists"; then
-    koncli semaphore create "$SEMAPHORE_NAME" --permits "$PERMITS" || true
-fi
+# Create semaphore (idempotent)
+koncli semaphore create "$SEMAPHORE_NAME" --permits "$PERMITS" 2>/dev/null || true
 
 echo "Acquiring permit from $SEMAPHORE_NAME..."
 

@@ -47,11 +47,17 @@ func newMutexLockCmd() *cobra.Command {
 			mutexName := args[0]
 			ctx := context.Background()
 
+			if holder == "" {
+				holder = os.Getenv("HOSTNAME")
+				if holder == "" {
+					return errors.New("holder must be specified or HOSTNAME must be set")
+				}
+			}
+
 			client := createMutexClient()
 
-			var opts []konductor.Option
-			if holder != "" {
-				opts = append(opts, konductor.WithHolder(holder))
+			opts := []konductor.Option{
+				konductor.WithHolder(holder),
 			}
 			if timeout > 0 {
 				opts = append(opts, konductor.WithTimeout(timeout))
