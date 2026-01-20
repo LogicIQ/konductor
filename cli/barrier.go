@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 	"github.com/LogicIQ/konductor/sdk/go/barrier"
@@ -108,7 +109,7 @@ func newBarrierArriveCmd() *cobra.Command {
 				barrierObj.Name = barrierName
 				barrierObj.Namespace = client.Namespace()
 
-				if err := client.WaitForCondition(ctx, barrierObj, func(obj interface{}) bool {
+				if err := client.WaitForCondition(ctx, barrierObj, func(obj ctrlclient.Object) bool {
 					b := obj.(*syncv1.Barrier)
 					return b.Status.Arrived > 0 || b.Status.Phase == syncv1.BarrierPhaseOpen
 				}, &konductor.WaitConfig{Timeout: 5 * time.Second}); err != nil {

@@ -35,7 +35,7 @@ func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 		config.Timeout = options.Timeout
 	}
 
-	err := c.WaitForCondition(ctx, gate, func(obj interface{}) bool {
+	err := c.WaitForCondition(ctx, gate, func(obj client.Object) bool {
 		g := obj.(*syncv1.Gate)
 		switch g.Status.Phase {
 		case syncv1.GatePhaseOpen:
@@ -107,19 +107,15 @@ func WaitForConditions(c *konductor.Client, ctx context.Context, name string, co
 			return err
 		}
 
+		// Create map for O(1) lookup
+		conditionMap := make(map[string]bool)
+		for _, condition := range conditions {
+			conditionMap[condition.Name] = condition.Met
+		}
+
 		allMet := true
 		for _, condName := range conditionNames {
-			found := false
-			for _, condition := range conditions {
-				if condition.Name == condName {
-					found = true
-					if !condition.Met {
-						allMet = false
-						break
-					}
-				}
-			}
-			if !found {
+			if met, found := conditionMap[condName]; !found || !met {
 				allMet = false
 				break
 			}
@@ -223,7 +219,7 @@ func Open(c *konductor.Client, ctx context.Context, name string) error {
 	}
 
 	// Wait for confirmation
-	return c.WaitForCondition(ctx, gate, func(obj interface{}) bool {
+	return c.WaitForCondition(ctx, gate, func(obj client.Object) bool {
 		g := obj.(*syncv1.Gate)
 		return g.Status.Phase == syncv1.GatePhaseOpen
 	}, nil)
@@ -250,7 +246,7 @@ func Close(c *konductor.Client, ctx context.Context, name string) error {
 	}
 
 	// Wait for confirmation
-	return c.WaitForCondition(ctx, gate, func(obj interface{}) bool {
+	return c.WaitForCondition(ctx, gate, func(obj client.Object) bool {
 		g := obj.(*syncv1.Gate)
 		return g.Status.Phase == syncv1.GatePhaseWaiting
 	}, nil)

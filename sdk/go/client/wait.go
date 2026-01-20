@@ -53,7 +53,7 @@ func calculateBackoffSteps(initialDelay, maxDelay time.Duration, factor float64,
 	return steps
 }
 
-func (c *Client) WaitForCondition(ctx context.Context, obj client.Object, condition func(interface{}) bool, config *WaitConfig) error {
+func (c *Client) WaitForCondition(ctx context.Context, obj client.Object, condition func(client.Object) bool, config *WaitConfig) error {
 	if config == nil {
 		config = DefaultWaitConfig()
 	}

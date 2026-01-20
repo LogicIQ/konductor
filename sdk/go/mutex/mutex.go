@@ -91,7 +91,7 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	}
 
 	// Wait for mutex to be unlocked
-	err := c.WaitForCondition(ctx, mutex, func(obj interface{}) bool {
+	err := c.WaitForCondition(ctx, mutex, func(obj client.Object) bool {
 		m, ok := obj.(*syncv1.Mutex)
 		if !ok {
 			return false
@@ -150,7 +150,7 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 		Factor:       1.5,
 		Timeout:      2 * time.Second,
 	}
-	if err := c.WaitForCondition(ctx, mutex, func(obj interface{}) bool {
+	if err := c.WaitForCondition(ctx, mutex, func(obj client.Object) bool {
 		m, ok := obj.(*syncv1.Mutex)
 		if !ok {
 			return false
@@ -297,4 +297,11 @@ func IsLocked(c *konductor.Client, ctx context.Context, name string) (bool, erro
 func Unlock(c *konductor.Client, ctx context.Context, name, holder string) error {
 	m := &Mutex{client: c, name: name, holder: holder}
 	return m.Unlock(ctx)
+}
+
+func Update(c *konductor.Client, ctx context.Context, mutex *syncv1.Mutex) error {
+	if err := c.K8sClient().Update(ctx, mutex); err != nil {
+		return fmt.Errorf("failed to update mutex %s: %w", mutex.Name, err)
+	}
+	return nil
 }

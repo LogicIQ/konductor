@@ -55,7 +55,7 @@ func Add(c *konductor.Client, ctx context.Context, name string, delta int32) err
 	wg.Name = name
 	wg.Namespace = c.Namespace()
 
-	if err := c.WaitForCondition(ctx, wg, func(obj interface{}) bool {
+	if err := c.WaitForCondition(ctx, wg, func(obj client.Object) bool {
 		waitGroup := obj.(*syncv1.WaitGroup)
 		return waitGroup.Status.Counter != originalCounter
 	}, nil); err != nil {
@@ -93,7 +93,7 @@ func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 		config.Timeout = options.Timeout
 	}
 
-	if err := c.WaitForCondition(ctx, wg, func(obj interface{}) bool {
+	if err := c.WaitForCondition(ctx, wg, func(obj client.Object) bool {
 		waitGroup := obj.(*syncv1.WaitGroup)
 		return waitGroup.Status.Counter <= 0
 	}, config); err != nil {

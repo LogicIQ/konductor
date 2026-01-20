@@ -75,11 +75,11 @@ func (c *Client) WaitForUpdate(ctx context.Context, obj client.Object, checkFn f
 
 	// Then poll for the expected state
 	backoff := wait.Backoff{
-		Duration: 500 * time.Millisecond,
-		Factor:   1.5,
+		Duration: config.InitialDelay,
+		Factor:   config.Factor,
 		Jitter:   0.1,
-		Steps:    20, // Up to ~30 seconds total
-		Cap:      2 * time.Second,
+		Steps:    config.MaxRetries,
+		Cap:      config.MaxDelay,
 	}
 
 	return wait.ExponentialBackoff(backoff, func() (bool, error) {

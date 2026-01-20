@@ -270,3 +270,25 @@ func TestWith(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, syncv1.MutexPhaseUnlocked, updated.Status.Phase)
 }
+
+func TestUpdate(t *testing.T) {
+	mutex := &syncv1.Mutex{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-mutex",
+			Namespace: "test-ns",
+		},
+		Spec: syncv1.MutexSpec{
+			TTL: &metav1.Duration{Duration: 5 * time.Minute},
+		},
+	}
+
+	client := setupTestClient(t, mutex)
+
+	mutex.Spec.TTL = &metav1.Duration{Duration: 10 * time.Minute}
+	err := Update(client, context.Background(), mutex)
+	assert.NoError(t, err)
+
+	updated, err := Get(client, context.Background(), "test-mutex")
+	require.NoError(t, err)
+	assert.Equal(t, 10*time.Minute, updated.Spec.TTL.Duration)
+}

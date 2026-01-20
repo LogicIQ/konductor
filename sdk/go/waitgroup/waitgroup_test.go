@@ -28,7 +28,7 @@ func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client 
 	return konductor.NewFromClient(k8sClient, "default")
 }
 
-func TestAdd(t *testing.T) {
+func TestAdd_FromZero(t *testing.T) {
 	wg := &syncv1.WaitGroup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-wg",
@@ -72,14 +72,6 @@ func TestDone(t *testing.T) {
 	assert.Equal(t, int32(2), counter)
 }
 
-func TestCreate(t *testing.T) {
-	client := setupTestClient(t)
-	ctx := context.Background()
-
-	err := Create(client, ctx, "test-wg", konductor.WithTTL(5*time.Minute))
-	require.NoError(t, err)
-}
-
 func TestList(t *testing.T) {
 	wg1 := &syncv1.WaitGroup{
 		ObjectMeta: metav1.ObjectMeta{
@@ -102,7 +94,7 @@ func TestList(t *testing.T) {
 	assert.Len(t, wgs, 2)
 }
 
-func TestAdd_Basic(t *testing.T) {
+func TestAdd_WithExistingCounter(t *testing.T) {
 	wg := &syncv1.WaitGroup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-wg",
@@ -125,7 +117,15 @@ func TestAdd_Basic(t *testing.T) {
 	assert.Equal(t, int32(7), final.Status.Counter)
 }
 
-func TestCreate_Basic(t *testing.T) {
+func TestCreate_WithOptions(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := context.Background()
+
+	err := Create(client, ctx, "test-wg", konductor.WithTTL(5*time.Minute))
+	require.NoError(t, err)
+}
+
+func TestCreate_WithoutOptions(t *testing.T) {
 	client := setupTestClient(t)
 	ctx := context.Background()
 

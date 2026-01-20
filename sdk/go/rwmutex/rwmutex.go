@@ -23,14 +23,6 @@ type RWMutex struct {
 }
 
 func (m *RWMutex) Unlock(ctx context.Context) error {
-	var rwmutex syncv1.RWMutex
-	if err := m.client.K8sClient().Get(ctx, types.NamespacedName{
-		Name:      m.name,
-		Namespace: m.client.Namespace(),
-	}, &rwmutex); err != nil {
-		return fmt.Errorf("failed to get rwmutex: %w", err)
-	}
-
 	if m.isRead {
 		return m.runlock(ctx)
 	}
@@ -133,7 +125,7 @@ func RLock(c *konductor.Client, ctx context.Context, name string, opts ...konduc
 	config := getWaitConfig(options.Timeout)
 
 	// Wait for write lock to be released
-	err := c.WaitForCondition(ctx, rwmutex, func(obj interface{}) bool {
+	err := c.WaitForCondition(ctx, rwmutex, func(obj client.Object) bool {
 		rw := obj.(*syncv1.RWMutex)
 		return rw.Status.WriteHolder == ""
 	}, config)
@@ -177,7 +169,7 @@ func RLock(c *konductor.Client, ctx context.Context, name string, opts ...konduc
 
 	// Wait for confirmation
 	mutex := &RWMutex{client: c, name: name, holder: holder, isRead: true}
-	return mutex, c.WaitForCondition(ctx, rwmutex, func(obj interface{}) bool {
+	return mutex, c.WaitForCondition(ctx, rwmutex, func(obj client.Object) bool {
 		rw := obj.(*syncv1.RWMutex)
 		for _, h := range rw.Status.ReadHolders {
 			if h == holder {
@@ -203,7 +195,7 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	config := getWaitConfig(options.Timeout)
 
 	// Wait for rwmutex to be completely unlocked
-	err := c.WaitForCondition(ctx, rwmutex, func(obj interface{}) bool {
+	err := c.WaitForCondition(ctx, rwmutex, func(obj client.Object) bool {
 		rw := obj.(*syncv1.RWMutex)
 		return rw.Status.WriteHolder == "" && len(rw.Status.ReadHolders) == 0
 	}, config)
@@ -244,7 +236,7 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 
 	// Wait for confirmation
 	mutex := &RWMutex{client: c, name: name, holder: holder, isRead: false}
-	return mutex, c.WaitForCondition(ctx, rwmutex, func(obj interface{}) bool {
+	return mutex, c.WaitForCondition(ctx, rwmutex, func(obj client.Object) bool {
 		rw := obj.(*syncv1.RWMutex)
 		return rw.Status.Phase == syncv1.RWMutexPhaseWriteLocked && rw.Status.WriteHolder == holder
 	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 1 * time.Second, Timeout: 2 * time.Second})

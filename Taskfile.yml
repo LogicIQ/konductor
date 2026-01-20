@@ -63,12 +63,16 @@ tasks:
   go:manifests:
     desc: Generate CRD manifests
     cmds:
-      - export PATH=$PATH:$(go env GOPATH)/bin && controller-gen crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+      - |
+        export PATH=$PATH:$(go env GOPATH)/bin
+        controller-gen crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
   go:generate:
     desc: Generate code containing DeepCopy methods
     cmds:
-      - export PATH=$PATH:$(go env GOPATH)/bin && controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
+      - |
+        export PATH=$PATH:$(go env GOPATH)/bin
+        controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
   docker:build:
     desc: Build Docker image

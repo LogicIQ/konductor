@@ -162,6 +162,9 @@ func demonstrateBarrier(client *konductor.Client, ctx context.Context) {
 		fmt.Println("✓ Executed function and signaled arrival")
 		return nil
 	}, konductor.WithHolder("func-worker"))
+	if err != nil {
+		log.Printf("Barrier with error: %v", err)
+	}
 
 	// Update barrier (change expected count)
 	barrier.Spec.Expected = 3
@@ -240,6 +243,9 @@ func demonstrateGate(client *konductor.Client, ctx context.Context) {
 		fmt.Println("✓ Executed function after gate opened")
 		return nil
 	})
+	if err != nil {
+		log.Printf("Gate with error: %v", err)
+	}
 
 	// Close gate
 	err = konductor.GateClose(client, ctx, "demo-gate")
@@ -338,6 +344,9 @@ func demonstrateLease(client *konductor.Client, ctx context.Context) {
 			time.Sleep(1 * time.Second)
 			return nil
 		}, konductor.WithHolder("auto-holder"))
+		if err != nil {
+			log.Printf("Lease with error: %v", err)
+		}
 
 		// Release the lease
 		err = leaseHandle.Release(ctx)

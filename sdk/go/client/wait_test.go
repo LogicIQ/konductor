@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
@@ -85,7 +86,7 @@ func TestWaitForCondition_Success(t *testing.T) {
 		Build()
 	client := NewFromClient(k8sClient, "default")
 
-	err := client.WaitForCondition(context.Background(), wg, func(obj interface{}) bool {
+	err := client.WaitForCondition(context.Background(), wg, func(obj ctrlclient.Object) bool {
 		waitGroup := obj.(*syncv1.WaitGroup)
 		return waitGroup.Status.Counter == 0 // Condition is already met
 	}, &WaitConfig{
@@ -119,7 +120,7 @@ func TestWaitForCondition_Timeout(t *testing.T) {
 		Build()
 	client := NewFromClient(k8sClient, "default")
 
-	err := client.WaitForCondition(context.Background(), wg, func(obj interface{}) bool {
+	err := client.WaitForCondition(context.Background(), wg, func(obj ctrlclient.Object) bool {
 		return false // Never satisfied
 	}, &WaitConfig{
 		InitialDelay:  10 * time.Millisecond,

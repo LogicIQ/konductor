@@ -70,13 +70,29 @@ func Do(c *konductor.Client, ctx context.Context, name string, fn func() error, 
 
 		// Execute the function
 		if err := fn(); err != nil {
-			// Rollback the execution status on failure
-			once.Status.Executed = false
-			once.Status.Executor = ""
-			once.Status.ExecutedAt = nil
-			once.Status.Phase = syncv1.OncePhasePending
-			if rollbackErr := c.K8sClient().Status().Update(ctx, &once); rollbackErr != nil {
-				return true, fmt.Errorf("execution failed and rollback failed: %w (rollback error: %v)", err, rollbackErr)
+			// Rollback the execution status on failure with retry
+			for rollbackRetries := 0; rollbackRetries < 3; rollbackRetries++ {
+				var rollbackOnce syncv1.Once
+				if getErr := c.K8sClient().Get(ctx, types.NamespacedName{
+					Name:      name,
+					Namespace: c.Namespace(),
+				}, &rollbackOnce); getErr != nil {
+					return true, fmt.Errorf("execution failed and rollback get failed: %w (rollback error: %v)", err, getErr)
+				}
+
+				rollbackOnce.Status.Executed = false
+				rollbackOnce.Status.Executor = ""
+				rollbackOnce.Status.ExecutedAt = nil
+				rollbackOnce.Status.Phase = syncv1.OncePhasePending
+
+				if rollbackErr := c.K8sClient().Status().Update(ctx, &rollbackOnce); rollbackErr != nil {
+					if errors.IsConflict(rollbackErr) {
+						time.Sleep(time.Millisecond * 100)
+						continue
+					}
+					return true, fmt.Errorf("execution failed and rollback failed: %w (rollback error: %v)", err, rollbackErr)
+				}
+				break
 			}
 			return true, fmt.Errorf("execution failed: %w", err)
 		}

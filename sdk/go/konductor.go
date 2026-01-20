@@ -88,6 +88,7 @@ var (
 var (
 	MutexCreate   = mutex.Create
 	MutexDelete   = mutex.Delete
+	MutexUpdate   = mutex.Update
 	MutexGet      = mutex.Get
 	MutexList     = mutex.List
 	MutexLock     = mutex.Lock

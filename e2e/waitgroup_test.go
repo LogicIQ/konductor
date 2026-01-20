@@ -69,8 +69,12 @@ func TestE2EWaitGroup(t *testing.T) {
 	}
 
 	// Cleanup
-	cmd = exec.Command("../bin/koncli", "waitgroup", "delete", wgName, "-n", namespace)
-	cmd.CombinedOutput()
+	defer func() {
+		cmd := exec.Command("../bin/koncli", "waitgroup", "delete", wgName, "-n", namespace)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Logf("Cleanup failed: %v, output: %s", err, string(output))
+		}
+	}()
 }
 
 func TestE2EWaitGroupList(t *testing.T) {
@@ -109,6 +113,10 @@ func TestE2EWaitGroupList(t *testing.T) {
 	t.Logf("WaitGroup list: %s", string(output))
 
 	// Cleanup
-	cmd = exec.Command("../bin/koncli", "waitgroup", "delete", wgName, "-n", namespace)
-	cmd.CombinedOutput()
+	defer func() {
+		cmd := exec.Command("../bin/koncli", "waitgroup", "delete", wgName, "-n", namespace)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Logf("Cleanup failed: %v, output: %s", err, string(output))
+		}
+	}()
 }

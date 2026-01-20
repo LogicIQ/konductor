@@ -193,6 +193,10 @@ func newSemaphoreCreateCmd() *cobra.Command {
 			semaphoreName := args[0]
 			ctx := context.Background()
 
+			if permits <= 0 {
+				return errors.New("permits must be greater than zero")
+			}
+
 			client := createSemaphoreClient()
 
 			var opts []konductor.Option
@@ -226,6 +230,7 @@ func newSemaphoreDeleteCmd() *cobra.Command {
 			client := createSemaphoreClient()
 
 			if err := semaphore.Delete(client, ctx, semaphoreName); err != nil {
+				logger.Error("Failed to delete semaphore", zap.String("semaphore", semaphoreName), zap.Error(err))
 				return err
 			}
 

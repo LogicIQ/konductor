@@ -46,7 +46,7 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 		}
 
 		// Wait for available permits
-		err := c.WaitForCondition(ctx, &semaphore, func(obj interface{}) bool {
+		err := c.WaitForCondition(ctx, &semaphore, func(obj client.Object) bool {
 			s := obj.(*syncv1.Semaphore)
 			return s.Status.Available > 0
 		}, config)
@@ -96,7 +96,7 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 			Timeout:      5 * time.Second,
 		}
 
-		err := c.WaitForCondition(ctx, permit, func(obj interface{}) bool {
+		err := c.WaitForCondition(ctx, permit, func(obj client.Object) bool {
 			p := obj.(*syncv1.Permit)
 			return p.Status.Phase == syncv1.PermitPhaseGranted
 		}, config)

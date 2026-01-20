@@ -98,7 +98,7 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 		config.Timeout = options.Timeout
 	}
 
-	err := c.WaitForCondition(ctx, request, func(obj interface{}) bool {
+	err := c.WaitForCondition(ctx, request, func(obj client.Object) bool {
 		req, ok := obj.(*syncv1.LeaseRequest)
 		if !ok {
 			return false
@@ -179,38 +179,6 @@ func IsAvailable(c *konductor.Client, ctx context.Context, name string) (bool, e
 }
 
 func Create(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
-	options := &konductor.Options{TTL: 10 * time.Minute}
-	for _, opt := range opts {
-		opt(options)
-	}
-
-	lease := &syncv1.Lease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.Namespace(),
-		},
-		Spec: syncv1.LeaseSpec{
-			TTL: &metav1.Duration{Duration: options.TTL},
-		},
-	}
-	return c.K8sClient().Create(ctx, lease)
-}
-
-func Delete(c *konductor.Client, ctx context.Context, name string) error {
-	lease := &syncv1.Lease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.Namespace(),
-		},
-	}
-	return c.K8sClient().Delete(ctx, lease)
-}
-
-func Update(c *konductor.Client, ctx context.Context, lease *syncv1.Lease) error {
-	return c.K8sClient().Update(ctx, lease)
-}
-
-func CreateLease(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{}
 	for _, opt := range opts {
 		opt(options)
@@ -226,26 +194,32 @@ func CreateLease(c *konductor.Client, ctx context.Context, name string, opts ...
 
 	if options.TTL > 0 {
 		lease.Spec.TTL = &metav1.Duration{Duration: options.TTL}
+	} else {
+		lease.Spec.TTL = &metav1.Duration{Duration: 10 * time.Minute}
 	}
 
 	if err := c.K8sClient().Create(ctx, lease); err != nil {
 		return fmt.Errorf("failed to create lease %s: %w", name, err)
 	}
-
 	return nil
 }
 
-func DeleteLease(c *konductor.Client, ctx context.Context, name string) error {
+func Delete(c *konductor.Client, ctx context.Context, name string) error {
 	lease := &syncv1.Lease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: c.Namespace(),
 		},
 	}
-
 	if err := c.K8sClient().Delete(ctx, lease); err != nil {
 		return fmt.Errorf("failed to delete lease %s: %w", name, err)
 	}
+	return nil
+}
 
+func Update(c *konductor.Client, ctx context.Context, lease *syncv1.Lease) error {
+	if err := c.K8sClient().Update(ctx, lease); err != nil {
+		return fmt.Errorf("failed to update lease %s: %w", lease.Name, err)
+	}
 	return nil
 }

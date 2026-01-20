@@ -15,9 +15,14 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
-func TestNewFromClient(t *testing.T) {
+func setupTestScheme(t *testing.T) *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
+	return scheme
+}
+
+func TestNewFromClient(t *testing.T) {
+	scheme := setupTestScheme(t)
 
 	k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 
@@ -48,8 +53,7 @@ func TestNewFromClient(t *testing.T) {
 }
 
 func TestClient_WithNamespace(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupTestScheme(t)
 
 	k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 	client := NewFromClient(k8sClient, "original")
@@ -76,8 +80,7 @@ func TestOptions(t *testing.T) {
 }
 
 func TestClient_ReleaseSemaphorePermit(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupTestScheme(t)
 
 	// Create a permit to delete
 	permit := &syncv1.Permit{
@@ -111,8 +114,7 @@ func TestClient_ReleaseSemaphorePermit(t *testing.T) {
 }
 
 func TestClient_ReleaseLease(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupTestScheme(t)
 
 	// Create a lease request to delete
 	request := &syncv1.LeaseRequest{
@@ -146,8 +148,7 @@ func TestClient_ReleaseLease(t *testing.T) {
 }
 
 func TestClient_ListPermits(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupTestScheme(t)
 
 	permit1 := &syncv1.Permit{
 		ObjectMeta: metav1.ObjectMeta{
@@ -194,8 +195,7 @@ func TestClient_ListPermits(t *testing.T) {
 }
 
 func TestClient_ListLeaseRequests(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupTestScheme(t)
 
 	request1 := &syncv1.LeaseRequest{
 		ObjectMeta: metav1.ObjectMeta{
