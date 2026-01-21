@@ -178,9 +178,10 @@ func Delete(c *konductor.Client, ctx context.Context, name string) error {
 			Namespace: c.Namespace(),
 		},
 	}
-	err := c.K8sClient().Delete(ctx, semaphore)
-	if err != nil {
-		return fmt.Errorf("failed to delete semaphore %s: %w", name, err)
+	if err := c.K8sClient().Delete(ctx, semaphore); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("failed to delete semaphore %s: %w", name, err)
+		}
 	}
 	return nil
 }

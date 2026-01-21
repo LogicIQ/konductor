@@ -130,6 +130,10 @@ spec:
                 type: array
               phase:
                 description: Phase represents the current state of the request
+                enum:
+                - Pending
+                - Granted
+                - Denied
                 type: string
               requestedAt:
                 description: RequestedAt is when the request was made

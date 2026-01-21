@@ -20,7 +20,7 @@ func (suite *ControllerTestSuite) SetupSuite() {
 	suite.Require().NoError(syncv1.AddToScheme(suite.scheme))
 }
 
-func (suite *ControllerTestSuite) NewFakeClient(objs ...runtime.Object) *fake.ClientBuilder {
+func (suite *ControllerTestSuite) NewFakeClientBuilder(objs ...runtime.Object) *fake.ClientBuilder {
 	return fake.NewClientBuilder().
 		WithScheme(suite.scheme).
 		WithRuntimeObjects(objs...).

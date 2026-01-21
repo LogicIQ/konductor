@@ -25,7 +25,7 @@ func TestE2EMutex(t *testing.T) {
 	mutexName := fmt.Sprintf("e2e-test-mutex-%d", time.Now().Unix())
 
 	// Create mutex using CLI
-	cmd := exec.Command("../bin/koncli", "mutex", "create", mutexName, "-n", namespace)
+	cmd := exec.Command(getKoncliPath(), "mutex", "create", mutexName, "-n", namespace)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to create mutex: %v, output: %s", err, string(output))
@@ -49,7 +49,7 @@ func TestE2EMutex(t *testing.T) {
 	}
 
 	// Lock mutex using CLI
-	cmd = exec.Command("../bin/koncli", "mutex", "lock", mutexName, "--holder", "worker-1", "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "lock", mutexName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to lock mutex: %v, output: %s", err, string(output))
@@ -73,7 +73,7 @@ func TestE2EMutex(t *testing.T) {
 	}
 
 	// Unlock mutex using CLI
-	cmd = exec.Command("../bin/koncli", "mutex", "unlock", mutexName, "--holder", "worker-1", "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "unlock", mutexName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to unlock mutex: %v, output: %s", err, string(output))
@@ -96,7 +96,7 @@ func TestE2EMutex(t *testing.T) {
 	}
 
 	// Cleanup
-	cmd = exec.Command("../bin/koncli", "mutex", "delete", mutexName, "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "delete", mutexName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to delete mutex: %v, output: %s", err, string(output))
@@ -115,7 +115,7 @@ func TestE2EMutexWithTTL(t *testing.T) {
 	mutexName := fmt.Sprintf("e2e-test-mutex-ttl-%d", time.Now().Unix())
 
 	// Create mutex with TTL using CLI
-	cmd := exec.Command("../bin/koncli", "mutex", "create", mutexName, "--ttl", "10s", "-n", namespace)
+	cmd := exec.Command(getKoncliPath(), "mutex", "create", mutexName, "--ttl", "10s", "-n", namespace)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to create mutex: %v, output: %s", err, string(output))
@@ -137,7 +137,7 @@ func TestE2EMutexWithTTL(t *testing.T) {
 	}
 
 	// Lock mutex
-	cmd = exec.Command("../bin/koncli", "mutex", "lock", mutexName, "--holder", "worker-1", "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "lock", mutexName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to lock mutex: %v, output: %s", err, string(output))
@@ -173,7 +173,7 @@ func TestE2EMutexWithTTL(t *testing.T) {
 	}
 
 	// Cleanup
-	cmd = exec.Command("../bin/koncli", "mutex", "delete", mutexName, "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "delete", mutexName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to delete mutex: %v, output: %s", err, string(output))
@@ -190,7 +190,7 @@ func TestE2EMutexConcurrency(t *testing.T) {
 	mutexName := fmt.Sprintf("e2e-test-mutex-concurrent-%d", time.Now().Unix())
 
 	// Create mutex
-	cmd := exec.Command("../bin/koncli", "mutex", "create", mutexName, "-n", namespace)
+	cmd := exec.Command(getKoncliPath(), "mutex", "create", mutexName, "-n", namespace)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to create mutex: %v, output: %s", err, string(output))
@@ -207,14 +207,14 @@ func TestE2EMutexConcurrency(t *testing.T) {
 	}
 
 	// Worker 1 locks the mutex
-	cmd = exec.Command("../bin/koncli", "mutex", "lock", mutexName, "--holder", "worker-1", "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "lock", mutexName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to lock mutex: %v, output: %s", err, string(output))
 	}
 
 	// Worker 2 tries to lock (should timeout)
-	cmd = exec.Command("../bin/koncli", "mutex", "lock", mutexName, "--holder", "worker-2", "--timeout", "2s", "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "lock", mutexName, "--holder", "worker-2", "--timeout", "2s", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err == nil {
 		t.Error("Expected worker-2 to fail acquiring lock, but it succeeded")
@@ -233,14 +233,14 @@ func TestE2EMutexConcurrency(t *testing.T) {
 	}
 
 	// Worker 1 unlocks
-	cmd = exec.Command("../bin/koncli", "mutex", "unlock", mutexName, "--holder", "worker-1", "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "unlock", mutexName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to unlock mutex: %v, output: %s", err, string(output))
 	}
 
 	// Worker 2 can now lock
-	cmd = exec.Command("../bin/koncli", "mutex", "lock", mutexName, "--holder", "worker-2", "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "lock", mutexName, "--holder", "worker-2", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to lock mutex for worker-2: %v, output: %s", err, string(output))
@@ -257,10 +257,10 @@ func TestE2EMutexConcurrency(t *testing.T) {
 	}
 
 	// Cleanup
-	cmd = exec.Command("../bin/koncli", "mutex", "unlock", mutexName, "--holder", "worker-2", "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "unlock", mutexName, "--holder", "worker-2", "-n", namespace)
 	cmd.CombinedOutput()
 
-	cmd = exec.Command("../bin/koncli", "mutex", "delete", mutexName, "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "delete", mutexName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to delete mutex: %v, output: %s", err, string(output))
@@ -277,7 +277,7 @@ func TestE2EMutexList(t *testing.T) {
 	mutexName := fmt.Sprintf("e2e-test-mutex-list-%d", time.Now().Unix())
 
 	// Create mutex
-	cmd := exec.Command("../bin/koncli", "mutex", "create", mutexName, "-n", namespace)
+	cmd := exec.Command(getKoncliPath(), "mutex", "create", mutexName, "-n", namespace)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to create mutex: %v, output: %s", err, string(output))
@@ -294,7 +294,7 @@ func TestE2EMutexList(t *testing.T) {
 	}
 
 	// List mutexes
-	cmd = exec.Command("../bin/koncli", "mutex", "list", "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "list", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to list mutexes: %v, output: %s", err, string(output))
@@ -303,7 +303,7 @@ func TestE2EMutexList(t *testing.T) {
 	t.Logf("Mutex list output: %s", string(output))
 
 	// Cleanup
-	cmd = exec.Command("../bin/koncli", "mutex", "delete", mutexName, "-n", namespace)
+	cmd = exec.Command(getKoncliPath(), "mutex", "delete", mutexName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to delete mutex: %v, output: %s", err, string(output))

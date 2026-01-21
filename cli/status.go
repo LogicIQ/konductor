@@ -40,9 +40,7 @@ func newStatusSemaphoreCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			ctx := cmd.Context()
-
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createStatusClient()
 
 			// Get semaphore using SDK
 			sem, err := semaphore.Get(client, ctx, name)
@@ -91,9 +89,7 @@ func newStatusBarrierCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			ctx := cmd.Context()
-
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createStatusClient()
 
 			// Get barrier using SDK
 			bar, err := barrier.Get(client, ctx, name)
@@ -140,9 +136,7 @@ func newStatusLeaseCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			ctx := cmd.Context()
-
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createStatusClient()
 
 			// Get lease using SDK
 			l, err := lease.Get(client, ctx, name)
@@ -204,9 +198,7 @@ func newStatusGateCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			ctx := cmd.Context()
-
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createStatusClient()
 
 			// Get gate using SDK
 			g, err := gate.Get(client, ctx, name)
@@ -266,9 +258,7 @@ func newStatusAllCmd() *cobra.Command {
 		Short: "Show status of all coordination primitives",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createStatusClient()
 
 			logger.Info("Konductor Status Overview")
 

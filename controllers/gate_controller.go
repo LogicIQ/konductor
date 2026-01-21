@@ -118,6 +118,10 @@ func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 					allMet = false
 				}
 			}
+
+		default:
+			status.Message = "Unknown condition type"
+			allMet = false
 		}
 
 		conditionStatuses[i] = status

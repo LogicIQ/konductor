@@ -5,6 +5,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -21,20 +22,28 @@ func TestE2ELease(t *testing.T) {
 		t.Fatalf("Failed to setup client: %v", err)
 	}
 
+	koncliPath := getKoncliPath()
+	if _, err := os.Stat(koncliPath); err != nil {
+		t.Fatalf("koncli binary not found at %s: %v", koncliPath, err)
+	}
+
 	// Check operator status first
-	statusCmd := exec.Command("../bin/koncli", "operator", "--operator-namespace", "konductor-system")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	statusCmd := exec.CommandContext(ctx, koncliPath, "operator", "--operator-namespace", "konductor-system")
 	statusOutput, statusErr := statusCmd.CombinedOutput()
 	if statusErr != nil {
 		t.Logf("Operator status check failed: %v, output: %s", statusErr, string(statusOutput))
-	} else {
-		t.Logf("Operator status: %s", string(statusOutput))
 	}
+	t.Logf("Operator status: %s", string(statusOutput))
 
 	namespace := "default"
 	leaseName := fmt.Sprintf("e2e-test-lease-%d", time.Now().Unix())
 
 	// Create lease using CLI
-	cmd := exec.Command("../bin/koncli", "lease", "create", leaseName, "--ttl", "1m", "-n", namespace)
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, koncliPath, "lease", "create", leaseName, "--ttl", "1m", "-n", namespace)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to create lease: %v, output: %s", err, string(output))
@@ -58,7 +67,9 @@ func TestE2ELease(t *testing.T) {
 	}
 
 	// Acquire lease using CLI
-	cmd = exec.Command("../bin/koncli", "lease", "acquire", leaseName, "--holder", "worker-1", "-n", namespace)
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd = exec.CommandContext(ctx, koncliPath, "lease", "acquire", leaseName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to acquire lease: %v, output: %s", err, string(output))
@@ -76,14 +87,18 @@ func TestE2ELease(t *testing.T) {
 	}
 
 	// Release lease using CLI
-	cmd = exec.Command("../bin/koncli", "lease", "release", leaseName, "--holder", "worker-1", "-n", namespace)
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd = exec.CommandContext(ctx, koncliPath, "lease", "release", leaseName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to release lease: %v, output: %s", err, string(output))
 	}
 
 	// Cleanup
-	cmd = exec.Command("../bin/koncli", "lease", "delete", leaseName, "-n", namespace)
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd = exec.CommandContext(ctx, koncliPath, "lease", "delete", leaseName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to delete lease: %v, output: %s", err, string(output))

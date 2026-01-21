@@ -31,6 +31,7 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
+		log.Error(err, "unable to fetch Once")
 		return ctrl.Result{}, err
 	}
 

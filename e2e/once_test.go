@@ -119,7 +119,10 @@ func TestE2EOnceList(t *testing.T) {
 
 	// Cleanup
 	cmd = exec.Command("../bin/koncli", "once", "delete", onceName, "-n", namespace)
-	cmd.CombinedOutput()
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Failed to delete once: %v, output: %s", err, string(output))
+	}
 }
 
 func TestE2EOnceWithTTL(t *testing.T) {
@@ -161,5 +164,8 @@ func TestE2EOnceWithTTL(t *testing.T) {
 
 	// Cleanup
 	cmd = exec.Command("../bin/koncli", "once", "delete", onceName, "-n", namespace)
-	cmd.CombinedOutput()
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Failed to delete once: %v, output: %s", err, string(output))
+	}
 }

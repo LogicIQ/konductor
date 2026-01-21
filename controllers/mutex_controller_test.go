@@ -16,9 +16,14 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
-func TestMutexReconciler_Reconcile(t *testing.T) {
+func setupMutexScheme(t *testing.T) *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
+	return scheme
+}
+
+func TestMutexReconciler_Reconcile(t *testing.T) {
+	scheme := setupMutexScheme(t)
 
 	tests := []struct {
 		name          string
@@ -86,8 +91,7 @@ func TestMutexReconciler_Reconcile(t *testing.T) {
 }
 
 func TestMutexReconciler_Expiration(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupMutexScheme(t)
 
 	mutex := &syncv1.Mutex{
 		ObjectMeta: metav1.ObjectMeta{
@@ -135,8 +139,7 @@ func TestMutexReconciler_Expiration(t *testing.T) {
 }
 
 func TestMutexReconciler_RequeueWithTTL(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupMutexScheme(t)
 
 	expiresAt := metav1.NewTime(time.Now().Add(time.Hour))
 	mutex := &syncv1.Mutex{

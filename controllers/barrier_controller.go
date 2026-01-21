@@ -62,29 +62,41 @@ func (r *BarrierReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		requiredArrivals = *barrier.Spec.Quorum
 	}
 
+	var newPhase syncv1.BarrierPhase
 	if barrier.Spec.Timeout != nil && barrier.CreationTimestamp.Add(barrier.Spec.Timeout.Duration).Before(time.Now()) {
 		if barrier.Status.Arrived < requiredArrivals {
-			barrier.Status.Phase = syncv1.BarrierPhaseFailed
+			newPhase = syncv1.BarrierPhaseFailed
+		} else {
+			newPhase = barrier.Status.Phase
 		}
 	} else if barrier.Status.Arrived >= requiredArrivals {
-		barrier.Status.Phase = syncv1.BarrierPhaseOpen
+		newPhase = syncv1.BarrierPhaseOpen
 		if barrier.Status.OpenedAt == nil {
 			now := metav1.Now()
 			barrier.Status.OpenedAt = &now
 		}
 	} else {
-		barrier.Status.Phase = syncv1.BarrierPhaseWaiting
+		newPhase = syncv1.BarrierPhaseWaiting
 	}
 
-	if err := r.Status().Update(ctx, &barrier); err != nil {
-		log.Error(err, "unable to update Barrier status")
-		return ctrl.Result{}, err
+	if barrier.Status.Phase != newPhase {
+		barrier.Status.Phase = newPhase
+		if err := r.Status().Update(ctx, &barrier); err != nil {
+			log.Error(err, "unable to update Barrier status")
+			return ctrl.Result{}, err
+		}
+		log.Info("Successfully updated Barrier status", "name", barrier.Name, "arrived", barrier.Status.Arrived, "phase", barrier.Status.Phase)
 	}
-
-	log.Info("Successfully updated Barrier status", "name", barrier.Name, "arrived", barrier.Status.Arrived, "phase", barrier.Status.Phase)
 
 	if barrier.Spec.Timeout != nil && barrier.Status.Phase == syncv1.BarrierPhaseWaiting {
-		return ctrl.Result{RequeueAfter: time.Minute}, nil
+		timeoutAt := barrier.CreationTimestamp.Add(barrier.Spec.Timeout.Duration)
+		requeueAfter := time.Until(timeoutAt)
+		if requeueAfter > time.Minute {
+			requeueAfter = time.Minute
+		} else if requeueAfter < 0 {
+			requeueAfter = 0
+		}
+		return ctrl.Result{RequeueAfter: requeueAfter}, nil
 	}
 
 	return ctrl.Result{}, nil

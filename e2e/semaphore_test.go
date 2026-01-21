@@ -78,8 +78,11 @@ func TestE2ESemaphore(t *testing.T) {
 	if err != nil {
 		// Get final state for debugging
 		semaphore := &syncv1.Semaphore{}
-		k8sClient.Get(context.TODO(), client.ObjectKey{Name: semaphoreName, Namespace: namespace}, semaphore)
-		t.Errorf("Expected 1 available permit, got %d (controller may not be running)", semaphore.Status.Available)
+		if getErr := k8sClient.Get(context.TODO(), client.ObjectKey{Name: semaphoreName, Namespace: namespace}, semaphore); getErr != nil {
+			t.Errorf("Failed to get semaphore for debugging: %v", getErr)
+		} else {
+			t.Errorf("Expected 1 available permit, got %d (controller may not be running)", semaphore.Status.Available)
+		}
 	}
 
 	// Release permit using CLI

@@ -131,6 +131,8 @@ spec:
               phase:
                 default: Recorded
                 description: Phase represents the current state of the arrival
+                enum:
+                - Recorded
                 type: string
             required:
             - phase

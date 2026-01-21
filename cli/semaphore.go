@@ -190,12 +190,12 @@ func newSemaphoreCreateCmd() *cobra.Command {
 		Short: "Create a semaphore",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			semaphoreName := args[0]
-			ctx := context.Background()
-
 			if permits <= 0 {
 				return errors.New("permits must be greater than zero")
 			}
+
+			semaphoreName := args[0]
+			ctx := context.Background()
 
 			client := createSemaphoreClient()
 

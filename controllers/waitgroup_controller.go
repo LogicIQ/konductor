@@ -34,15 +34,19 @@ func (r *WaitGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Update phase based on counter
+	var newPhase syncv1.WaitGroupPhase
 	if wg.Status.Counter <= 0 {
-		wg.Status.Phase = syncv1.WaitGroupPhaseDone
+		newPhase = syncv1.WaitGroupPhaseDone
 	} else {
-		wg.Status.Phase = syncv1.WaitGroupPhaseWaiting
+		newPhase = syncv1.WaitGroupPhaseWaiting
 	}
 
-	if err := r.Status().Update(ctx, &wg); err != nil {
-		log.Error(err, "unable to update WaitGroup status")
-		return ctrl.Result{}, err
+	if wg.Status.Phase != newPhase {
+		wg.Status.Phase = newPhase
+		if err := r.Status().Update(ctx, &wg); err != nil {
+			log.Error(err, "unable to update WaitGroup status")
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil

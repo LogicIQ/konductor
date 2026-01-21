@@ -28,6 +28,7 @@ type LeaseRequestSpec struct {
 // LeaseRequestStatus defines the observed state of LeaseRequest
 type LeaseRequestStatus struct {
 	// Phase represents the current state of the request
+	// +kubebuilder:validation:Enum=Pending;Granted;Denied
 	Phase LeaseRequestPhase `json:"phase"`
 
 	// RequestedAt is when the request was made

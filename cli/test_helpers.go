@@ -9,10 +9,18 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+func initTestLogger() *zap.Logger {
+	config := zap.NewDevelopmentConfig()
+	config.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
+	logger, _ := config.Build()
+	return logger
+}
+
 func executeCommandWithOutput(t *testing.T, cmd *cobra.Command) (string, error) {
-	// Initialize outputFormat for tests
-	if outputFormat == "" {
-		outputFormat = "text"
+	// Use local outputFormat to avoid global state mutation
+	localOutputFormat := outputFormat
+	if localOutputFormat == "" {
+		localOutputFormat = "text"
 	}
 
 	// Create a buffer to capture logs
@@ -21,7 +29,7 @@ func executeCommandWithOutput(t *testing.T, cmd *cobra.Command) (string, error) 
 	encoderConfig.TimeKey = ""
 
 	var encoder zapcore.Encoder
-	if outputFormat == "json" {
+	if localOutputFormat == "json" {
 		encoderConfig.TimeKey = "timestamp"
 		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 		encoder = zapcore.NewJSONEncoder(encoderConfig)
@@ -34,7 +42,10 @@ func executeCommandWithOutput(t *testing.T, cmd *cobra.Command) (string, error) 
 		zapcore.AddSync(&logBuf),
 		zapcore.DebugLevel,
 	)
+	// Store original logger and restore after test
+	originalLogger := logger
 	logger = zap.New(core)
+	defer func() { logger = originalLogger }()
 
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)

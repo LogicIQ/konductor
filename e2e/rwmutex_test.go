@@ -282,7 +282,17 @@ func TestE2ERWMutexWithTTL(t *testing.T) {
 
 	// Wait for TTL expiration
 	t.Logf("Waiting for TTL expiration...")
-	time.Sleep(12 * time.Second)
+	err = wait.PollImmediate(1*time.Second, 15*time.Second, func() (bool, error) {
+		rwmutex := &syncv1.RWMutex{}
+		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex)
+		if err != nil {
+			return false, err
+		}
+		return rwmutex.Status.Phase == syncv1.RWMutexPhaseUnlocked, nil
+	})
+	if err != nil {
+		t.Fatalf("RWMutex did not unlock after TTL: %v", err)
+	}
 
 	// Verify auto-unlock
 	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex)

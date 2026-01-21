@@ -15,7 +15,7 @@ func TestE2EOperatorStatus(t *testing.T) {
 	}
 
 	// Check operator status using CLI
-	cmd := exec.Command("../bin/koncli", "operator", "--operator-namespace", "konductor-system")
+	cmd := exec.Command(getKoncliPath(), "operator", "--operator-namespace", "konductor-system")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to check operator status: %v, output: %s", err, string(output))

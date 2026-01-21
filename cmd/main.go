@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 
@@ -62,12 +61,6 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-func versionHealthCheck() healthz.Checker {
-	return func(req *http.Request) error {
-		return nil
-	}
-}
-
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -87,7 +80,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
-	defer logger.Sync()
+	defer func() {
+		if syncErr := logger.Sync(); syncErr != nil {
+			fmt.Fprintf(os.Stderr, "Failed to sync logger: %v\n", syncErr)
+		}
+	}()
 
 	// Set controller-runtime logger
 	ctrl.SetLogger(zapr.NewLogger(logger))
@@ -153,11 +150,11 @@ func main() {
 
 	//+kubebuilder:scaffold:builder
 
-	if err := mgr.AddHealthzCheck("healthz", versionHealthCheck()); err != nil {
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		logger.Error("Unable to set up health check", zap.Error(err))
 		os.Exit(1)
 	}
-	if err := mgr.AddReadyzCheck("readyz", versionHealthCheck()); err != nil {
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		logger.Error("Unable to set up ready check", zap.Error(err))
 		os.Exit(1)
 	}

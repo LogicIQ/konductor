@@ -5,6 +5,8 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -27,6 +29,27 @@ var (
 	sharedClient client.Client
 	setupError error
 )
+
+func getKoncliPath() string {
+	if path := os.Getenv("KONCLI_PATH"); path != "" {
+		return path
+	}
+	return filepath.Join("..", "bin", "koncli")
+}
+
+func getOperatorNamespace() string {
+	if ns := os.Getenv("OPERATOR_NAMESPACE"); ns != "" {
+		return ns
+	}
+	return "konductor-system"
+}
+
+func getOperatorDeploymentName() string {
+	if name := os.Getenv("OPERATOR_DEPLOYMENT_NAME"); name != "" {
+		return name
+	}
+	return "konductor-controller-manager"
+}
 
 func setupClient() (client.Client, error) {
 	// Initialize logger once to avoid controller-runtime warnings
@@ -69,11 +92,14 @@ func setupClient() (client.Client, error) {
 }
 
 func waitForOperator(k8sClient client.Client) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	return wait.PollImmediate(2*time.Second, 30*time.Second, func() (bool, error) {
 		deployment := &appsv1.Deployment{}
-		err := k8sClient.Get(context.TODO(), types.NamespacedName{
-			Name:      "konductor-controller-manager",
-			Namespace: "konductor-system",
+		err := k8sClient.Get(ctx, types.NamespacedName{
+			Name:      getOperatorDeploymentName(),
+			Namespace: getOperatorNamespace(),
 		}, deployment)
 		if err != nil {
 			return false, nil // Keep waiting

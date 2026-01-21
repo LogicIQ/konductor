@@ -183,9 +183,11 @@ func TestSemaphoreReconciler_Reconcile(t *testing.T) {
 				},
 			}
 
+			// First reconcile initializes the status
 			_, err := reconciler.Reconcile(context.Background(), req)
 			require.NoError(t, err)
 
+			// Second reconcile verifies steady-state behavior
 			result, err := reconciler.Reconcile(context.Background(), req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Minute, result.RequeueAfter)
