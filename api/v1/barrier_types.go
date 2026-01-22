@@ -6,6 +6,7 @@ import (
 
 // BarrierSpec defines the desired state of Barrier
 // +kubebuilder:validation:XValidation:rule="!has(self.quorum) || self.quorum <= self.expected",message="quorum must not exceed expected"
+// +kubebuilder:validation:XValidation:rule="!has(self.timeout) || self.timeout.matches('^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$')",message="timeout must be a valid duration (e.g., 30s, 5m, 1h)"
 type BarrierSpec struct {
 	// Expected is the number of arrivals required to open the barrier
 	// +kubebuilder:validation:Required
