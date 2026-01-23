@@ -90,7 +90,7 @@ func TestLeaseReconciler_Reconcile(t *testing.T) {
 					Spec: syncv1.LeaseRequestSpec{
 						Lease:    "test-lease",
 						Holder:   "holder-1",
-						Priority: &[]int32{1}[0],
+						Priority: int32Ptr(1),
 					},
 				},
 				{
@@ -102,7 +102,7 @@ func TestLeaseReconciler_Reconcile(t *testing.T) {
 					Spec: syncv1.LeaseRequestSpec{
 						Lease:    "test-lease",
 						Holder:   "holder-2",
-						Priority: &[]int32{5}[0],
+						Priority: int32Ptr(5),
 					},
 				},
 			},

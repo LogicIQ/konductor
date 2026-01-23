@@ -93,7 +93,7 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 		config := &konductor.WaitConfig{
 			InitialDelay: 100 * time.Millisecond,
 			MaxDelay:     1 * time.Second,
-			Timeout:      5 * time.Second,
+			Timeout:      options.Timeout,
 		}
 
 		err := c.WaitForCondition(ctx, permit, func(obj client.Object) bool {

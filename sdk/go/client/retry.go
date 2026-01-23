@@ -83,49 +83,53 @@ func (c *Client) WaitForUpdate(ctx context.Context, obj client.Object, checkFn f
 	}
 
 	return wait.ExponentialBackoff(backoff, func() (bool, error) {
-		if err := c.k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+		// Create a copy to avoid modifying the caller's object
+		current := obj.DeepCopyObject().(client.Object)
+		if err := c.k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), current); err != nil {
 			if errors.IsNotFound(err) {
 				return false, nil // Keep waiting
 			}
 			return false, err
 		}
 
-		return checkFn(obj), nil
+		return checkFn(current), nil
 	})
 }
 
 // UpdateWithRetry performs optimistic locking updates with retry
 func (c *Client) UpdateWithRetry(ctx context.Context, obj client.Object, updateFn func(client.Object) error) error {
 	return c.RetryOnConflict(ctx, func() error {
-		// Get latest version
-		if err := c.k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+		// Get latest version using a copy to avoid modifying caller's object
+		latest := obj.DeepCopyObject().(client.Object)
+		if err := c.k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), latest); err != nil {
 			return err
 		}
 
 		// Apply changes
-		if err := updateFn(obj); err != nil {
+		if err := updateFn(latest); err != nil {
 			return err
 		}
 
 		// Update with latest resource version
-		return c.k8sClient.Update(ctx, obj)
+		return c.k8sClient.Update(ctx, latest)
 	})
 }
 
 // StatusUpdateWithRetry performs status updates with retry and conflict handling
 func (c *Client) StatusUpdateWithRetry(ctx context.Context, obj client.Object, updateFn func(client.Object) error) error {
 	return c.RetryOnConflict(ctx, func() error {
-		// Get latest version
-		if err := c.k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+		// Get latest version using a copy to avoid modifying caller's object
+		latest := obj.DeepCopyObject().(client.Object)
+		if err := c.k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), latest); err != nil {
 			return err
 		}
 
 		// Apply status changes
-		if err := updateFn(obj); err != nil {
+		if err := updateFn(latest); err != nil {
 			return err
 		}
 
 		// Update status with latest resource version
-		return c.k8sClient.Status().Update(ctx, obj)
+		return c.k8sClient.Status().Update(ctx, latest)
 	})
 }

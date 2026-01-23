@@ -96,7 +96,7 @@ func waitForOperator(k8sClient client.Client) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	return wait.PollImmediate(2*time.Second, 30*time.Second, func() (bool, error) {
+	return wait.PollImmediateWithContext(ctx, 2*time.Second, 30*time.Second, func(ctx context.Context) (bool, error) {
 		deployment := &appsv1.Deployment{}
 		err := k8sClient.Get(ctx, types.NamespacedName{
 			Name:      getOperatorDeploymentName(),

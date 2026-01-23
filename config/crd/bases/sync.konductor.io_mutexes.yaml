@@ -126,6 +126,9 @@ spec:
                 type: string
               phase:
                 description: Phase represents the current state of the mutex
+                enum:
+                - Unlocked
+                - Locked
                 type: string
             required:
             - phase

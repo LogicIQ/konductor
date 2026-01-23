@@ -16,6 +16,8 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
+const testTimeout = 30 * time.Second
+
 func TestE2ELease(t *testing.T) {
 	k8sClient, err := setupClient()
 	if err != nil {
@@ -28,7 +30,7 @@ func TestE2ELease(t *testing.T) {
 	}
 
 	// Check operator status first
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 	statusCmd := exec.CommandContext(ctx, koncliPath, "operator", "--operator-namespace", "konductor-system")
 	statusOutput, statusErr := statusCmd.CombinedOutput()
@@ -41,7 +43,7 @@ func TestE2ELease(t *testing.T) {
 	leaseName := fmt.Sprintf("e2e-test-lease-%d", time.Now().Unix())
 
 	// Create lease using CLI
-	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, koncliPath, "lease", "create", leaseName, "--ttl", "1m", "-n", namespace)
 	output, err := cmd.CombinedOutput()
@@ -53,8 +55,10 @@ func TestE2ELease(t *testing.T) {
 
 	// Wait for lease to be ready
 	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		lease := &syncv1.Lease{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: leaseName, Namespace: namespace}, lease)
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: leaseName, Namespace: namespace}, lease)
 		if err != nil {
 			t.Logf("Waiting for lease %s: %v", leaseName, err)
 			return false, nil
@@ -67,7 +71,7 @@ func TestE2ELease(t *testing.T) {
 	}
 
 	// Acquire lease using CLI
-	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, koncliPath, "lease", "acquire", leaseName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
@@ -76,8 +80,10 @@ func TestE2ELease(t *testing.T) {
 	}
 
 	// Verify lease state
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	lease := &syncv1.Lease{}
-	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: leaseName, Namespace: namespace}, lease)
+	err = k8sClient.Get(ctx, client.ObjectKey{Name: leaseName, Namespace: namespace}, lease)
 	if err != nil {
 		t.Fatalf("Failed to get lease: %v", err)
 	}
@@ -87,7 +93,7 @@ func TestE2ELease(t *testing.T) {
 	}
 
 	// Release lease using CLI
-	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, koncliPath, "lease", "release", leaseName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
@@ -96,7 +102,7 @@ func TestE2ELease(t *testing.T) {
 	}
 
 	// Cleanup
-	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, koncliPath, "lease", "delete", leaseName, "-n", namespace)
 	output, err = cmd.CombinedOutput()

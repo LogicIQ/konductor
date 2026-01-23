@@ -1,3 +1,5 @@
+# Barrier Sample
+# This example demonstrates a barrier that waits for 10 arrivals with a quorum of 8
 apiVersion: sync.konductor.io/v1
 kind: Barrier
 metadata:
@@ -11,6 +13,8 @@ spec:
   onTimeout: fail
   onFailure: cleanup
 ---
+# Arrival Sample
+# This example demonstrates an arrival that signals completion to the barrier
 apiVersion: sync.konductor.io/v1
 kind: Arrival
 metadata:

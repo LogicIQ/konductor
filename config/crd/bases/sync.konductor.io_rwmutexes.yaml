@@ -18,7 +18,7 @@ spec:
     - jsonPath: .status.writeHolder
       name: WriteHolder
       type: string
-    - jsonPath: .status.readHolders
+    - jsonPath: .status.readHolders[*]
       name: ReadHolders
       priority: 1
       type: string

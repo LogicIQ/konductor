@@ -47,6 +47,7 @@ func (r *WaitGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			log.Error(err, "unable to update WaitGroup status")
 			return ctrl.Result{}, err
 		}
+		log.Info("WaitGroup phase updated", "phase", newPhase, "counter", wg.Status.Counter)
 	}
 
 	return ctrl.Result{}, nil

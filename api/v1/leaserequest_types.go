@@ -59,7 +59,7 @@ type LeaseRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   LeaseRequestSpec   `json:"spec,omitempty"`
+	Spec   LeaseRequestSpec   `json:"spec"`
 	Status LeaseRequestStatus `json:"status,omitempty"`
 }
 

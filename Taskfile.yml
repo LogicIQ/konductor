@@ -45,9 +45,9 @@ tasks:
       - go tool cover -func=sdk-coverage.out
 
   go:test:nocache:
-    desc: Run tests without cache
+    desc: Run all tests without cache
     cmds:
-      - go test -v ./... -count=1
+      - go test -v -count=1 ./api/... ./cli/... ./controllers/... ./sdk/...
 
   go:bench:
     desc: Run benchmark tests

@@ -134,7 +134,9 @@ spec:
         - -c
         - |
           if ! koncli once check provision-s3 | grep -q "has been executed"; then
-            aws s3 mb s3://my-app-bucket
+            # Use unique bucket name with account ID and random suffix to prevent bucket sniping
+            BUCKET_NAME="${AWS_ACCOUNT_ID}-my-app-$(date +%s)-$(openssl rand -hex 4)"
+            aws s3 mb s3://$BUCKET_NAME
           fi
 ```
 

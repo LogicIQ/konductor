@@ -23,6 +23,8 @@ func TestBarrierReconciler_Reconcile(t *testing.T) {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
+	quorum := int32(2)
+
 	tests := []struct {
 		name          string
 		barrier       *syncv1.Barrier
@@ -119,7 +121,7 @@ func TestBarrierReconciler_Reconcile(t *testing.T) {
 				},
 				Spec: syncv1.BarrierSpec{
 					Expected: 5,
-					Quorum:   &[]int32{2}[0],
+					Quorum:   &quorum,
 				},
 			},
 			arrivals: []syncv1.Arrival{

@@ -168,7 +168,7 @@ func TestSemaphoreReconciler_Reconcile(t *testing.T) {
 			client := fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithRuntimeObjects(objs...).
-				WithStatusSubresource(&syncv1.Semaphore{}).
+				WithStatusSubresource(&syncv1.Semaphore{}, &syncv1.Permit{}).
 				Build()
 
 			reconciler := &SemaphoreReconciler{
@@ -187,7 +187,11 @@ func TestSemaphoreReconciler_Reconcile(t *testing.T) {
 			_, err := reconciler.Reconcile(context.Background(), req)
 			require.NoError(t, err)
 
-			// Second reconcile verifies steady-state behavior
+			// Second reconcile processes permits
+			_, err = reconciler.Reconcile(context.Background(), req)
+			require.NoError(t, err)
+
+			// Third reconcile verifies steady-state behavior
 			result, err := reconciler.Reconcile(context.Background(), req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Minute, result.RequeueAfter)

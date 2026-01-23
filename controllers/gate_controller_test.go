@@ -17,6 +17,10 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
+func int32Ptr(v int32) *int32 {
+	return &v
+}
+
 func TestGateReconciler_Reconcile(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
@@ -118,7 +122,7 @@ func TestGateReconciler_Reconcile(t *testing.T) {
 						{
 							Type:  "Semaphore",
 							Name:  "test-sem",
-							Value: &[]int32{3}[0],
+							Value: int32Ptr(3),
 						},
 					},
 				},
@@ -149,7 +153,7 @@ func TestGateReconciler_Reconcile(t *testing.T) {
 						{
 							Type:  "Semaphore",
 							Name:  "test-sem",
-							Value: &[]int32{3}[0],
+							Value: int32Ptr(3),
 						},
 					},
 				},

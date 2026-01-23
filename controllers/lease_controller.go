@@ -70,14 +70,14 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		var highestPriority int32 = -1
 
 		for i := range requests.Items {
-			req := &requests.Items[i]
+			leaseReq := &requests.Items[i]
 			priority := int32(0)
-			if req.Spec.Priority != nil {
-				priority = *req.Spec.Priority
+			if leaseReq.Spec.Priority != nil {
+				priority = *leaseReq.Spec.Priority
 			}
 			if priority > highestPriority {
 				highestPriority = priority
-				bestRequest = req
+				bestRequest = leaseReq
 			}
 		}
 
@@ -87,7 +87,7 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			acquiredAt := metav1.Now()
 			lease.Status.AcquiredAt = &acquiredAt
 			if lease.Spec.TTL.Duration > 0 {
-				expiresAt := metav1.NewTime(now.Add(lease.Spec.TTL.Duration))
+				expiresAt := metav1.NewTime(time.Now().Add(lease.Spec.TTL.Duration))
 				lease.Status.ExpiresAt = &expiresAt
 			}
 			lease.Status.RenewCount = 0

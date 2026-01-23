@@ -57,6 +57,9 @@ spec:
                 description: TTL is the time-to-live for the lease
                 type: string
             type: object
+            x-kubernetes-validations:
+            - message: ttl must be a valid duration (e.g., 30s, 5m, 1h)
+              rule: '!has(self.ttl) || self.ttl.matches(''^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$'')'
           status:
             description: LeaseStatus defines the observed state of Lease
             properties:

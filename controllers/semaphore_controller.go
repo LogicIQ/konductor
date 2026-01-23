@@ -68,13 +68,14 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	for i, permit := range permits.Items {
 		isValid := permit.Status.ExpiresAt == nil || permit.Status.ExpiresAt.Time.After(now)
 		if isValid {
-			validPermits++
 			if permit.Status.Phase != syncv1.PermitPhaseGranted {
 				permits.Items[i].Status.Phase = syncv1.PermitPhaseGranted
 				if err := r.Status().Update(ctx, &permits.Items[i]); err != nil {
 					log.Error(err, "failed to update permit status", "permit", permit.Name)
+					return ctrl.Result{}, err
 				}
 			}
+			validPermits++
 		}
 	}
 
@@ -104,7 +105,14 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	log.Info("Successfully updated Semaphore status", "name", semaphore.Name)
 
-	return ctrl.Result{RequeueAfter: time.Minute}, nil
+	// Use adaptive requeue interval based on activity
+	requeueAfter := time.Minute
+	if oldInUse != semaphore.Status.InUse || oldAvailable != semaphore.Status.Available {
+		// Active changes detected, requeue sooner
+		requeueAfter = 10 * time.Second
+	}
+
+	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
 
 func (r *SemaphoreReconciler) SetupWithManager(mgr ctrl.Manager) error {

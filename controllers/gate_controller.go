@@ -151,7 +151,20 @@ func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	log.Info("Successfully updated Gate status", "name", gate.Name, "phase", gate.Status.Phase, "allMet", allMet)
 
 	if gate.Status.Phase == syncv1.GatePhaseWaiting {
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		requeueAfter := 10 * time.Second
+		if gate.Spec.Timeout != nil {
+			remaining := time.Until(gate.CreationTimestamp.Add(gate.Spec.Timeout.Duration))
+			if remaining > 0 {
+				// Use 10% of remaining time, bounded between 1s and 30s
+				requeueAfter = remaining / 10
+				if requeueAfter < time.Second {
+					requeueAfter = time.Second
+				} else if requeueAfter > 30*time.Second {
+					requeueAfter = 30 * time.Second
+				}
+			}
+		}
+		return ctrl.Result{RequeueAfter: requeueAfter}, nil
 	}
 
 	return ctrl.Result{}, nil

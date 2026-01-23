@@ -15,7 +15,7 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
-func _TestLeaseAcquireCmd(t *testing.T) {
+func TestLeaseAcquireCmd(t *testing.T) {
 	t.Skip("Skipping test that requires controller to grant lease")
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
@@ -52,7 +52,7 @@ func _TestLeaseAcquireCmd(t *testing.T) {
 	_ = buf.String()
 }
 
-func _TestLeaseAcquireCmd_NotAvailable(t *testing.T) {
+func TestLeaseAcquireCmd_NotAvailable(t *testing.T) {
 	t.Skip("Skipping test that requires controller")
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
@@ -100,7 +100,7 @@ func _TestLeaseAcquireCmd_NotAvailable(t *testing.T) {
 	assert.Contains(t, err.Error(), "lease 'test-lease' is not available")
 }
 
-func _TestLeaseReleaseCmd(t *testing.T) {
+func TestLeaseReleaseCmd(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
 

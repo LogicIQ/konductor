@@ -13,13 +13,13 @@ import (
 	"github.com/LogicIQ/konductor/sdk/go/semaphore"
 )
 
-func BasicUsageExample() {
+func BasicUsageExample() error {
 	// Create konductor client
 	client, err := konductor.New(&konductor.Config{
 		Namespace: "default",
 	})
 	if err != nil {
-		log.Fatalf("Failed to create client: %v", err)
+		return fmt.Errorf("failed to create client: %w", err)
 	}
 
 	ctx := context.Background()
@@ -47,6 +47,8 @@ func BasicUsageExample() {
 	if err := gateExample(ctx, client); err != nil {
 		log.Printf("Gate example failed: %v", err)
 	}
+
+	return nil
 }
 
 func semaphoreExample(ctx context.Context, client *konductor.Client) error {

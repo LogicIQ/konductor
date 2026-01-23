@@ -35,6 +35,7 @@ func (r *RWMutexReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	now := time.Now()
+	updated := false
 
 	// Check TTL expiration
 	if rwmutex.Status.ExpiresAt != nil && rwmutex.Status.ExpiresAt.Time.Before(now) {
@@ -43,20 +44,26 @@ func (r *RWMutexReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		rwmutex.Status.ReadHolders = nil
 		rwmutex.Status.LockedAt = nil
 		rwmutex.Status.ExpiresAt = nil
+		updated = true
 	}
 
 	// Update phase based on holders
 	if rwmutex.Status.WriteHolder == "" && len(rwmutex.Status.ReadHolders) == 0 {
-		rwmutex.Status.Phase = syncv1.RWMutexPhaseUnlocked
+		if rwmutex.Status.Phase != syncv1.RWMutexPhaseUnlocked {
+			rwmutex.Status.Phase = syncv1.RWMutexPhaseUnlocked
+			updated = true
+		}
 	}
 
-	if err := r.Status().Update(ctx, &rwmutex); err != nil {
-		log.Error(err, "unable to update RWMutex status")
-		return ctrl.Result{}, err
+	if updated {
+		if err := r.Status().Update(ctx, &rwmutex); err != nil {
+			log.Error(err, "unable to update RWMutex status")
+			return ctrl.Result{}, err
+		}
 	}
 
-	// Requeue if TTL is set
-	if rwmutex.Status.ExpiresAt != nil {
+	// Requeue if TTL is set and not expired
+	if rwmutex.Status.ExpiresAt != nil && rwmutex.Status.ExpiresAt.Time.After(now) {
 		return ctrl.Result{RequeueAfter: time.Until(rwmutex.Status.ExpiresAt.Time)}, nil
 	}
 

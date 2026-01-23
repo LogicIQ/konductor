@@ -15,6 +15,43 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
+func createOnce(t *testing.T, name, namespace string, extraArgs ...string) {
+	args := []string{"once", "create", name, "-n", namespace}
+	args = append(args, extraArgs...)
+	cmd := exec.Command("../bin/koncli", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to create once: %v, output: %s", err, string(output))
+	}
+	t.Logf("Created once: %s", string(output))
+}
+
+func waitForOnce(t *testing.T, k8sClient client.Client, name, namespace string) {
+	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
+		once := &syncv1.Once{}
+		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: name, Namespace: namespace}, once)
+		if err != nil {
+			t.Logf("Waiting for once %s: %v", name, err)
+			return false, nil
+		}
+		t.Logf("Once %s found with status: %+v", name, once.Status)
+		return true, nil
+	})
+	if err != nil {
+		t.Fatalf("Once was not ready: %v", err)
+	}
+}
+
+func cleanupOnce(t *testing.T, name, namespace string) {
+	cmd := exec.Command("../bin/koncli", "once", "delete", name, "-n", namespace)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Failed to delete once: %v, output: %s", err, string(output))
+	} else {
+		t.Logf("Deleted once: %s", string(output))
+	}
+}
+
 func TestE2EOnce(t *testing.T) {
 	k8sClient, err := setupClient()
 	if err != nil {
@@ -24,32 +61,12 @@ func TestE2EOnce(t *testing.T) {
 	namespace := "default"
 	onceName := fmt.Sprintf("e2e-test-once-%d", time.Now().Unix())
 
-	// Create once using CLI
-	cmd := exec.Command("../bin/koncli", "once", "create", onceName, "-n", namespace)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to create once: %v, output: %s", err, string(output))
-	}
-
-	t.Logf("Created once: %s", string(output))
-
-	// Wait for once to be ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
-		once := &syncv1.Once{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: onceName, Namespace: namespace}, once)
-		if err != nil {
-			t.Logf("Waiting for once %s: %v", onceName, err)
-			return false, nil
-		}
-		t.Logf("Once %s found with status: %+v", onceName, once.Status)
-		return true, nil
-	})
-	if err != nil {
-		t.Fatalf("Once was not ready: %v", err)
-	}
+	createOnce(t, onceName, namespace)
+	waitForOnce(t, k8sClient, onceName, namespace)
+	defer cleanupOnce(t, onceName, namespace)
 
 	// Check once status
-	cmd = exec.Command("../bin/koncli", "once", "check", onceName, "-n", namespace)
+	cmd := exec.Command("../bin/koncli", "once", "check", onceName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to check once: %v, output: %s", err, string(output))
@@ -71,15 +88,6 @@ func TestE2EOnce(t *testing.T) {
 	if once.Status.Phase != syncv1.OncePhasePending {
 		t.Errorf("Expected phase 'Pending', got '%s'", once.Status.Phase)
 	}
-
-	// Cleanup
-	cmd = exec.Command("../bin/koncli", "once", "delete", onceName, "-n", namespace)
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to delete once: %v, output: %s", err, string(output))
-	}
-
-	t.Logf("Deleted once: %s", string(output))
 }
 
 func TestE2EOnceList(t *testing.T) {
@@ -91,38 +99,18 @@ func TestE2EOnceList(t *testing.T) {
 	namespace := "default"
 	onceName := fmt.Sprintf("e2e-test-once-list-%d", time.Now().Unix())
 
-	// Create once
-	cmd := exec.Command("../bin/koncli", "once", "create", onceName, "-n", namespace)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to create once: %v, output: %s", err, string(output))
-	}
-
-	// Wait for once to be ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
-		once := &syncv1.Once{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: onceName, Namespace: namespace}, once)
-		return err == nil, nil
-	})
-	if err != nil {
-		t.Fatalf("Once was not ready: %v", err)
-	}
+	createOnce(t, onceName, namespace)
+	waitForOnce(t, k8sClient, onceName, namespace)
+	defer cleanupOnce(t, onceName, namespace)
 
 	// List onces
-	cmd = exec.Command("../bin/koncli", "once", "list", "-n", namespace)
+	cmd := exec.Command("../bin/koncli", "once", "list", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to list onces: %v, output: %s", err, string(output))
 	}
 
 	t.Logf("Once list output: %s", string(output))
-
-	// Cleanup
-	cmd = exec.Command("../bin/koncli", "once", "delete", onceName, "-n", namespace)
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Logf("Failed to delete once: %v, output: %s", err, string(output))
-	}
 }
 
 func TestE2EOnceWithTTL(t *testing.T) {
@@ -134,22 +122,9 @@ func TestE2EOnceWithTTL(t *testing.T) {
 	namespace := "default"
 	onceName := fmt.Sprintf("e2e-test-once-ttl-%d", time.Now().Unix())
 
-	// Create once with TTL
-	cmd := exec.Command("../bin/koncli", "once", "create", onceName, "--ttl", "1m", "-n", namespace)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to create once: %v, output: %s", err, string(output))
-	}
-
-	// Wait for once to be ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
-		once := &syncv1.Once{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: onceName, Namespace: namespace}, once)
-		return err == nil, nil
-	})
-	if err != nil {
-		t.Fatalf("Once was not ready: %v", err)
-	}
+	createOnce(t, onceName, namespace, "--ttl", "1m")
+	waitForOnce(t, k8sClient, onceName, namespace)
+	defer cleanupOnce(t, onceName, namespace)
 
 	// Verify TTL is set
 	once := &syncv1.Once{}
@@ -160,12 +135,5 @@ func TestE2EOnceWithTTL(t *testing.T) {
 
 	if once.Spec.TTL == nil {
 		t.Error("Expected TTL to be set")
-	}
-
-	// Cleanup
-	cmd = exec.Command("../bin/koncli", "once", "delete", onceName, "-n", namespace)
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Logf("Failed to delete once: %v, output: %s", err, string(output))
 	}
 }

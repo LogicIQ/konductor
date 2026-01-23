@@ -39,6 +39,7 @@ func (r *MutexReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// Check TTL expiration
 	if mutex.Status.ExpiresAt != nil && mutex.Status.ExpiresAt.Time.Before(now) {
+		log.Info("Mutex expired due to TTL", "holder", mutex.Status.Holder, "expiresAt", mutex.Status.ExpiresAt)
 		mutex.Status.Phase = syncv1.MutexPhaseUnlocked
 		mutex.Status.Holder = ""
 		mutex.Status.LockedAt = nil
@@ -53,6 +54,9 @@ func (r *MutexReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	if updated {
 		if err := r.Status().Update(ctx, &mutex); err != nil {
+			if errors.IsConflict(err) {
+				return ctrl.Result{Requeue: true}, nil
+			}
 			log.Error(err, "unable to update Mutex status")
 			return ctrl.Result{}, err
 		}

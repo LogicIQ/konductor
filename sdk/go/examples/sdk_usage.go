@@ -448,7 +448,9 @@ func pipelineExample(client *konductor.Client, ctx context.Context) error {
 
 	// Cleanup
 	for _, stage := range stages {
-		konductor.BarrierDelete(client, ctx, stage)
+		if err := konductor.BarrierDelete(client, ctx, stage); err != nil {
+			log.Printf("Failed to delete barrier %s: %v", stage, err)
+		}
 	}
 
 	return nil

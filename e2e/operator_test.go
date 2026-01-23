@@ -9,8 +9,7 @@ import (
 )
 
 func TestE2EOperatorStatus(t *testing.T) {
-	_, err := setupClient()
-	if err != nil {
+	if _, err := setupClient(); err != nil {
 		t.Fatalf("Failed to setup client: %v", err)
 	}
 

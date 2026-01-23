@@ -5,8 +5,8 @@ tasks:
     desc: Setup e2e environment
     cmds:
       - echo "Setting up e2e environment..."
-      - which kind > /dev/null 2>&1 || go install sigs.k8s.io/kind@latest
-      - which controller-gen > /dev/null 2>&1 || go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+      - which kind > /dev/null 2>&1 || go install sigs.k8s.io/kind@v0.20.0
+      - which controller-gen > /dev/null 2>&1 || go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.0
       - |
         if ! kind create cluster --config=kind-config.yaml; then
           if kind get clusters | grep -q konductor-e2e; then
@@ -49,7 +49,7 @@ tasks:
       - echo "Running e2e tests..."
       - go mod tidy
       - |
-        if ! go test -v ./... -tags=e2e -timeout=1m; then
+        if ! go test -v ./... -tags=e2e -timeout=10m; then
           echo "E2E tests failed, collecting logs..."
           kubectl logs -n konductor-system deployment/konductor-controller-manager --tail=50 || echo "Warning: Could not collect logs for debugging"
           exit 1

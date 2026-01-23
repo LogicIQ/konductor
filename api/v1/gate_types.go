@@ -38,6 +38,7 @@ type GateCondition struct {
 }
 
 // GateSpec defines the desired state of Gate
+// +kubebuilder:validation:XValidation:rule="!has(self.timeout) || self.timeout.matches('^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$')",message="timeout must be a valid duration (e.g., 30s, 5m, 1h)"
 type GateSpec struct {
 	// Conditions that must be met for the gate to open
 	// +kubebuilder:validation:MinItems=1
@@ -91,7 +92,7 @@ const (
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-//+kubebuilder:printcolumn:name="Conditions",type=string,JSONPath=`.spec.conditions[*].name`
+//+kubebuilder:printcolumn:name="Conditions",type=string,JSONPath=`.spec.conditions[0].name`
 
 // Gate is the Schema for the gates API
 type Gate struct {

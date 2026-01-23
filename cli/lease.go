@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"os"
 	"time"
@@ -33,6 +32,16 @@ func createLeaseClient() *konductor.Client {
 	return konductor.NewFromClient(k8sClient, namespace)
 }
 
+func validateHolder(holder string) (string, error) {
+	if holder == "" {
+		holder = os.Getenv("HOSTNAME")
+		if holder == "" {
+			return "", errors.New("holder must be specified or HOSTNAME must be set")
+		}
+	}
+	return holder, nil
+}
+
 func newLeaseAcquireCmd() *cobra.Command {
 	var (
 		timeout  time.Duration
@@ -46,13 +55,12 @@ func newLeaseAcquireCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			leaseName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			if holder == "" {
-				holder = os.Getenv("HOSTNAME")
-				if holder == "" {
-					return errors.New("holder must be specified or HOSTNAME must be set")
-				}
+			var err error
+			holder, err = validateHolder(holder)
+			if err != nil {
+				return err
 			}
 
 			client := createLeaseClient()
@@ -95,13 +103,12 @@ func newLeaseReleaseCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			leaseName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			if holder == "" {
-				holder = os.Getenv("HOSTNAME")
-				if holder == "" {
-					return errors.New("holder must be specified or HOSTNAME must be set")
-				}
+			var err error
+			holder, err = validateHolder(holder)
+			if err != nil {
+				return err
 			}
 
 			client := createLeaseClient()
@@ -126,7 +133,7 @@ func newLeaseListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all leases",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createLeaseClient()
 
@@ -177,7 +184,7 @@ func newLeaseCreateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			leaseName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createLeaseClient()
 
@@ -206,7 +213,7 @@ func newLeaseDeleteCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			leaseName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createLeaseClient()
 

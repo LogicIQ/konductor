@@ -38,12 +38,20 @@ func (m *RWMutex) runlock(ctx context.Context) error {
 			return err
 		}
 
+		found := false
 		holders := []string{}
 		for _, h := range rw.Status.ReadHolders {
 			if h != m.holder {
 				holders = append(holders, h)
+			} else {
+				found = true
 			}
 		}
+
+		if !found {
+			return fmt.Errorf("cannot unlock: not a read lock holder")
+		}
+
 		rw.Status.ReadHolders = holders
 
 		if len(holders) == 0 {
@@ -124,18 +132,8 @@ func RLock(c *konductor.Client, ctx context.Context, name string, opts ...konduc
 
 	config := getWaitConfig(options.Timeout)
 
-	// Wait for write lock to be released
-	err := c.WaitForCondition(ctx, rwmutex, func(obj client.Object) bool {
-		rw := obj.(*syncv1.RWMutex)
-		return rw.Status.WriteHolder == ""
-	}, config)
-
-	if err != nil {
-		return nil, fmt.Errorf("timeout acquiring read lock on %s: %w", name, err)
-	}
-
-	// Now try to acquire read lock
-	err = c.RetryWithBackoff(ctx, func() error {
+	// Atomically check and acquire read lock
+	err := c.RetryWithBackoff(ctx, func() error {
 		var rw syncv1.RWMutex
 		if err := c.K8sClient().Get(ctx, types.NamespacedName{
 			Name: name, Namespace: c.Namespace(),
@@ -144,7 +142,7 @@ func RLock(c *konductor.Client, ctx context.Context, name string, opts ...konduc
 		}
 
 		if rw.Status.WriteHolder != "" {
-			return fmt.Errorf("write locked by %s", rw.Status.WriteHolder)
+			return fmt.Errorf("timeout waiting for write lock to be released")
 		}
 
 		rw.Status.Phase = syncv1.RWMutexPhaseReadLocked
@@ -161,7 +159,7 @@ func RLock(c *konductor.Client, ctx context.Context, name string, opts ...konduc
 		}
 
 		return c.K8sClient().Status().Update(ctx, &rw)
-	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 1 * time.Second, Timeout: 5 * time.Second})
+	}, config)
 
 	if err != nil {
 		return nil, err
@@ -187,25 +185,10 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	}
 
 	holder := getHolder(options)
-
-	rwmutex := &syncv1.RWMutex{}
-	rwmutex.Name = name
-	rwmutex.Namespace = c.Namespace()
-
 	config := getWaitConfig(options.Timeout)
 
-	// Wait for rwmutex to be completely unlocked
-	err := c.WaitForCondition(ctx, rwmutex, func(obj client.Object) bool {
-		rw := obj.(*syncv1.RWMutex)
-		return rw.Status.WriteHolder == "" && len(rw.Status.ReadHolders) == 0
-	}, config)
-
-	if err != nil {
-		return nil, fmt.Errorf("timeout acquiring write lock on %s: %w", name, err)
-	}
-
-	// Now try to acquire write lock
-	err = c.RetryWithBackoff(ctx, func() error {
+	// Atomically check and acquire write lock
+	err := c.RetryWithBackoff(ctx, func() error {
 		var rw syncv1.RWMutex
 		if err := c.K8sClient().Get(ctx, types.NamespacedName{
 			Name: name, Namespace: c.Namespace(),
@@ -228,18 +211,14 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 		}
 
 		return c.K8sClient().Status().Update(ctx, &rw)
-	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 1 * time.Second, Timeout: 5 * time.Second})
+	}, config)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("timeout acquiring write lock on %s: %w", name, err)
 	}
 
-	// Wait for confirmation
 	mutex := &RWMutex{client: c, name: name, holder: holder, isRead: false}
-	return mutex, c.WaitForCondition(ctx, rwmutex, func(obj client.Object) bool {
-		rw := obj.(*syncv1.RWMutex)
-		return rw.Status.Phase == syncv1.RWMutexPhaseWriteLocked && rw.Status.WriteHolder == holder
-	}, &konductor.WaitConfig{InitialDelay: 100 * time.Millisecond, MaxDelay: 1 * time.Second, Timeout: 2 * time.Second})
+	return mutex, nil
 }
 
 func Create(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
@@ -290,4 +269,30 @@ func List(c *konductor.Client, ctx context.Context) ([]syncv1.RWMutex, error) {
 		return nil, fmt.Errorf("failed to list rwmutexes: %w", err)
 	}
 	return rwmutexes.Items, nil
+}
+
+// Unlock releases a lock held by the specified holder
+func Unlock(c *konductor.Client, ctx context.Context, name string, holder string) error {
+	m := &RWMutex{
+		client: c,
+		name:   name,
+		holder: holder,
+	}
+
+	// Determine if this is a read or write lock
+	var rw syncv1.RWMutex
+	if err := c.K8sClient().Get(ctx, types.NamespacedName{
+		Name: name, Namespace: c.Namespace(),
+	}, &rw); err != nil {
+		return fmt.Errorf("failed to get rwmutex %s: %w", name, err)
+	}
+
+	for _, h := range rw.Status.ReadHolders {
+		if h == holder {
+			m.isRead = true
+			break
+		}
+	}
+
+	return m.Unlock(ctx)
 }

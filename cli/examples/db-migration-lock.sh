@@ -37,12 +37,8 @@ else
     ELAPSED=0
     
     while [ $ELAPSED -lt $MAX_WAIT ]; do
-        # Try to acquire lease briefly to check if available
-        if koncli lease acquire "$LEASE_NAME" --holder "$HOLDER" --ttl 1s 2>/dev/null; then
-            if ! koncli lease release "$LEASE_NAME" --holder "$HOLDER"; then
-                echo "✗ Failed to release temporary lease" >&2
-                exit 1
-            fi
+        # Check if lease is available without acquiring it
+        if koncli lease status "$LEASE_NAME" 2>/dev/null | grep -q "Available"; then
             echo "✓ Migrations completed (by another pod)"
             exit 0
         fi

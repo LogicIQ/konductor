@@ -9,7 +9,14 @@ PERMITS=10
 HOLDER="$HOSTNAME-$$"
 
 # Create semaphore (idempotent)
-koncli semaphore create "$SEMAPHORE_NAME" --permits "$PERMITS" 2>/dev/null || true
+if ! output=$(koncli semaphore create "$SEMAPHORE_NAME" --permits "$PERMITS" 2>&1); then
+    if echo "$output" | grep -q "already exists"; then
+        echo "Semaphore already exists, continuing..."
+    else
+        echo "Error: Failed to create semaphore: $output" >&2
+        exit 1
+    fi
+fi
 
 echo "Acquiring permit from $SEMAPHORE_NAME..."
 

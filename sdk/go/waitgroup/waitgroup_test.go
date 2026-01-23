@@ -15,6 +15,8 @@ import (
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
+const testNamespace = "default"
+
 func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
@@ -25,7 +27,7 @@ func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client 
 		WithStatusSubresource(&syncv1.WaitGroup{}).
 		Build()
 
-	return konductor.NewFromClient(k8sClient, "default")
+	return konductor.NewFromClient(k8sClient, testNamespace)
 }
 
 func TestAdd_FromZero(t *testing.T) {

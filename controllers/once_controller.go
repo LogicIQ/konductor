@@ -43,6 +43,7 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			log.Error(err, "unable to initialize Once status")
 			return ctrl.Result{RequeueAfter: time.Second}, err
 		}
+		log.Info("Initialized Once status", "name", once.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -54,6 +55,7 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 				log.Error(err, "unable to update Once phase")
 				return ctrl.Result{RequeueAfter: time.Second}, err
 			}
+			log.Info("Updated Once phase to Executed", "name", once.Name)
 		}
 		return ctrl.Result{}, nil
 	}

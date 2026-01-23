@@ -22,5 +22,5 @@ spec:
   semaphore: api-quota
   holder: job-worker-123
   ttl: 10m
-  timeout: 30s
+  timeout: 5m
   onTimeout: release

@@ -21,10 +21,11 @@ func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client 
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
-	k8sClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithRuntimeObjects(objects...).
-		Build()
+	builder := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...)
+	if len(objects) > 0 {
+		builder = builder.WithStatusSubresource(&syncv1.Gate{})
+	}
+	k8sClient := builder.Build()
 
 	return konductor.NewFromClient(k8sClient, "test-ns")
 }
@@ -87,6 +88,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestGetStatus(t *testing.T) {
+	now := metav1.Now()
 	gate := &syncv1.Gate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-gate",
@@ -94,7 +96,7 @@ func TestGetStatus(t *testing.T) {
 		},
 		Status: syncv1.GateStatus{
 			Phase:    syncv1.GatePhaseOpen,
-			OpenedAt: &metav1.Time{},
+			OpenedAt: &now,
 			ConditionStatuses: []syncv1.GateConditionStatus{
 				{Type: "Job", Name: "job1", Met: true, Message: "Complete"},
 			},
@@ -106,8 +108,7 @@ func TestGetStatus(t *testing.T) {
 	status, err := GetStatus(client, context.Background(), "test-gate")
 	require.NoError(t, err)
 	assert.Equal(t, syncv1.GatePhaseOpen, status.Phase)
-	// OpenedAt may be nil if not set in test
-	_ = status.OpenedAt
+	assert.NotNil(t, status.OpenedAt)
 	assert.Len(t, status.ConditionStatuses, 1)
 }
 

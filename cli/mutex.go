@@ -1,9 +1,6 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -45,13 +42,12 @@ func newMutexLockCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mutexName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			if holder == "" {
-				holder = os.Getenv("HOSTNAME")
-				if holder == "" {
-					return errors.New("holder must be specified or HOSTNAME must be set")
-				}
+			var err error
+			holder, err = validateHolder(holder)
+			if err != nil {
+				return err
 			}
 
 			client := createMutexClient()
@@ -88,13 +84,12 @@ func newMutexUnlockCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mutexName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			if holder == "" {
-				holder = os.Getenv("HOSTNAME")
-				if holder == "" {
-					return errors.New("holder must be specified or HOSTNAME must be set")
-				}
+			var err error
+			holder, err = validateHolder(holder)
+			if err != nil {
+				return err
 			}
 
 			client := createMutexClient()
@@ -118,7 +113,7 @@ func newMutexListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all mutexes",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createMutexClient()
 
@@ -167,7 +162,7 @@ func newMutexCreateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mutexName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createMutexClient()
 
@@ -196,7 +191,7 @@ func newMutexDeleteCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mutexName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createMutexClient()
 

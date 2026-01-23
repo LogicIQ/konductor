@@ -4,6 +4,12 @@
 
 set -e
 
+# Check if koncli is available
+if ! command -v koncli &> /dev/null; then
+    echo "Error: koncli command not found. Please install konductor CLI." >&2
+    exit 1
+fi
+
 GATE_NAME="service-dependencies"
 SERVICE_NAME="${1:-my-service}"
 

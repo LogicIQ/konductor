@@ -1,8 +1,14 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -101,69 +107,54 @@ func checkHealthWithVersion(url string) (string, string) {
 	return version, resp.Status
 }
 
-func isValidHealthURL(url string) bool {
+func isValidHealthURL(rawURL string) bool {
 	// Only allow cluster-local service URLs for health checks
 	// Also allow localhost/127.0.0.1 for testing
-	if len(url) == 0 {
+	if len(rawURL) == 0 {
 		return false
 	}
 
-	// Check protocol
-	if len(url) < 7 {
-		return false
-	}
-	if url[:7] != "http://" {
-		if len(url) < 8 || url[:8] != "https://" {
-			return false
-		}
-	}
-
-	// Check for allowed hosts
-	allowedHosts := []string{".svc.cluster.local:", "127.0.0.1:", "localhost:"}
-	hostFound := false
-	for _, host := range allowedHosts {
-		if contains(url, host) {
-			hostFound = true
-			break
-		}
-	}
-	if !hostFound {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
 		return false
 	}
 
-	// Check for allowed endpoints
-	allowedEndpoints := []string{"/healthz", "/readyz"}
-	for _, endpoint := range allowedEndpoints {
-		if contains(url, endpoint) {
-			return true
-		}
-	}
-
-	// Allow test URLs without specific endpoints
-	return isTestURL(url)
-}
-
-func isTestURL(url string) bool {
-	// Allow test URLs that don't have health endpoints
-	// Validate that it's actually a test URL to prevent abuse
-	if len(url) == 0 {
+	// Only allow http/https schemes
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return false
 	}
-	return contains(url, "127.0.0.1:") || contains(url, "localhost:")
-}
 
-func contains(s, substr string) bool {
-	if len(substr) == 0 {
+	// Extract hostname (without port)
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return false
+	}
+
+	// Check for allowed hosts using strict suffix/exact matching
+	isAllowed := false
+	if strings.HasSuffix(hostname, ".svc.cluster.local") {
+		isAllowed = true
+	} else if hostname == "127.0.0.1" || hostname == "localhost" || strings.HasPrefix(hostname, "127.") {
+		isAllowed = true
+	}
+
+	if !isAllowed {
+		return false
+	}
+
+	// Allow test URLs from localhost/127.* without specific endpoints
+	if hostname == "127.0.0.1" || hostname == "localhost" || strings.HasPrefix(hostname, "127.") {
 		return true
 	}
-	if len(s) < len(substr) {
-		return false
-	}
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
+
+	// Check for allowed endpoints (must be exact path prefix)
+	allowedEndpoints := []string{"/healthz", "/readyz"}
+	for _, endpoint := range allowedEndpoints {
+		if parsed.Path == endpoint || strings.HasPrefix(parsed.Path, endpoint+"/") {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -193,8 +184,74 @@ func isValidNamespace(namespace string) bool {
 	return namespace[0] != '-' && namespace[len(namespace)-1] != '-'
 }
 
+// isDisallowedIP checks if the IP should be blocked to prevent SSRF attacks.
+// This blocks private IPs (RFC 1918), multicast, and unspecified addresses.
+// Loopback (127.0.0.1) is allowed for testing purposes.
+func isDisallowedIP(hostIP string) bool {
+	ip := net.ParseIP(hostIP)
+	if ip == nil {
+		return true // Block if we can't parse the IP
+	}
+	// Allow loopback for testing purposes
+	if ip.IsLoopback() {
+		return false
+	}
+	// Block multicast, unspecified, and private IPs
+	return ip.IsMulticast() || ip.IsUnspecified() || ip.IsPrivate()
+}
+
+// safeTransport creates an HTTP transport that validates resolved IP addresses
+// to prevent SSRF attacks via DNS rebinding
+func safeTransport(timeout time.Duration) *http.Transport {
+	return &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			dialer := &net.Dialer{Timeout: timeout}
+			c, err := dialer.DialContext(ctx, network, addr)
+			if err != nil {
+				return nil, err
+			}
+			ip, _, err := net.SplitHostPort(c.RemoteAddr().String())
+			if err != nil {
+				_ = c.Close()
+				return nil, errors.New("failed to parse remote address")
+			}
+			if isDisallowedIP(ip) {
+				_ = c.Close()
+				return nil, errors.New("connection to disallowed IP address blocked")
+			}
+			return c, nil
+		},
+		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			dialer := &net.Dialer{Timeout: timeout}
+			// #nosec G402 - InsecureSkipVerify is false by default, MinVersion enforces TLS 1.2+
+			tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
+			c, err := tls.DialWithDialer(dialer, network, addr, tlsConfig)
+			if err != nil {
+				return nil, err
+			}
+			ip, _, err := net.SplitHostPort(c.RemoteAddr().String())
+			if err != nil {
+				_ = c.Close()
+				return nil, errors.New("failed to parse remote address")
+			}
+			if isDisallowedIP(ip) {
+				_ = c.Close()
+				return nil, errors.New("connection to disallowed IP address blocked")
+			}
+			return c, nil
+		},
+		TLSHandshakeTimeout: timeout,
+	}
+}
+
 func getRestrictedTransport(cfg *rest.Config) http.RoundTripper {
-	baseTransport := getTransport(cfg)
+	// Use safe transport with IP validation for SSRF protection
+	baseTransport := safeTransport(2 * time.Second)
+
+	// If we have a rest config with custom transport settings, wrap it
+	if cfg != nil && cfg.Transport != nil {
+		return &restrictedTransport{base: cfg.Transport}
+	}
 	return &restrictedTransport{base: baseTransport}
 }
 
@@ -206,7 +263,7 @@ func (rt *restrictedTransport) RoundTrip(req *http.Request) (*http.Response, err
 	// Additional SSRF protection at transport level
 	host := req.URL.Host
 	if !isAllowedHost(host) {
-		return nil, fmt.Errorf("blocked request to disallowed host")
+		return nil, errors.New("blocked request to disallowed host")
 	}
 	// Only allow GET requests
 	if req.Method != http.MethodGet {
@@ -221,36 +278,36 @@ func isAllowedHost(host string) bool {
 		return false
 	}
 
-	// Strict validation - must end with cluster-local or be localhost/127.0.0.1
-	if contains(host, ".svc.cluster.local:") {
-		// Additional check: ensure it's actually a cluster service
-		return !contains(host, "..")
+	// Parse host to separate hostname from port
+	hostname, _, err := net.SplitHostPort(host)
+	if err != nil {
+		// No port specified, use host as-is
+		hostname = host
 	}
-	// Allow localhost and 127.0.0.1 with any port for testing
-	if contains(host, "127.0.0.1:") || contains(host, "localhost:") {
+
+	// Strict validation - must end with cluster-local or be localhost/127.0.0.1
+	if strings.HasSuffix(hostname, ".svc.cluster.local") {
+		// Additional check: ensure it's actually a cluster service (no path traversal)
+		return !strings.Contains(hostname, "..")
+	}
+	// Allow localhost and 127.0.0.1 for testing
+	if hostname == "127.0.0.1" || hostname == "localhost" || strings.HasPrefix(hostname, "127.") {
 		return true
 	}
 	return false
 }
 
-func sanitizeURL(url string) string {
+func sanitizeURL(rawURL string) string {
 	// Remove sensitive information from URL for logging
-	if len(url) == 0 {
+	if len(rawURL) == 0 {
 		return "<empty>"
 	}
 	// Only show the path component for security
-	if contains(url, "/healthz") {
+	if strings.Contains(rawURL, "/healthz") {
 		return "<service>/healthz"
 	}
-	if contains(url, "/readyz") {
+	if strings.Contains(rawURL, "/readyz") {
 		return "<service>/readyz"
 	}
 	return "<sanitized>"
-}
-
-func getTransport(cfg *rest.Config) http.RoundTripper {
-	if cfg != nil && cfg.Transport != nil {
-		return cfg.Transport
-	}
-	return http.DefaultTransport
 }

@@ -12,11 +12,15 @@ import (
 func initTestLogger() *zap.Logger {
 	config := zap.NewDevelopmentConfig()
 	config.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
-	logger, _ := config.Build()
-	return logger
+	testLogger, err := config.Build()
+	if err != nil {
+		panic("failed to build test logger: " + err.Error())
+	}
+	return testLogger
 }
 
-func executeCommandWithOutput(t *testing.T, cmd *cobra.Command) (string, error) {
+func executeCommandWithOutputAndLogs(t *testing.T, cmd *cobra.Command) (string, error) {
+	t.Helper()
 	// Use local outputFormat to avoid global state mutation
 	localOutputFormat := outputFormat
 	if localOutputFormat == "" {
@@ -53,4 +57,8 @@ func executeCommandWithOutput(t *testing.T, cmd *cobra.Command) (string, error) 
 
 	err := cmd.Execute()
 	return buf.String() + logBuf.String(), err
+}
+
+func executeCommandWithOutput(t *testing.T, cmd *cobra.Command) (string, error) {
+	return executeCommandWithOutputAndLogs(t, cmd)
 }

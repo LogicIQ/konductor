@@ -35,8 +35,10 @@ func TestE2ERWMutex(t *testing.T) {
 
 	// Wait for rwmutex to be ready
 	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		rwmutex := &syncv1.RWMutex{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex)
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex)
 		if err != nil {
 			t.Logf("Waiting for rwmutex %s: %v", rwmutexName, err)
 			return false, nil
@@ -58,8 +60,10 @@ func TestE2ERWMutex(t *testing.T) {
 	t.Logf("Acquired read lock: %s", string(output))
 
 	// Verify rwmutex state
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	rwmutex := &syncv1.RWMutex{}
-	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex)
+	err = k8sClient.Get(ctx, client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex)
 	if err != nil {
 		t.Fatalf("Failed to get rwmutex: %v", err)
 	}
@@ -82,7 +86,9 @@ func TestE2ERWMutex(t *testing.T) {
 	t.Logf("Unlocked rwmutex: %s", string(output))
 
 	// Verify rwmutex is unlocked
-	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex)
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = k8sClient.Get(ctx, client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex)
 	if err != nil {
 		t.Fatalf("Failed to get rwmutex after unlock: %v", err)
 	}
@@ -161,7 +167,9 @@ func TestE2ERWMutexMultipleReaders(t *testing.T) {
 
 	// Cleanup
 	cmd = exec.Command("../bin/koncli", "rwmutex", "delete", rwmutexName, "-n", namespace)
-	cmd.CombinedOutput()
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("Cleanup failed: %v, output: %s", err, string(output))
+	}
 }
 
 func TestE2ERWMutexWriteLock(t *testing.T) {
@@ -229,7 +237,9 @@ func TestE2ERWMutexWriteLock(t *testing.T) {
 
 	// Cleanup
 	cmd = exec.Command("../bin/koncli", "rwmutex", "delete", rwmutexName, "-n", namespace)
-	cmd.CombinedOutput()
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("Cleanup failed: %v, output: %s", err, string(output))
+	}
 }
 
 func TestE2ERWMutexWithTTL(t *testing.T) {
@@ -306,7 +316,9 @@ func TestE2ERWMutexWithTTL(t *testing.T) {
 
 	// Cleanup
 	cmd = exec.Command("../bin/koncli", "rwmutex", "delete", rwmutexName, "-n", namespace)
-	cmd.CombinedOutput()
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("Cleanup failed: %v, output: %s", err, string(output))
+	}
 }
 
 func TestE2ERWMutexList(t *testing.T) {
@@ -346,5 +358,7 @@ func TestE2ERWMutexList(t *testing.T) {
 
 	// Cleanup
 	cmd = exec.Command("../bin/koncli", "rwmutex", "delete", rwmutexName, "-n", namespace)
-	cmd.CombinedOutput()
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("Cleanup failed: %v, output: %s", err, string(output))
+	}
 }

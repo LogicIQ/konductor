@@ -54,10 +54,14 @@ func Add(c *konductor.Client, ctx context.Context, name string, delta int32) err
 	wg := &syncv1.WaitGroup{}
 	wg.Name = name
 	wg.Namespace = c.Namespace()
+	expectedCounter := originalCounter + delta
+	if expectedCounter < 0 {
+		expectedCounter = 0
+	}
 
 	if err := c.WaitForCondition(ctx, wg, func(obj client.Object) bool {
 		waitGroup := obj.(*syncv1.WaitGroup)
-		return waitGroup.Status.Counter != originalCounter
+		return waitGroup.Status.Counter == expectedCounter
 	}, nil); err != nil {
 		return fmt.Errorf("failed to confirm waitgroup update: %w", err)
 	}

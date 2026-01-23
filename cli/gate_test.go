@@ -117,6 +117,7 @@ func TestGateWaitCmd_Failed(t *testing.T) {
 }
 
 func TestGateListCmd(t *testing.T) {
+	val := int32(3)
 	gates := []runtime.Object{
 		&syncv1.Gate{
 			ObjectMeta: metav1.ObjectMeta{
@@ -126,7 +127,7 @@ func TestGateListCmd(t *testing.T) {
 			Spec: syncv1.GateSpec{
 				Conditions: []syncv1.GateCondition{
 					{Type: "Job", Name: "job1", State: "Complete"},
-					{Type: "Semaphore", Name: "sem1", Value: &[]int32{3}[0]},
+					{Type: "Semaphore", Name: "sem1", Value: &val},
 				},
 			},
 			Status: syncv1.GateStatus{

@@ -21,6 +21,33 @@ func setupTestScheme(t *testing.T) *runtime.Scheme {
 	return scheme
 }
 
+func assertContainsHolder(t *testing.T, permits []syncv1.Permit, holder string) {
+	for _, p := range permits {
+		if p.Spec.Holder == holder {
+			return
+		}
+	}
+	t.Errorf("holder %s not found in permits", holder)
+}
+
+func assertContainsLeaseHolder(t *testing.T, requests []syncv1.LeaseRequest, holder string) {
+	for _, r := range requests {
+		if r.Spec.Holder == holder {
+			return
+		}
+	}
+	t.Errorf("holder %s not found in lease requests", holder)
+}
+
+func assertContainsPhase(t *testing.T, requests []syncv1.LeaseRequest, phase syncv1.LeaseRequestPhase) {
+	for _, r := range requests {
+		if r.Status.Phase == phase {
+			return
+		}
+	}
+	t.Errorf("phase %s not found in lease requests", phase)
+}
+
 func TestNewFromClient(t *testing.T) {
 	scheme := setupTestScheme(t)
 
@@ -185,13 +212,8 @@ func TestClient_ListPermits(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, permits, 2)
 
-	// Check permit holders
-	holders := make([]string, len(permits))
-	for i, permit := range permits {
-		holders[i] = permit.Spec.Holder
-	}
-	assert.Contains(t, holders, "holder1")
-	assert.Contains(t, holders, "holder2")
+	assertContainsHolder(t, permits, "holder1")
+	assertContainsHolder(t, permits, "holder2")
 }
 
 func TestClient_ListLeaseRequests(t *testing.T) {
@@ -238,19 +260,8 @@ func TestClient_ListLeaseRequests(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, requests, 2)
 
-	// Check request holders
-	holders := make([]string, len(requests))
-	for i, req := range requests {
-		holders[i] = req.Spec.Holder
-	}
-	assert.Contains(t, holders, "holder1")
-	assert.Contains(t, holders, "holder2")
-
-	// Check phases
-	phases := make([]syncv1.LeaseRequestPhase, len(requests))
-	for i, req := range requests {
-		phases[i] = req.Status.Phase
-	}
-	assert.Contains(t, phases, syncv1.LeaseRequestPhasePending)
-	assert.Contains(t, phases, syncv1.LeaseRequestPhaseGranted)
+	assertContainsLeaseHolder(t, requests, "holder1")
+	assertContainsLeaseHolder(t, requests, "holder2")
+	assertContainsPhase(t, requests, syncv1.LeaseRequestPhasePending)
+	assertContainsPhase(t, requests, syncv1.LeaseRequestPhaseGranted)
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -29,6 +28,10 @@ func newBarrierCmd() *cobra.Command {
 	return cmd
 }
 
+func createBarrierClient() *konductor.Client {
+	return konductor.NewFromClient(k8sClient, namespace)
+}
+
 func newBarrierWaitCmd() *cobra.Command {
 	var timeout time.Duration
 
@@ -38,10 +41,9 @@ func newBarrierWaitCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			barrierName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createBarrierClient()
 
 			// Build options
 			var opts []konductor.Option
@@ -56,7 +58,9 @@ func newBarrierWaitCmd() *cobra.Command {
 
 			// Get barrier status to display info
 			barrierObj, err := barrier.Get(client, ctx, barrierName)
-			if err == nil && barrierObj != nil {
+			if err != nil {
+				logger.Warn("Failed to get barrier status", zap.Error(err))
+			} else if barrierObj != nil {
 				logger.Info("Barrier is open",
 					zap.String("barrier", barrierName),
 					zap.Int32("arrived", barrierObj.Status.Arrived),
@@ -75,8 +79,9 @@ func newBarrierWaitCmd() *cobra.Command {
 
 func newBarrierArriveCmd() *cobra.Command {
 	var (
-		holder        string
-		waitForUpdate bool
+		holder            string
+		waitForUpdate     bool
+		updateWaitTimeout time.Duration
 	)
 
 	cmd := &cobra.Command{
@@ -85,10 +90,9 @@ func newBarrierArriveCmd() *cobra.Command {
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			barrierName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createBarrierClient()
 
 			// Build options
 			var opts []konductor.Option
@@ -109,10 +113,15 @@ func newBarrierArriveCmd() *cobra.Command {
 				barrierObj.Name = barrierName
 				barrierObj.Namespace = client.Namespace()
 
+				waitTimeout := 5 * time.Second
+				if updateWaitTimeout > 0 {
+					waitTimeout = updateWaitTimeout
+				}
+
 				if err := client.WaitForCondition(ctx, barrierObj, func(obj ctrlclient.Object) bool {
 					b := obj.(*syncv1.Barrier)
 					return b.Status.Arrived > 0 || b.Status.Phase == syncv1.BarrierPhaseOpen
-				}, &konductor.WaitConfig{Timeout: 5 * time.Second}); err != nil {
+				}, &konductor.WaitConfig{Timeout: waitTimeout}); err != nil {
 					logger.Warn("Failed to wait for condition", zap.Error(err))
 				}
 			}
@@ -122,13 +131,14 @@ func newBarrierArriveCmd() *cobra.Command {
 			// Get barrier status to display info
 			barrierObj, err := barrier.Get(client, ctx, barrierName)
 			if err != nil {
-				return err
+				logger.Warn("Failed to get barrier status", zap.Error(err))
+			} else if barrierObj != nil {
+				logger.Info("Barrier status",
+					zap.Int32("arrived", barrierObj.Status.Arrived),
+					zap.Int32("expected", barrierObj.Spec.Expected),
+					zap.String("phase", string(barrierObj.Status.Phase)),
+				)
 			}
-			logger.Info("Barrier status",
-				zap.Int32("arrived", barrierObj.Status.Arrived),
-				zap.Int32("expected", barrierObj.Spec.Expected),
-				zap.String("phase", string(barrierObj.Status.Phase)),
-			)
 
 			return nil
 		},
@@ -136,6 +146,7 @@ func newBarrierArriveCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&holder, "holder", "", "Arrival holder identifier (defaults to hostname)")
 	cmd.Flags().BoolVar(&waitForUpdate, "wait-for-update", false, "Wait for controller to process the change")
+	cmd.Flags().DurationVar(&updateWaitTimeout, "update-timeout", 5*time.Second, "Timeout for waiting for controller update")
 
 	return cmd
 }
@@ -145,10 +156,9 @@ func newBarrierListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all barriers",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			// Create SDK client
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createBarrierClient()
 
 			// List barriers using SDK
 			barriers, err := barrier.List(client, ctx)
@@ -196,9 +206,9 @@ func newBarrierCreateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			barrierName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createBarrierClient()
 
 			var opts []konductor.Option
 			if timeout > 0 {
@@ -234,9 +244,9 @@ func newBarrierDeleteCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			barrierName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			client := konductor.NewFromClient(k8sClient, namespace)
+			client := createBarrierClient()
 
 			if err := barrier.Delete(client, ctx, barrierName); err != nil {
 				return err

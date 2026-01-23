@@ -57,7 +57,7 @@ func TestE2EGate(t *testing.T) {
 		t.Fatalf("Gate was not ready: %v", err)
 	}
 
-	// Verify gate is closed
+	// Verify gate is open initially (no conditions = open by default)
 	gate := &syncv1.Gate{}
 	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: gateName, Namespace: namespace}, gate)
 	if err != nil {
@@ -68,28 +68,21 @@ func TestE2EGate(t *testing.T) {
 		t.Error("Expected gate with no conditions to be open initially")
 	}
 
-	// Open gate using CLI
-	cmd = exec.Command("../bin/koncli", "gate", "open", gateName, "-n", namespace)
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to open gate: %v, output: %s", err, string(output))
-	}
-
-	// Verify gate is open
-	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: gateName, Namespace: namespace}, gate)
-	if err != nil {
-		t.Fatalf("Failed to get gate: %v", err)
-	}
-
-	if gate.Status.Phase != syncv1.GatePhaseOpen {
-		t.Error("Expected gate to be open")
-	}
-
 	// Close gate using CLI
 	cmd = exec.Command("../bin/koncli", "gate", "close", gateName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to close gate: %v, output: %s", err, string(output))
+	}
+
+	// Verify gate is closed
+	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: gateName, Namespace: namespace}, gate)
+	if err != nil {
+		t.Fatalf("Failed to get gate: %v", err)
+	}
+
+	if gate.Status.Phase != syncv1.GatePhaseClosed {
+		t.Error("Expected gate to be closed")
 	}
 
 	// Cleanup

@@ -16,8 +16,26 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
+var cliPath = "../bin/koncli"
+
 func contains(s, substr string) bool {
 	return strings.Contains(s, substr)
+}
+
+func waitForBarrierReady(t *testing.T, k8sClient client.Client, barrierName, namespace string) {
+	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
+		barrier := &syncv1.Barrier{}
+		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: barrierName, Namespace: namespace}, barrier)
+		if err != nil {
+			t.Logf("Waiting for barrier %s: %v", barrierName, err)
+			return false, nil
+		}
+		t.Logf("Barrier %s found with status: %+v", barrierName, barrier.Status)
+		return true, nil
+	})
+	if err != nil {
+		t.Fatalf("Barrier was not ready: %v", err)
+	}
 }
 
 func TestE2EBarrier(t *testing.T) {
@@ -27,7 +45,7 @@ func TestE2EBarrier(t *testing.T) {
 	}
 
 	// Check operator status first
-	statusCmd := exec.Command("../bin/koncli", "operator", "--operator-namespace", "konductor-system")
+	statusCmd := exec.Command(cliPath, "operator", "--operator-namespace", "konductor-system")
 	statusOutput, statusErr := statusCmd.CombinedOutput()
 	if statusErr != nil {
 		t.Logf("Operator status check failed: %v, output: %s", statusErr, string(statusOutput))
@@ -39,7 +57,7 @@ func TestE2EBarrier(t *testing.T) {
 	barrierName := fmt.Sprintf("e2e-test-barrier-%d", time.Now().Unix())
 
 	// Create barrier using CLI
-	cmd := exec.Command("../bin/koncli", "barrier", "create", barrierName, "--expected", "2", "--timeout", "2m", "-n", namespace)
+	cmd := exec.Command(cliPath, "barrier", "create", barrierName, "--expected", "2", "--timeout", "2m", "-n", namespace)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to create barrier: %v, output: %s", err, string(output))
@@ -63,13 +81,13 @@ func TestE2EBarrier(t *testing.T) {
 	}
 
 	// Arrive at barrier using CLI
-	cmd = exec.Command("../bin/koncli", "barrier", "arrive", barrierName, "worker-1", "-n", namespace)
+	cmd = exec.Command(cliPath, "barrier", "arrive", barrierName, "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to arrive at barrier: %v, output: %s", err, string(output))
 	}
 
-	cmd = exec.Command("../bin/koncli", "barrier", "arrive", barrierName, "worker-2", "--wait-for-update", "-n", namespace)
+	cmd = exec.Command(cliPath, "barrier", "arrive", barrierName, "worker-2", "--wait-for-update", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to arrive at barrier: %v, output: %s", err, string(output))
@@ -87,7 +105,7 @@ func TestE2EBarrier(t *testing.T) {
 	}
 
 	// Cleanup
-	cmd = exec.Command("../bin/koncli", "barrier", "delete", barrierName, "-n", namespace)
+	cmd = exec.Command(cliPath, "barrier", "delete", barrierName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		// Don't fail if barrier doesn't exist (might have been auto-deleted)

@@ -23,6 +23,9 @@ type Mutex struct {
 }
 
 func (m *Mutex) Unlock(ctx context.Context) error {
+	if m.holder == "" {
+		return fmt.Errorf("holder cannot be empty")
+	}
 	return m.client.RetryWithBackoff(ctx, func() error {
 		var mutex syncv1.Mutex
 		if err := m.client.K8sClient().Get(ctx, types.NamespacedName{
@@ -181,28 +184,32 @@ func TryLock(c *konductor.Client, ctx context.Context, name string, opts ...kond
 		}
 	}
 
-	var m syncv1.Mutex
-	if err := c.K8sClient().Get(ctx, types.NamespacedName{
-		Name: name, Namespace: c.Namespace(),
-	}, &m); err != nil {
-		return nil, fmt.Errorf("failed to get mutex: %w", err)
-	}
+	err := c.RetryWithBackoff(ctx, func() error {
+		var m syncv1.Mutex
+		if err := c.K8sClient().Get(ctx, types.NamespacedName{
+			Name: name, Namespace: c.Namespace(),
+		}, &m); err != nil {
+			return err
+		}
 
-	if m.Status.Phase == syncv1.MutexPhaseLocked && m.Status.Holder != "" {
-		return nil, fmt.Errorf("mutex already locked by %s", m.Status.Holder)
-	}
+		if m.Status.Phase == syncv1.MutexPhaseLocked && m.Status.Holder != "" {
+			return fmt.Errorf("mutex already locked by %s", m.Status.Holder)
+		}
 
-	m.Status.Phase = syncv1.MutexPhaseLocked
-	m.Status.Holder = holder
-	lockedAt := metav1.Now()
-	m.Status.LockedAt = &lockedAt
+		m.Status.Phase = syncv1.MutexPhaseLocked
+		m.Status.Holder = holder
+		lockedAt := metav1.Now()
+		m.Status.LockedAt = &lockedAt
 
-	if m.Spec.TTL != nil {
-		expiresAt := metav1.NewTime(time.Now().Add(m.Spec.TTL.Duration))
-		m.Status.ExpiresAt = &expiresAt
-	}
+		if m.Spec.TTL != nil {
+			expiresAt := metav1.NewTime(time.Now().Add(m.Spec.TTL.Duration))
+			m.Status.ExpiresAt = &expiresAt
+		}
 
-	if err := c.K8sClient().Status().Update(ctx, &m); err != nil {
+		return c.K8sClient().Status().Update(ctx, &m)
+	}, &konductor.WaitConfig{InitialDelay: 50 * time.Millisecond, MaxDelay: 100 * time.Millisecond, Timeout: options.Timeout})
+
+	if err != nil {
 		if errors.IsConflict(err) {
 			return nil, fmt.Errorf("mutex locked by another process")
 		}
@@ -218,7 +225,9 @@ func With(c *konductor.Client, ctx context.Context, name string, fn func() error
 		return err
 	}
 	defer func() {
-		if unlockErr := mutex.Unlock(ctx); unlockErr != nil {
+		unlockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if unlockErr := mutex.Unlock(unlockCtx); unlockErr != nil {
 			if err == nil {
 				err = fmt.Errorf("function succeeded but failed to unlock mutex: %w", unlockErr)
 			}

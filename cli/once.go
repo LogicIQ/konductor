@@ -35,14 +35,20 @@ func createOnceClient() (*konductor.Client, error) {
 }
 
 func newOnceCheckCmd() *cobra.Command {
+	var timeout time.Duration
+
 	cmd := &cobra.Command{
 		Use:   "check <once-name>",
 		Short: "Check if once has been executed",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
+			ctx := cmd.Context()
+			if timeout > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, timeout)
+				defer cancel()
+			}
 
 			client, err := createOnceClient()
 			if err != nil {
@@ -64,16 +70,24 @@ func newOnceCheckCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for operation")
+
 	return cmd
 }
 
 func newOnceListCmd() *cobra.Command {
+	var timeout time.Duration
+
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all onces",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
+			ctx := cmd.Context()
+			if timeout > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, timeout)
+				defer cancel()
+			}
 
 			client, err := createOnceClient()
 			if err != nil {
@@ -114,11 +128,16 @@ func newOnceListCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for operation")
+
 	return cmd
 }
 
 func newOnceCreateCmd() *cobra.Command {
-	var ttl time.Duration
+	var (
+		ttl     time.Duration
+		timeout time.Duration
+	)
 
 	cmd := &cobra.Command{
 		Use:   "create <once-name>",
@@ -126,8 +145,12 @@ func newOnceCreateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
+			ctx := cmd.Context()
+			if timeout > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, timeout)
+				defer cancel()
+			}
 
 			client, err := createOnceClient()
 			if err != nil {
@@ -148,19 +171,26 @@ func newOnceCreateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().DurationVar(&ttl, "ttl", 0, "Optional TTL for cleanup")
+	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for operation")
 
 	return cmd
 }
 
 func newOnceDeleteCmd() *cobra.Command {
+	var timeout time.Duration
+
 	cmd := &cobra.Command{
 		Use:   "delete <once-name>",
 		Short: "Delete a once",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
+			ctx := cmd.Context()
+			if timeout > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, timeout)
+				defer cancel()
+			}
 
 			client, err := createOnceClient()
 			if err != nil {
@@ -175,6 +205,8 @@ func newOnceDeleteCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout for operation")
 
 	return cmd
 }

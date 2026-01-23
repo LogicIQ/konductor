@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -18,20 +17,21 @@ func newWaitGroupCmd() *cobra.Command {
 		Long:  "Coordinate dynamic number of workers",
 	}
 
-	// Create shared client for all waitgroup commands
-	client := konductor.NewFromClient(k8sClient, namespace)
-
-	cmd.AddCommand(newWaitGroupCreateCmd(client))
-	cmd.AddCommand(newWaitGroupDeleteCmd(client))
-	cmd.AddCommand(newWaitGroupAddCmd(client))
-	cmd.AddCommand(newWaitGroupDoneCmd(client))
-	cmd.AddCommand(newWaitGroupWaitCmd(client))
-	cmd.AddCommand(newWaitGroupListCmd(client))
+	cmd.AddCommand(newWaitGroupCreateCmd())
+	cmd.AddCommand(newWaitGroupDeleteCmd())
+	cmd.AddCommand(newWaitGroupAddCmd())
+	cmd.AddCommand(newWaitGroupDoneCmd())
+	cmd.AddCommand(newWaitGroupWaitCmd())
+	cmd.AddCommand(newWaitGroupListCmd())
 
 	return cmd
 }
 
-func newWaitGroupAddCmd(client *konductor.Client) *cobra.Command {
+func createWaitGroupClient() *konductor.Client {
+	return konductor.NewFromClient(k8sClient, namespace)
+}
+
+func newWaitGroupAddCmd() *cobra.Command {
 	var delta int32
 
 	cmd := &cobra.Command{
@@ -40,8 +40,9 @@ func newWaitGroupAddCmd(client *konductor.Client) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
+			client := createWaitGroupClient()
 			if err := waitgroup.Add(client, ctx, name, delta); err != nil {
 				logger.Error("Failed to add to waitgroup", zap.Error(err))
 				return err
@@ -57,15 +58,16 @@ func newWaitGroupAddCmd(client *konductor.Client) *cobra.Command {
 	return cmd
 }
 
-func newWaitGroupDoneCmd(client *konductor.Client) *cobra.Command {
+func newWaitGroupDoneCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "done <waitgroup-name>",
 		Short: "Decrement waitgroup counter",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
+			client := createWaitGroupClient()
 			if err := waitgroup.Done(client, ctx, name); err != nil {
 				logger.Error("Failed to call done on waitgroup", zap.Error(err))
 				return err
@@ -79,7 +81,7 @@ func newWaitGroupDoneCmd(client *konductor.Client) *cobra.Command {
 	return cmd
 }
 
-func newWaitGroupWaitCmd(client *konductor.Client) *cobra.Command {
+func newWaitGroupWaitCmd() *cobra.Command {
 	var timeout time.Duration
 
 	cmd := &cobra.Command{
@@ -88,13 +90,14 @@ func newWaitGroupWaitCmd(client *konductor.Client) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			var opts []konductor.Option
 			if timeout > 0 {
 				opts = append(opts, konductor.WithTimeout(timeout))
 			}
 
+			client := createWaitGroupClient()
 			if err := waitgroup.Wait(client, ctx, name, opts...); err != nil {
 				logger.Error("Failed to wait for waitgroup", zap.Error(err))
 				return err
@@ -110,13 +113,14 @@ func newWaitGroupWaitCmd(client *konductor.Client) *cobra.Command {
 	return cmd
 }
 
-func newWaitGroupListCmd(client *konductor.Client) *cobra.Command {
+func newWaitGroupListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all waitgroups",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := cmd.Context()
 
+			client := createWaitGroupClient()
 			wgs, err := waitgroup.List(client, ctx)
 			if err != nil {
 				logger.Error("Failed to list waitgroups", zap.Error(err))
@@ -143,7 +147,7 @@ func newWaitGroupListCmd(client *konductor.Client) *cobra.Command {
 	return cmd
 }
 
-func newWaitGroupCreateCmd(client *konductor.Client) *cobra.Command {
+func newWaitGroupCreateCmd() *cobra.Command {
 	var ttl time.Duration
 
 	cmd := &cobra.Command{
@@ -152,12 +156,13 @@ func newWaitGroupCreateCmd(client *konductor.Client) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			var opts []konductor.Option
 			if ttl > 0 {
 				opts = append(opts, konductor.WithTTL(ttl))
 			}
+			client := createWaitGroupClient()
 			if err := waitgroup.Create(client, ctx, name, opts...); err != nil {
 				logger.Error("Failed to create waitgroup", zap.Error(err))
 				return err
@@ -173,15 +178,16 @@ func newWaitGroupCreateCmd(client *konductor.Client) *cobra.Command {
 	return cmd
 }
 
-func newWaitGroupDeleteCmd(client *konductor.Client) *cobra.Command {
+func newWaitGroupDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <waitgroup-name>",
 		Short: "Delete a waitgroup",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
+			client := createWaitGroupClient()
 			if err := waitgroup.Delete(client, ctx, name); err != nil {
 				logger.Error("Failed to delete waitgroup", zap.Error(err))
 				return err

@@ -125,7 +125,8 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 		return nil, fmt.Errorf("lease request denied for %s", name)
 	}
 
-	leaseCtx, cancelCtx := context.WithCancel(context.Background())
+	// Create a context for the lease that can be cancelled on Release
+	leaseCtx, cancelCtx := context.WithCancel(ctx)
 	return &Lease{
 		client:    c,
 		name:      name,
@@ -141,13 +142,19 @@ func With(c *konductor.Client, ctx context.Context, name string, fn func() error
 	if err != nil {
 		return err
 	}
-	defer lease.Release(ctx)
+	defer func() {
+		if releaseErr := lease.Release(ctx); releaseErr != nil {
+			if err == nil {
+				err = fmt.Errorf("failed to release lease: %w", releaseErr)
+			}
+		}
+	}()
 
 	return fn()
 }
 
 func TryAcquire(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) (*Lease, error) {
-	opts = append(opts, konductor.WithTimeout(1*time.Second))
+	opts = append([]konductor.Option{konductor.WithTimeout(1 * time.Second)}, opts...)
 	return Acquire(c, ctx, name, opts...)
 }
 

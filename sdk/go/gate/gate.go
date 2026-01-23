@@ -100,6 +100,8 @@ func WaitForConditions(c *konductor.Client, ctx context.Context, name string, co
 	}
 
 	startTime := time.Now()
+	delay := 1 * time.Second
+	maxDelay := 10 * time.Second
 
 	for {
 		conditions, err := GetConditions(c, ctx, name)
@@ -132,7 +134,11 @@ func WaitForConditions(c *konductor.Client, ctx context.Context, name string, co
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(10 * time.Second):
+		case <-time.After(delay):
+			delay = time.Duration(float64(delay) * 1.5)
+			if delay > maxDelay {
+				delay = maxDelay
+			}
 		}
 	}
 }

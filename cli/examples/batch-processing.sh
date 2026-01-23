@@ -10,7 +10,12 @@ HOLDER="$HOSTNAME-$$"
 ERROR_FILE="/tmp/batch-errors-$$"
 
 # Create semaphore for concurrency control
-koncli semaphore create "$SEMAPHORE_NAME" --permits "$MAX_CONCURRENT" 2>/dev/null || true
+if ! output=$(koncli semaphore create "$SEMAPHORE_NAME" --permits "$MAX_CONCURRENT" 2>&1); then
+    if [[ ! "$output" =~ "already exists" ]]; then
+        echo "✗ Failed to create semaphore: $output" >&2
+        exit 1
+    fi
+fi
 
 # Sample items to process
 ITEMS=(item1 item2 item3 item4 item5 item6 item7 item8 item9 item10)
@@ -60,7 +65,7 @@ fi
 
 # Check for errors
 if [[ -f "$ERROR_FILE" ]]; then
-    echo "✗ Processing failed for items: $(cat "$ERROR_FILE" | tr '\n' ' ')" >&2
+    echo "✗ Processing failed for items: $(tr '\n' ' ' < "$ERROR_FILE")" >&2
     rm -f "$ERROR_FILE"
     exit 1
 fi

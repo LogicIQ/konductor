@@ -26,6 +26,7 @@ type MutexStatus struct {
 	ExpiresAt *metav1.Time `json:"expiresAt,omitempty"`
 
 	// Phase represents the current state of the mutex
+	// +kubebuilder:validation:Enum=Unlocked;Locked
 	Phase MutexPhase `json:"phase"`
 
 	// Conditions represent the latest available observations

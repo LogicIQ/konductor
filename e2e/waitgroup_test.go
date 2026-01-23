@@ -15,6 +15,14 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
+func waitForWaitGroupReady(k8sClient client.Client, wgName, namespace string) error {
+	return wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
+		wg := &syncv1.WaitGroup{}
+		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: wgName, Namespace: namespace}, wg)
+		return err == nil, nil
+	})
+}
+
 func TestE2EWaitGroup(t *testing.T) {
 	k8sClient, err := setupClient()
 	if err != nil {
@@ -34,12 +42,7 @@ func TestE2EWaitGroup(t *testing.T) {
 	t.Logf("Created waitgroup: %s", string(output))
 
 	// Wait for waitgroup to be ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
-		wg := &syncv1.WaitGroup{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: wgName, Namespace: namespace}, wg)
-		return err == nil, nil
-	})
-	if err != nil {
+	if err := waitForWaitGroupReady(k8sClient, wgName, namespace); err != nil {
 		t.Fatalf("WaitGroup was not ready: %v", err)
 	}
 
@@ -94,12 +97,7 @@ func TestE2EWaitGroupList(t *testing.T) {
 	}
 
 	// Wait for ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
-		wg := &syncv1.WaitGroup{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: wgName, Namespace: namespace}, wg)
-		return err == nil, nil
-	})
-	if err != nil {
+	if err := waitForWaitGroupReady(k8sClient, wgName, namespace); err != nil {
 		t.Fatalf("WaitGroup was not ready: %v", err)
 	}
 

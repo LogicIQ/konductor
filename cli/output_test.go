@@ -12,9 +12,14 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
-func TestOutputFormat_Text(t *testing.T) {
+func setupOutputTestScheme(t *testing.T) *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
+	return scheme
+}
+
+func TestOutputFormat_Text(t *testing.T) {
+	scheme := setupOutputTestScheme(t)
 
 	semaphore := &syncv1.Semaphore{
 		ObjectMeta: metav1.ObjectMeta{
@@ -48,8 +53,7 @@ func TestOutputFormat_Text(t *testing.T) {
 }
 
 func TestOutputFormat_JSON(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupOutputTestScheme(t)
 
 	semaphore := &syncv1.Semaphore{
 		ObjectMeta: metav1.ObjectMeta{
@@ -87,8 +91,7 @@ func TestOutputFormat_JSON(t *testing.T) {
 }
 
 func TestOutputFormat_Default(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	scheme := setupOutputTestScheme(t)
 
 	k8sClient = fake.NewClientBuilder().
 		WithScheme(scheme).

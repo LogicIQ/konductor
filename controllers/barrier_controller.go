@@ -51,6 +51,7 @@ func (r *BarrierReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	log.Info("Found arrivals", "count", len(arrivals.Items), "barrier", barrier.Name)
 
+	oldArrived := barrier.Status.Arrived
 	barrier.Status.Arrived = int32(len(arrivals.Items))
 	barrier.Status.Arrivals = make([]string, len(arrivals.Items))
 	for i, arrival := range arrivals.Items {
@@ -79,7 +80,7 @@ func (r *BarrierReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		newPhase = syncv1.BarrierPhaseWaiting
 	}
 
-	if barrier.Status.Phase != newPhase {
+	if barrier.Status.Phase != newPhase || oldArrived != barrier.Status.Arrived {
 		barrier.Status.Phase = newPhase
 		if err := r.Status().Update(ctx, &barrier); err != nil {
 			log.Error(err, "unable to update Barrier status")

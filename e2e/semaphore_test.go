@@ -15,6 +15,8 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
+var cliPath = "../bin/koncli"
+
 func TestE2ESemaphore(t *testing.T) {
 	k8sClient, err := setupClient()
 	if err != nil {
@@ -22,7 +24,7 @@ func TestE2ESemaphore(t *testing.T) {
 	}
 
 	// Check operator status first
-	statusCmd := exec.Command("../bin/koncli", "operator", "--operator-namespace", "konductor-system")
+	statusCmd := exec.Command(cliPath, "operator", "--operator-namespace", "konductor-system")
 	statusOutput, statusErr := statusCmd.CombinedOutput()
 	if statusErr != nil {
 		t.Logf("Operator status check failed: %v, output: %s", statusErr, string(statusOutput))
@@ -34,7 +36,7 @@ func TestE2ESemaphore(t *testing.T) {
 	semaphoreName := fmt.Sprintf("e2e-test-semaphore-%d", time.Now().Unix())
 
 	// Create semaphore using CLI
-	cmd := exec.Command("../bin/koncli", "semaphore", "create", semaphoreName, "--permits", "3", "--ttl", "5m", "-n", namespace)
+	cmd := exec.Command(cliPath, "semaphore", "create", semaphoreName, "--permits", "3", "--ttl", "5m", "-n", namespace)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to create semaphore: %v, output: %s", err, string(output))
@@ -54,13 +56,13 @@ func TestE2ESemaphore(t *testing.T) {
 	}
 
 	// Acquire permits using CLI
-	cmd = exec.Command("../bin/koncli", "semaphore", "acquire", semaphoreName, "--holder", "worker-1", "--ttl", "2m", "-n", namespace)
+	cmd = exec.Command(cliPath, "semaphore", "acquire", semaphoreName, "--holder", "worker-1", "--ttl", "2m", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to acquire permit: %v, output: %s", err, string(output))
 	}
 
-	cmd = exec.Command("../bin/koncli", "semaphore", "acquire", semaphoreName, "--holder", "worker-2", "--ttl", "2m", "--wait-for-update", "-n", namespace)
+	cmd = exec.Command(cliPath, "semaphore", "acquire", semaphoreName, "--holder", "worker-2", "--ttl", "2m", "--wait-for-update", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to acquire permit: %v, output: %s", err, string(output))
@@ -86,14 +88,14 @@ func TestE2ESemaphore(t *testing.T) {
 	}
 
 	// Release permit using CLI
-	cmd = exec.Command("../bin/koncli", "semaphore", "release", semaphoreName, "--holder", "worker-1", "-n", namespace)
+	cmd = exec.Command(cliPath, "semaphore", "release", semaphoreName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to release permit: %v, output: %s", err, string(output))
 	}
 
 	// Cleanup
-	cmd = exec.Command("../bin/koncli", "semaphore", "delete", semaphoreName, "-n", namespace)
+	cmd = exec.Command(cliPath, "semaphore", "delete", semaphoreName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to delete semaphore: %v, output: %s", err, string(output))

@@ -1,9 +1,6 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -30,16 +27,6 @@ func newRWMutexCmd() *cobra.Command {
 	return cmd
 }
 
-func validateHolder(holder string) (string, error) {
-	if holder == "" {
-		holder = os.Getenv("HOSTNAME")
-		if holder == "" {
-			return "", errors.New("holder must be specified or HOSTNAME must be set")
-		}
-	}
-	return holder, nil
-}
-
 func newRWMutexRLockCmd() *cobra.Command {
 	var (
 		timeout time.Duration
@@ -52,7 +39,7 @@ func newRWMutexRLockCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			var err error
 			holder, err = validateHolder(holder)
@@ -97,7 +84,7 @@ func newRWMutexLockCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			var err error
 			holder, err = validateHolder(holder)
@@ -139,7 +126,7 @@ func newRWMutexUnlockCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			var err error
 			holder, err = validateHolder(holder)
@@ -149,50 +136,11 @@ func newRWMutexUnlockCmd() *cobra.Command {
 
 			client := konductor.NewFromClient(k8sClient, namespace)
 
-			m, err := rwmutex.Get(client, ctx, name)
-			if err != nil {
-				return err
-			}
-
-			isReader := false
-			for _, h := range m.Status.ReadHolders {
-				if h == holder {
-					isReader = true
-					break
-				}
-			}
-
-			if !isReader && m.Status.WriteHolder != holder {
-				return errors.New("cannot unlock: not a holder")
-			}
-
-			rwm := &rwmutex.RWMutex{}
-			if isReader {
-				holders := []string{}
-				for _, h := range m.Status.ReadHolders {
-					if h != holder {
-						holders = append(holders, h)
-					}
-				}
-				m.Status.ReadHolders = holders
-				if len(holders) == 0 {
-					m.Status.Phase = "Unlocked"
-					m.Status.LockedAt = nil
-					m.Status.ExpiresAt = nil
-				}
-			} else {
-				m.Status.Phase = "Unlocked"
-				m.Status.WriteHolder = ""
-				m.Status.LockedAt = nil
-				m.Status.ExpiresAt = nil
-			}
-
-			if err := client.K8sClient().Status().Update(ctx, m); err != nil {
+			if err := rwmutex.Unlock(client, ctx, name, holder); err != nil {
 				return err
 			}
 
 			logger.Info("Released lock", zap.String("rwmutex", name), zap.String("holder", holder))
-			_ = rwm
 			return nil
 		},
 	}
@@ -207,7 +155,7 @@ func newRWMutexListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all rwmutexes",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := konductor.NewFromClient(k8sClient, namespace)
 
@@ -257,7 +205,7 @@ func newRWMutexCreateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := konductor.NewFromClient(k8sClient, namespace)
 
@@ -286,7 +234,7 @@ func newRWMutexDeleteCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := konductor.NewFromClient(k8sClient, namespace)
 

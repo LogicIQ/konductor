@@ -15,6 +15,16 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
+func waitForMutexReady(k8sClient client.Client, mutexName, namespace string) error {
+	return wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		mutex := &syncv1.Mutex{}
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: mutexName, Namespace: namespace}, mutex)
+		return err == nil, nil
+	})
+}
+
 func TestE2EMutex(t *testing.T) {
 	k8sClient, err := setupClient()
 	if err != nil {
@@ -34,17 +44,7 @@ func TestE2EMutex(t *testing.T) {
 	t.Logf("Created mutex: %s", string(output))
 
 	// Wait for mutex to be ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
-		mutex := &syncv1.Mutex{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: mutexName, Namespace: namespace}, mutex)
-		if err != nil {
-			t.Logf("Waiting for mutex %s: %v", mutexName, err)
-			return false, nil
-		}
-		t.Logf("Mutex %s found with status: %+v", mutexName, mutex.Status)
-		return true, nil
-	})
-	if err != nil {
+	if err := waitForMutexReady(k8sClient, mutexName, namespace); err != nil {
 		t.Fatalf("Mutex was not ready: %v", err)
 	}
 
@@ -124,15 +124,7 @@ func TestE2EMutexWithTTL(t *testing.T) {
 	t.Logf("Created mutex with TTL: %s", string(output))
 
 	// Wait for mutex to be ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
-		mutex := &syncv1.Mutex{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: mutexName, Namespace: namespace}, mutex)
-		if err != nil {
-			return false, nil
-		}
-		return true, nil
-	})
-	if err != nil {
+	if err := waitForMutexReady(k8sClient, mutexName, namespace); err != nil {
 		t.Fatalf("Mutex was not ready: %v", err)
 	}
 
@@ -197,16 +189,9 @@ func TestE2EMutexConcurrency(t *testing.T) {
 	}
 
 	// Wait for mutex to be ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
-		mutex := &syncv1.Mutex{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: mutexName, Namespace: namespace}, mutex)
-		return err == nil, nil
-	})
-	if err != nil {
+	if err := waitForMutexReady(k8sClient, mutexName, namespace); err != nil {
 		t.Fatalf("Mutex was not ready: %v", err)
 	}
-
-	// Worker 1 locks the mutex
 	cmd = exec.Command(getKoncliPath(), "mutex", "lock", mutexName, "--holder", "worker-1", "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
@@ -258,7 +243,9 @@ func TestE2EMutexConcurrency(t *testing.T) {
 
 	// Cleanup
 	cmd = exec.Command(getKoncliPath(), "mutex", "unlock", mutexName, "--holder", "worker-2", "-n", namespace)
-	cmd.CombinedOutput()
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Logf("Cleanup unlock failed: %v, output: %s", err, string(output))
+	}
 
 	cmd = exec.Command(getKoncliPath(), "mutex", "delete", mutexName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
@@ -284,12 +271,7 @@ func TestE2EMutexList(t *testing.T) {
 	}
 
 	// Wait for mutex to be ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
-		mutex := &syncv1.Mutex{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: mutexName, Namespace: namespace}, mutex)
-		return err == nil, nil
-	})
-	if err != nil {
+	if err := waitForMutexReady(k8sClient, mutexName, namespace); err != nil {
 		t.Fatalf("Mutex was not ready: %v", err)
 	}
 

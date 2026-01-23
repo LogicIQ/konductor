@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -25,6 +26,7 @@ func setupTestClient(t *testing.T, objects ...runtime.Object) {
 		WithRuntimeObjects(objects...).
 		Build()
 	namespace = "default"
+	logger, _ = zap.NewDevelopment()
 }
 
 func TestBarrierWaitCmd_Open(t *testing.T) {
@@ -47,7 +49,7 @@ func TestBarrierWaitCmd_Open(t *testing.T) {
 	cmd := newBarrierWaitCmd()
 	cmd.SetArgs([]string{"test-barrier"})
 
-	_, err := executeCommandWithOutput(t, cmd)
+	err := cmd.Execute()
 	require.NoError(t, err)
 }
 
@@ -96,7 +98,7 @@ func TestBarrierArriveCmd(t *testing.T) {
 	cmd := newBarrierArriveCmd()
 	cmd.SetArgs([]string{"test-barrier", "--holder", "test-holder"})
 
-	_, err := executeCommandWithOutput(t, cmd)
+	err := cmd.Execute()
 	require.NoError(t, err)
 }
 
@@ -135,7 +137,7 @@ func TestBarrierListCmd(t *testing.T) {
 
 	cmd := newBarrierListCmd()
 
-	_, err := executeCommandWithOutput(t, cmd)
+	err := cmd.Execute()
 	require.NoError(t, err)
 }
 
@@ -164,9 +166,8 @@ func TestBarrierCmd_DefaultHolder(t *testing.T) {
 	cmd := newBarrierArriveCmd()
 	cmd.SetArgs([]string{"test-barrier"})
 
-	output, err := executeCommandWithOutput(t, cmd)
+	err := cmd.Execute()
 	require.NoError(t, err)
-	_ = output // Remove holder assertion since it's not in output
 }
 
 func TestBarrierCreateCmd(t *testing.T) {
@@ -175,7 +176,7 @@ func TestBarrierCreateCmd(t *testing.T) {
 	cmd := newBarrierCreateCmd()
 	cmd.SetArgs([]string{"test-barrier", "--expected", "5"})
 
-	_, err := executeCommandWithOutput(t, cmd)
+	err := cmd.Execute()
 	require.NoError(t, err)
 }
 
@@ -192,6 +193,6 @@ func TestBarrierDeleteCmd(t *testing.T) {
 	cmd := newBarrierDeleteCmd()
 	cmd.SetArgs([]string{"test-barrier"})
 
-	_, err := executeCommandWithOutput(t, cmd)
+	err := cmd.Execute()
 	require.NoError(t, err)
 }

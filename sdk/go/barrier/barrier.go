@@ -14,6 +14,10 @@ import (
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
+func wrapError(operation, name string, err error) error {
+	return fmt.Errorf("failed to %s barrier %s: %w", operation, name, err)
+}
+
 func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konductor.Option) error {
 	options := &konductor.Options{Timeout: 0}
 	for _, opt := range opts {
@@ -57,7 +61,7 @@ func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	if err := c.K8sClient().Get(ctx, types.NamespacedName{
 		Name: name, Namespace: c.Namespace(),
 	}, &finalBarrier); err != nil {
-		return fmt.Errorf("failed to get barrier %s: %w", name, err)
+		return wrapError("get", name, err)
 	}
 
 	if finalBarrier.Status.Phase == syncv1.BarrierPhaseFailed {
@@ -87,7 +91,7 @@ func Arrive(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 	if err := c.K8sClient().Get(ctx, types.NamespacedName{
 		Name: name, Namespace: c.Namespace(),
 	}, &barrier); err != nil {
-		return fmt.Errorf("failed to get barrier %s: %w", name, err)
+		return wrapError("get", name, err)
 	}
 
 	// Create arrival
@@ -158,7 +162,7 @@ func Get(c *konductor.Client, ctx context.Context, name string) (*syncv1.Barrier
 		Name:      name,
 		Namespace: c.Namespace(),
 	}, &barrier); err != nil {
-		return nil, fmt.Errorf("failed to get barrier %s: %w", name, err)
+		return nil, wrapError("get", name, err)
 	}
 	return &barrier, nil
 }
@@ -196,7 +200,7 @@ func Create(c *konductor.Client, ctx context.Context, name string, expected int3
 	}
 
 	if err := c.K8sClient().Create(ctx, barrier); err != nil {
-		return fmt.Errorf("failed to create barrier %s: %w", name, err)
+		return wrapError("create", name, err)
 	}
 	return nil
 }
@@ -209,14 +213,14 @@ func Delete(c *konductor.Client, ctx context.Context, name string) error {
 		},
 	}
 	if err := c.K8sClient().Delete(ctx, barrier); err != nil {
-		return fmt.Errorf("failed to delete barrier %s: %w", name, err)
+		return wrapError("delete", name, err)
 	}
 	return nil
 }
 
 func Update(c *konductor.Client, ctx context.Context, barrier *syncv1.Barrier) error {
 	if err := c.K8sClient().Update(ctx, barrier); err != nil {
-		return fmt.Errorf("failed to update barrier %s: %w", barrier.Name, err)
+		return wrapError("update", barrier.Name, err)
 	}
 	return nil
 }

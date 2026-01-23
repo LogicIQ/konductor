@@ -19,13 +19,18 @@ spec:
       containers:
       - name: reader
         image: my-app:latest
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         command:
         - /bin/sh
         - -c
         - |
-          if koncli rwmutex rlock cache-lock --holder $HOSTNAME --timeout 30s; then
+          if koncli rwmutex rlock cache-lock --holder $POD_NAME --timeout 30s; then
             read-from-cache
-            koncli rwmutex unlock cache-lock --holder $HOSTNAME
+            koncli rwmutex unlock cache-lock --holder $POD_NAME
           fi
 ---
 apiVersion: batch/v1
@@ -38,12 +43,17 @@ spec:
       containers:
       - name: writer
         image: my-app:latest
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
         command:
         - /bin/sh
         - -c
         - |
-          if koncli rwmutex lock cache-lock --holder $HOSTNAME --timeout 1m; then
+          if koncli rwmutex lock cache-lock --holder $POD_NAME --timeout 1m; then
             update-cache
-            koncli rwmutex unlock cache-lock --holder $HOSTNAME
+            koncli rwmutex unlock cache-lock --holder $POD_NAME
           fi
 ```

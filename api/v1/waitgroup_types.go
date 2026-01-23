@@ -5,6 +5,7 @@ import (
 )
 
 // WaitGroupSpec defines the desired state of WaitGroup
+// +kubebuilder:validation:XValidation:rule="!has(self.ttl) || self.ttl.matches('^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$')",message="ttl must be a valid duration (e.g., 30s, 5m, 1h)"
 type WaitGroupSpec struct {
 	// TTL is the optional time-to-live for cleanup
 	// +optional
@@ -14,6 +15,7 @@ type WaitGroupSpec struct {
 // WaitGroupStatus defines the observed state of WaitGroup
 type WaitGroupStatus struct {
 	// Counter is the current count
+	// +kubebuilder:validation:Minimum=0
 	Counter int32 `json:"counter"`
 
 	// Phase represents the current state

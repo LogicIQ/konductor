@@ -5,6 +5,7 @@ import (
 )
 
 // LeaseSpec defines the desired state of Lease
+// +kubebuilder:validation:XValidation:rule="!has(self.ttl) || self.ttl.matches('^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$')",message="ttl must be a valid duration (e.g., 30s, 5m, 1h)"
 type LeaseSpec struct {
 	// TTL is the time-to-live for the lease
 	// +optional

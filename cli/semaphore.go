@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"os"
 	"time"
@@ -48,7 +47,7 @@ func newSemaphoreAcquireCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			semaphoreName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createSemaphoreClient()
 
@@ -72,7 +71,11 @@ func newSemaphoreAcquireCmd() *cobra.Command {
 
 			// Wait for controller to process if requested
 			if waitDuration > 0 {
-				time.Sleep(waitDuration)
+				select {
+				case <-time.After(waitDuration):
+				case <-ctx.Done():
+					return ctx.Err()
+				}
 			}
 
 			logger.Info("Acquired permit for semaphore", zap.String("semaphore", semaphoreName), zap.String("holder", permit.Holder()))
@@ -97,7 +100,7 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			semaphoreName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			if holder == "" {
 				holder = os.Getenv("HOSTNAME")
@@ -123,12 +126,10 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 			}
 
 			if permitToDelete == nil {
-				logger.Error("No permit found", zap.String("holder", holder))
-				return errors.New("no permit found for holder")
+				return errors.New("no permit found for holder: " + holder)
 			}
 
 			if err := client.K8sClient().Delete(ctx, permitToDelete); err != nil {
-				logger.Error("Failed to delete permit", zap.Error(err))
 				return err
 			}
 
@@ -147,7 +148,7 @@ func newSemaphoreListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all semaphores",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createSemaphoreClient()
 
@@ -195,7 +196,7 @@ func newSemaphoreCreateCmd() *cobra.Command {
 			}
 
 			semaphoreName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createSemaphoreClient()
 
@@ -225,12 +226,11 @@ func newSemaphoreDeleteCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			semaphoreName := args[0]
-			ctx := context.Background()
+			ctx := cmd.Context()
 
 			client := createSemaphoreClient()
 
 			if err := semaphore.Delete(client, ctx, semaphoreName); err != nil {
-				logger.Error("Failed to delete semaphore", zap.String("semaphore", semaphoreName), zap.Error(err))
 				return err
 			}
 

@@ -53,11 +53,11 @@ func execute() error {
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "text", "Output format (text, json)")
 
-	// Bind flags to viper
-	viper.BindPFlag("kubeconfig", rootCmd.PersistentFlags().Lookup("kubeconfig"))
-	viper.BindPFlag("namespace", rootCmd.PersistentFlags().Lookup("namespace"))
-	viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
-	viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
+	// Bind flags to viper - errors only occur if flag doesn't exist, which can't happen here
+	_ = viper.BindPFlag("kubeconfig", rootCmd.PersistentFlags().Lookup("kubeconfig"))
+	_ = viper.BindPFlag("namespace", rootCmd.PersistentFlags().Lookup("namespace"))
+	_ = viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
+	_ = viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
 
 	// Set up viper
 	viper.SetConfigName("koncli")
@@ -67,8 +67,8 @@ func execute() error {
 	viper.SetEnvPrefix("KONCLI")
 	viper.AutomaticEnv()
 
-	// Read config file if it exists
-	viper.ReadInConfig()
+	// Read config file if it exists (ignore error if file not found)
+	_ = viper.ReadInConfig()
 
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newOperatorCmd())
@@ -90,7 +90,10 @@ func execute() error {
 	}
 
 	if logger != nil {
-		logger.Sync()
+		if err := logger.Sync(); err != nil {
+			// Ignore sync errors on stdout/stderr (common on some platforms)
+			return nil
+		}
 	}
 	return nil
 }

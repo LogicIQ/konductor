@@ -108,45 +108,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupController(mgr, &controllers.SemaphoreReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}, "Semaphore", logger)
+	controllers := []struct {
+		reconciler reconciler
+		name       string
+	}{
+		{&controllers.SemaphoreReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}, "Semaphore"},
+		{&controllers.BarrierReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}, "Barrier"},
+		{&controllers.LeaseReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}, "Lease"},
+		{&controllers.GateReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}, "Gate"},
+		{&controllers.MutexReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}, "Mutex"},
+		{&controllers.RWMutexReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}, "RWMutex"},
+		{&controllers.OnceReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}, "Once"},
+		{&controllers.WaitGroupReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}, "WaitGroup"},
+	}
 
-	setupController(mgr, &controllers.BarrierReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}, "Barrier", logger)
-
-	setupController(mgr, &controllers.LeaseReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}, "Lease", logger)
-
-	setupController(mgr, &controllers.GateReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}, "Gate", logger)
-
-	setupController(mgr, &controllers.MutexReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}, "Mutex", logger)
-
-	setupController(mgr, &controllers.RWMutexReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}, "RWMutex", logger)
-
-	setupController(mgr, &controllers.OnceReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}, "Once", logger)
-
-	setupController(mgr, &controllers.WaitGroupReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}, "WaitGroup", logger)
+	for _, c := range controllers {
+		setupController(mgr, c.reconciler, c.name, logger)
+	}
 
 	//+kubebuilder:scaffold:builder
 
