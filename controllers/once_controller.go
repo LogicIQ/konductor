@@ -47,6 +47,19 @@ func (r *OnceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
+	// Check TTL expiration
+	if once.Spec.TTL != nil {
+		expirationTime := once.CreationTimestamp.Add(once.Spec.TTL.Duration)
+		if time.Now().After(expirationTime) {
+			if err := r.Delete(ctx, &once); err != nil {
+				log.Error(err, "unable to delete expired Once")
+				return ctrl.Result{RequeueAfter: time.Second}, err
+			}
+			log.Info("Deleted expired Once", "name", once.Name)
+			return ctrl.Result{}, nil
+		}
+	}
+
 	// If already executed, ensure phase is correct
 	if once.Status.Executed {
 		if once.Status.Phase != syncv1.OncePhaseExecuted {

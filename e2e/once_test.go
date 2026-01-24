@@ -19,11 +19,11 @@ func createOnce(t *testing.T, name, namespace string, extraArgs ...string) {
 	args := []string{"once", "create", name, "-n", namespace}
 	args = append(args, extraArgs...)
 	cmd := exec.Command("../bin/koncli", args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create once: %v, output: %s", err, string(output))
+	} else {
+		t.Logf("Created once: %s", string(output))
 	}
-	t.Logf("Created once: %s", string(output))
 }
 
 func waitForOnce(t *testing.T, k8sClient client.Client, name, namespace string) {
@@ -46,10 +46,10 @@ func cleanupOnce(t *testing.T, name, namespace string) {
 	cmd := exec.Command("../bin/koncli", "once", "delete", name, "-n", namespace)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Logf("Failed to delete once: %v, output: %s", err, string(output))
-	} else {
-		t.Logf("Deleted once: %s", string(output))
+		t.Logf("Warning: Failed to delete once: %v, output: %s", err, string(output))
+		return
 	}
+	t.Logf("Deleted once: %s", string(output))
 }
 
 func TestE2EOnce(t *testing.T) {
@@ -62,17 +62,18 @@ func TestE2EOnce(t *testing.T) {
 	onceName := fmt.Sprintf("e2e-test-once-%d", time.Now().Unix())
 
 	createOnce(t, onceName, namespace)
-	waitForOnce(t, k8sClient, onceName, namespace)
+
+	// Cleanup
 	defer cleanupOnce(t, onceName, namespace)
+
+	waitForOnce(t, k8sClient, onceName, namespace)
 
 	// Check once status
 	cmd := exec.Command("../bin/koncli", "once", "check", onceName, "-n", namespace)
-	output, err = cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to check once: %v, output: %s", err, string(output))
 	}
-
-	t.Logf("Once check: %s", string(output))
 
 	// Verify once is not executed
 	once := &syncv1.Once{}
@@ -100,12 +101,15 @@ func TestE2EOnceList(t *testing.T) {
 	onceName := fmt.Sprintf("e2e-test-once-list-%d", time.Now().Unix())
 
 	createOnce(t, onceName, namespace)
-	waitForOnce(t, k8sClient, onceName, namespace)
+
+	// Cleanup
 	defer cleanupOnce(t, onceName, namespace)
+
+	waitForOnce(t, k8sClient, onceName, namespace)
 
 	// List onces
 	cmd := exec.Command("../bin/koncli", "once", "list", "-n", namespace)
-	output, err = cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to list onces: %v, output: %s", err, string(output))
 	}
@@ -123,8 +127,11 @@ func TestE2EOnceWithTTL(t *testing.T) {
 	onceName := fmt.Sprintf("e2e-test-once-ttl-%d", time.Now().Unix())
 
 	createOnce(t, onceName, namespace, "--ttl", "1m")
-	waitForOnce(t, k8sClient, onceName, namespace)
+
+	// Cleanup
 	defer cleanupOnce(t, onceName, namespace)
+
+	waitForOnce(t, k8sClient, onceName, namespace)
 
 	// Verify TTL is set
 	once := &syncv1.Once{}

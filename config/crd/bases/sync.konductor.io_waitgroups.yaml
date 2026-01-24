@@ -120,6 +120,9 @@ spec:
                 type: integer
               phase:
                 description: Phase represents the current state
+                enum:
+                - Waiting
+                - Done
                 type: string
             required:
             - counter

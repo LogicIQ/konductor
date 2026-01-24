@@ -18,10 +18,10 @@ spec:
     - jsonPath: .status.writeHolder
       name: WriteHolder
       type: string
-    - jsonPath: .status.readHolders[*]
-      name: ReadHolders
+    - jsonPath: .status.readHolders
+      name: Readers
       priority: 1
-      type: string
+      type: integer
     - jsonPath: .status.phase
       name: Phase
       type: string

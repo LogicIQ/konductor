@@ -141,6 +141,9 @@ spec:
             - inUse
             - phase
             type: object
+            x-kubernetes-validations:
+            - message: inUse and available must be non-negative
+              rule: self.inUse >= 0 && self.available >= 0
         type: object
     served: true
     storage: true

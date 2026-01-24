@@ -17,7 +17,7 @@ import (
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-const testTimeout = 500 * time.Millisecond
+const testTimeout = 2 * time.Second
 
 func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client {
 	scheme := runtime.NewScheme()

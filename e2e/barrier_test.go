@@ -16,11 +16,7 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
-var cliPath = "../bin/koncli"
-
-func contains(s, substr string) bool {
-	return strings.Contains(s, substr)
-}
+const cliPath = "../bin/koncli"
 
 func waitForBarrierReady(t *testing.T, k8sClient client.Client, barrierName, namespace string) {
 	err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
@@ -66,19 +62,7 @@ func TestE2EBarrier(t *testing.T) {
 	t.Logf("Created barrier: %s", string(output))
 
 	// Wait for barrier to be ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
-		barrier := &syncv1.Barrier{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: barrierName, Namespace: namespace}, barrier)
-		if err != nil {
-			t.Logf("Waiting for barrier %s: %v", barrierName, err)
-			return false, nil
-		}
-		t.Logf("Barrier %s found with status: %+v", barrierName, barrier.Status)
-		return true, nil
-	})
-	if err != nil {
-		t.Fatalf("Barrier was not ready: %v", err)
-	}
+	waitForBarrierReady(t, k8sClient, barrierName, namespace)
 
 	// Arrive at barrier using CLI
 	cmd = exec.Command(cliPath, "barrier", "arrive", barrierName, "worker-1", "-n", namespace)
@@ -109,7 +93,7 @@ func TestE2EBarrier(t *testing.T) {
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		// Don't fail if barrier doesn't exist (might have been auto-deleted)
-		if !contains(string(output), "not found") {
+		if !strings.Contains(string(output), "not found") {
 			t.Fatalf("Failed to delete barrier: %v, output: %s", err, string(output))
 		}
 		t.Logf("Barrier already deleted or not found: %s", string(output))

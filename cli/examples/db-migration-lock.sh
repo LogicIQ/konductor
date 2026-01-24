@@ -4,14 +4,20 @@
 
 set -e
 
+# Validate koncli is available
+if ! command -v koncli >/dev/null 2>&1; then
+    echo "Error: koncli command not found" >&2
+    exit 1
+fi
+
 LEASE_NAME="db-migration-lock"
-HOLDER="${POD_NAME:-$HOSTNAME-$$}"
+HOLDER="${POD_NAME:-${HOSTNAME:-unknown}-$$}"
 TTL="10m"
 
 echo "Attempting to acquire database migration lock..."
 
 # Try to acquire migration lock
-if koncli lease acquire "$LEASE_NAME" --holder "$HOLDER" --ttl "$TTL"; then
+if koncli lease acquire "$LEASE_NAME" --holder "$HOLDER" --ttl "$TTL" 2>/dev/null; then
     echo "✓ Migration lock acquired"
     
     # Cleanup on exit

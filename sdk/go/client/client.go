@@ -12,7 +12,7 @@
 //	}
 //
 //	// Use semaphores, barriers, leases, gates...
-//	permit, err := client.AcquireSemaphore(ctx, "api-limit")
+//	permit, err := client.AcquireSemaphore(...)
 package client
 
 import (
@@ -213,10 +213,9 @@ func (p *Permit) Release(ctx context.Context) error {
 		p.cancelCtx()
 	}
 	if err := p.client.ReleaseSemaphorePermit(ctx, p.name, p.holder); err != nil {
-		if client.IgnoreNotFound(err) == nil {
-			return nil
+		if client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("failed to release permit %s for holder %s: %w", p.name, p.holder, err)
 		}
-		return fmt.Errorf("failed to release permit %s for holder %s: %w", p.name, p.holder, err)
 	}
 	return nil
 }
@@ -246,10 +245,9 @@ func (l *LeaseHandle) Release(ctx context.Context) error {
 		l.cancelCtx()
 	}
 	if err := l.client.ReleaseLease(ctx, l.name, l.holder); err != nil {
-		if client.IgnoreNotFound(err) == nil {
-			return nil
+		if client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("failed to release lease %s for holder %s: %w", l.name, l.holder, err)
 		}
-		return fmt.Errorf("failed to release lease %s for holder %s: %w", l.name, l.holder, err)
 	}
 	return nil
 }

@@ -45,7 +45,7 @@ func TestWaitGroupListCmd(t *testing.T) {
 		WithRuntimeObjects(wgs...).
 		Build()
 	namespace = "default"
-	logger = initTestLogger()
+	logger = initTestLogger(t)
 
 	cmd := newWaitGroupListCmd()
 
@@ -64,7 +64,7 @@ func TestWaitGroupCreateCmd(t *testing.T) {
 		WithScheme(scheme).
 		Build()
 	namespace = "default"
-	logger = initTestLogger()
+	logger = initTestLogger(t)
 
 	cmd := newWaitGroupCreateCmd()
 	cmd.SetArgs([]string{"test-wg"})
@@ -92,7 +92,7 @@ func TestWaitGroupDeleteCmd(t *testing.T) {
 		WithRuntimeObjects(wg).
 		Build()
 	namespace = "default"
-	logger = initTestLogger()
+	logger = initTestLogger(t)
 
 	cmd := newWaitGroupDeleteCmd()
 	cmd.SetArgs([]string{"test-wg"})
@@ -124,7 +124,7 @@ func TestWaitGroupAddCmd(t *testing.T) {
 		WithStatusSubresource(&syncv1.WaitGroup{}).
 		Build()
 	namespace = "default"
-	logger = initTestLogger()
+	logger = initTestLogger(t)
 
 	cmd := newWaitGroupAddCmd()
 	cmd.SetArgs([]string{"test-wg", "--delta", "3"})
@@ -156,7 +156,7 @@ func TestWaitGroupDoneCmd(t *testing.T) {
 		WithStatusSubresource(&syncv1.WaitGroup{}).
 		Build()
 	namespace = "default"
-	logger = initTestLogger()
+	logger = initTestLogger(t)
 
 	cmd := newWaitGroupDoneCmd()
 	cmd.SetArgs([]string{"test-wg"})

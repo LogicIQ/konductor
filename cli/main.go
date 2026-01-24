@@ -92,7 +92,8 @@ func execute() error {
 	if logger != nil {
 		if err := logger.Sync(); err != nil {
 			// Ignore sync errors on stdout/stderr (common on some platforms)
-			return nil
+			// Only log the error, don't fail the command
+			logger.Debug("Logger sync failed (non-fatal)", zap.Error(err))
 		}
 	}
 	return nil

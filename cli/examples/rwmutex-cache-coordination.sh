@@ -10,7 +10,7 @@ RWMUTEX_NAME="cache-rwmutex"
 cleanup() {
   set +e
   echo "Cleaning up..."
-  koncli rwmutex delete $RWMUTEX_NAME 2>/dev/null
+  koncli rwmutex delete "$RWMUTEX_NAME" 2>/dev/null
   set -e
 }
 

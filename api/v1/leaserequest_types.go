@@ -5,6 +5,7 @@ import (
 )
 
 // LeaseRequestSpec defines the desired state of LeaseRequest
+// +kubebuilder:validation:XValidation:rule="!has(self.ttl) || self.ttl.matches('^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$')",message="ttl must be a valid duration (e.g., 30s, 5m, 1h)"
 type LeaseRequestSpec struct {
 	// Lease is the name of the lease being requested
 	// +kubebuilder:validation:Required
@@ -18,6 +19,7 @@ type LeaseRequestSpec struct {
 
 	// Priority for lease acquisition (higher wins)
 	// +optional
+	// +kubebuilder:validation:Minimum=0
 	Priority *int32 `json:"priority,omitempty"`
 
 	// TTL is the time-to-live for the lease request

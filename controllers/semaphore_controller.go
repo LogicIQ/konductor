@@ -42,7 +42,7 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	log.Info("Found Semaphore", "name", semaphore.Name, "permits", semaphore.Spec.Permits, "currentAvailable", semaphore.Status.Available)
 
-	if semaphore.Status.Available == 0 && semaphore.Status.InUse == 0 && semaphore.Status.Phase == "" {
+	if semaphore.Status.Phase == "" {
 		semaphore.Status.Available = semaphore.Spec.Permits
 		semaphore.Status.InUse = 0
 		semaphore.Status.Phase = syncv1.SemaphorePhaseReady
@@ -65,12 +65,13 @@ func (r *SemaphoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	validPermits := 0
 	now := time.Now()
-	for i, permit := range permits.Items {
+	for i := range permits.Items {
+		permit := &permits.Items[i]
 		isValid := permit.Status.ExpiresAt == nil || permit.Status.ExpiresAt.Time.After(now)
 		if isValid {
 			if permit.Status.Phase != syncv1.PermitPhaseGranted {
-				permits.Items[i].Status.Phase = syncv1.PermitPhaseGranted
-				if err := r.Status().Update(ctx, &permits.Items[i]); err != nil {
+				permit.Status.Phase = syncv1.PermitPhaseGranted
+				if err := r.Status().Update(ctx, permit); err != nil {
 					log.Error(err, "failed to update permit status", "permit", permit.Name)
 					return ctrl.Result{}, err
 				}

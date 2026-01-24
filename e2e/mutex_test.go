@@ -59,8 +59,8 @@ func TestE2EMutex(t *testing.T) {
 
 	// Verify mutex state
 	mutex := &syncv1.Mutex{}
-	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: mutexName, Namespace: namespace}, mutex)
-	if err != nil {
+	ctx := context.TODO()
+	if err := k8sClient.Get(ctx, client.ObjectKey{Name: mutexName, Namespace: namespace}, mutex); err != nil {
 		t.Fatalf("Failed to get mutex: %v", err)
 	}
 
@@ -155,8 +155,8 @@ func TestE2EMutexWithTTL(t *testing.T) {
 	time.Sleep(12 * time.Second)
 
 	// Verify mutex is auto-unlocked
-	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: mutexName, Namespace: namespace}, mutex)
-	if err != nil {
+	ctx = context.TODO()
+	if err := k8sClient.Get(ctx, client.ObjectKey{Name: mutexName, Namespace: namespace}, mutex); err != nil {
 		t.Fatalf("Failed to get mutex after TTL: %v", err)
 	}
 
@@ -244,7 +244,7 @@ func TestE2EMutexConcurrency(t *testing.T) {
 	// Cleanup
 	cmd = exec.Command(getKoncliPath(), "mutex", "unlock", mutexName, "--holder", "worker-2", "-n", namespace)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Logf("Cleanup unlock failed: %v, output: %s", err, string(output))
+		t.Logf("Warning: Cleanup unlock failed: %v, output: %s", err, string(output))
 	}
 
 	cmd = exec.Command(getKoncliPath(), "mutex", "delete", mutexName, "-n", namespace)

@@ -91,6 +91,10 @@ func GetConditions(c *konductor.Client, ctx context.Context, name string) ([]syn
 }
 
 func WaitForConditions(c *konductor.Client, ctx context.Context, name string, conditionNames []string, opts ...konductor.Option) error {
+	if len(conditionNames) == 0 {
+		return nil
+	}
+
 	options := &konductor.Options{
 		Timeout: 0,
 	}
@@ -106,7 +110,7 @@ func WaitForConditions(c *konductor.Client, ctx context.Context, name string, co
 	for {
 		conditions, err := GetConditions(c, ctx, name)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get conditions for gate %s: %w", name, err)
 		}
 
 		// Create map for O(1) lookup
@@ -135,10 +139,7 @@ func WaitForConditions(c *konductor.Client, ctx context.Context, name string, co
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(delay):
-			delay = time.Duration(float64(delay) * 1.5)
-			if delay > maxDelay {
-				delay = maxDelay
-			}
+			delay = min(time.Duration(float64(delay)*1.5), maxDelay)
 		}
 	}
 }

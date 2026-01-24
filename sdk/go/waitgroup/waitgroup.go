@@ -16,8 +16,6 @@ import (
 
 // Add increments the counter by delta with atomic operation protection
 func Add(c *konductor.Client, ctx context.Context, name string, delta int32) error {
-	var originalCounter int32
-
 	// Retry on conflicts with atomic read-modify-write
 	err := c.RetryWithBackoff(ctx, func() error {
 		var wg syncv1.WaitGroup
@@ -26,9 +24,6 @@ func Add(c *konductor.Client, ctx context.Context, name string, delta int32) err
 		}, &wg); err != nil {
 			return err
 		}
-
-		// Store original for confirmation
-		originalCounter = wg.Status.Counter
 
 		// Atomic increment - this will fail with conflict if another pod modified it
 		wg.Status.Counter += delta
@@ -50,14 +45,19 @@ func Add(c *konductor.Client, ctx context.Context, name string, delta int32) err
 		return fmt.Errorf("failed to update waitgroup: %w", err)
 	}
 
-	// Wait for confirmation of change
+	// Read fresh state after update
+	var updatedWg syncv1.WaitGroup
+	if err := c.K8sClient().Get(ctx, types.NamespacedName{
+		Name: name, Namespace: c.Namespace(),
+	}, &updatedWg); err != nil {
+		return fmt.Errorf("failed to read updated waitgroup: %w", err)
+	}
+
+	expectedCounter := updatedWg.Status.Counter
+
 	wg := &syncv1.WaitGroup{}
 	wg.Name = name
 	wg.Namespace = c.Namespace()
-	expectedCounter := originalCounter + delta
-	if expectedCounter < 0 {
-		expectedCounter = 0
-	}
 
 	if err := c.WaitForCondition(ctx, wg, func(obj client.Object) bool {
 		waitGroup := obj.(*syncv1.WaitGroup)

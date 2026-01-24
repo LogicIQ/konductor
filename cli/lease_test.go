@@ -134,7 +134,7 @@ func TestLeaseReleaseCmd(t *testing.T) {
 }
 
 func TestLeaseListCmd(t *testing.T) {
-	logger = initTestLogger()
+	logger = initTestLogger(t)
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
@@ -229,7 +229,7 @@ func TestLeaseCmd_DefaultHolder(t *testing.T) {
 }
 
 func TestLeaseCreateCmd(t *testing.T) {
-	logger = initTestLogger()
+	logger = initTestLogger(t)
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
@@ -251,7 +251,7 @@ func TestLeaseCreateCmd(t *testing.T) {
 }
 
 func TestLeaseDeleteCmd(t *testing.T) {
-	logger = initTestLogger()
+	logger = initTestLogger(t)
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
 

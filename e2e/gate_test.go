@@ -16,6 +16,9 @@ import (
 )
 
 func TestE2EGate(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	k8sClient, err := setupClient()
 	if err != nil {
 		t.Fatalf("Failed to setup client: %v", err)
@@ -45,7 +48,7 @@ func TestE2EGate(t *testing.T) {
 	// Wait for gate to be ready
 	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
 		gate := &syncv1.Gate{}
-		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: gateName, Namespace: namespace}, gate)
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: gateName, Namespace: namespace}, gate)
 		if err != nil {
 			t.Logf("Waiting for gate %s: %v", gateName, err)
 			return false, nil
@@ -57,9 +60,17 @@ func TestE2EGate(t *testing.T) {
 		t.Fatalf("Gate was not ready: %v", err)
 	}
 
+	// Cleanup
+	defer func() {
+		cmd := exec.Command("../bin/koncli", "gate", "delete", gateName, "-n", namespace)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Logf("Warning: Cleanup failed: %v, output: %s", err, string(output))
+		}
+	}()
+
 	// Verify gate is open initially (no conditions = open by default)
 	gate := &syncv1.Gate{}
-	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: gateName, Namespace: namespace}, gate)
+	err = k8sClient.Get(ctx, client.ObjectKey{Name: gateName, Namespace: namespace}, gate)
 	if err != nil {
 		t.Fatalf("Failed to get gate: %v", err)
 	}
@@ -76,19 +87,12 @@ func TestE2EGate(t *testing.T) {
 	}
 
 	// Verify gate is closed
-	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: gateName, Namespace: namespace}, gate)
+	err = k8sClient.Get(ctx, client.ObjectKey{Name: gateName, Namespace: namespace}, gate)
 	if err != nil {
 		t.Fatalf("Failed to get gate: %v", err)
 	}
 
 	if gate.Status.Phase != syncv1.GatePhaseClosed {
 		t.Error("Expected gate to be closed")
-	}
-
-	// Cleanup
-	cmd = exec.Command("../bin/koncli", "gate", "delete", gateName, "-n", namespace)
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to delete gate: %v, output: %s", err, string(output))
 	}
 }

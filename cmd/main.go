@@ -123,7 +123,10 @@ func main() {
 	}
 
 	for _, c := range controllers {
-		setupController(mgr, c.reconciler, c.name, logger)
+		if err := setupController(mgr, c.reconciler, c.name, logger); err != nil {
+			logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", c.name))
+			os.Exit(1)
+		}
 	}
 
 	//+kubebuilder:scaffold:builder
@@ -148,9 +151,9 @@ type reconciler interface {
 	SetupWithManager(mgr ctrl.Manager) error
 }
 
-func setupController(mgr ctrl.Manager, r reconciler, name string, logger *zap.Logger) {
+func setupController(mgr ctrl.Manager, r reconciler, name string, logger *zap.Logger) error {
 	if err := r.SetupWithManager(mgr); err != nil {
-		logger.Error("Unable to create controller", zap.Error(err), zap.String("controller", name))
-		os.Exit(1)
+		return fmt.Errorf("failed to setup %s controller: %w", name, err)
 	}
+	return nil
 }

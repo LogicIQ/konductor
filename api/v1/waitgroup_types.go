@@ -19,6 +19,7 @@ type WaitGroupStatus struct {
 	Counter int32 `json:"counter"`
 
 	// Phase represents the current state
+	// +kubebuilder:validation:Enum=Waiting;Done
 	Phase WaitGroupPhase `json:"phase"`
 
 	// Conditions represent the latest available observations

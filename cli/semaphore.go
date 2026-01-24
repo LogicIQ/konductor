@@ -103,8 +103,7 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 			ctx := cmd.Context()
 
 			if holder == "" {
-				holder = os.Getenv("HOSTNAME")
-				if holder == "" {
+				if holder = os.Getenv("HOSTNAME"); holder == "" {
 					return errors.New("holder must be specified or HOSTNAME must be set")
 				}
 			}
@@ -112,6 +111,8 @@ func newSemaphoreReleaseCmd() *cobra.Command {
 			client := createSemaphoreClient()
 
 			// Find and release permit by holder
+			// Note: Currently fetches all permits due to SDK limitations.
+			// TODO: Request SDK enhancement for direct permit lookup by holder.
 			permits, err := client.ListPermits(ctx, semaphoreName)
 			if err != nil {
 				return err

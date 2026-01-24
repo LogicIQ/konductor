@@ -170,6 +170,7 @@ func newMutexCreateCmd() *cobra.Command {
 			if ttl > 0 {
 				opts = append(opts, konductor.WithTTL(ttl))
 			}
+
 			if err := mutex.Create(client, ctx, mutexName, opts...); err != nil {
 				return err
 			}

@@ -135,7 +135,8 @@ spec:
                 description: Phase represents the current state of the lease
                 type: string
               renewCount:
-                description: RenewCount tracks the number of renewals
+                description: RenewCount tracks the number of times the lease has been
+                  renewed
                 format: int32
                 type: integer
             required:

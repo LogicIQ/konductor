@@ -1,12 +1,16 @@
 version: '3'
 
+vars:
+  KIND_VERSION: v0.20.0
+  CONTROLLER_GEN_VERSION: v0.20.0
+
 tasks:
   setup:
     desc: Setup e2e environment
     cmds:
       - echo "Setting up e2e environment..."
-      - which kind > /dev/null 2>&1 || go install sigs.k8s.io/kind@v0.20.0
-      - which controller-gen > /dev/null 2>&1 || go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.0
+      - command -v kind >/dev/null 2>&1 || go install sigs.k8s.io/kind@{{.KIND_VERSION}}
+      - command -v controller-gen >/dev/null 2>&1 || go install sigs.k8s.io/controller-tools/cmd/controller-gen@{{.CONTROLLER_GEN_VERSION}}
       - |
         if ! kind create cluster --config=kind-config.yaml; then
           if kind get clusters | grep -q konductor-e2e; then
@@ -50,8 +54,8 @@ tasks:
       - go mod tidy
       - |
         if ! go test -v ./... -tags=e2e -timeout=10m; then
-          echo "E2E tests failed, collecting logs..."
-          kubectl logs -n konductor-system deployment/konductor-controller-manager --tail=50 || echo "Warning: Could not collect logs for debugging"
+          echo "E2E tests failed, collecting logs..." >&2
+          kubectl logs -n konductor-system deployment/konductor-controller-manager --tail=50 || echo "Warning: Could not collect logs for debugging" >&2
           exit 1
         fi
 
@@ -59,10 +63,10 @@ tasks:
     desc: Cleanup e2e environment
     cmds:
       - echo "Cleaning up e2e environment..."
-      - kind delete cluster --name=konductor-e2e || echo "Cluster doesn't exist"
+      - kind delete cluster --name=konductor-e2e || echo "Warning: Failed to delete cluster" >&2
 
   run:
     desc: Run complete e2e test suite
     cmds:
       - task: test
-      - task: cleanup
+      - defer: { task: cleanup }

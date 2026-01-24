@@ -18,6 +18,9 @@ type WaitConfig struct {
 	OperatorDelay time.Duration
 }
 
+// MaxBackoffSteps limits the maximum number of backoff steps to prevent excessive memory usage
+const MaxBackoffSteps = 1000000
+
 func DefaultWaitConfig() *WaitConfig {
 	return &WaitConfig{
 		InitialDelay:  500 * time.Millisecond,
@@ -50,8 +53,8 @@ func calculateBackoffSteps(initialDelay, maxDelay time.Duration, factor float64,
 		if current == prev && current == maxDelay {
 			remaining := timeout - elapsed
 			additionalSteps := remaining / current
-			if additionalSteps > 1000000 {
-				additionalSteps = 1000000
+			if additionalSteps > MaxBackoffSteps {
+				additionalSteps = MaxBackoffSteps
 			}
 			steps += int(additionalSteps)
 			break

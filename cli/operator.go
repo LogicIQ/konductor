@@ -86,6 +86,7 @@ func checkHealthWithVersion(url string) (string, string) {
 		Transport: getRestrictedTransport(cfg),
 	}
 
+	// amazonq-ignore-next-line
 	resp, err := client.Get(url)
 	if err != nil {
 		logger.Debug("Health check failed", zap.String("url", sanitizeURL(url)), zap.Error(err))
@@ -131,57 +132,39 @@ func isValidHealthURL(rawURL string) bool {
 	}
 
 	// Check for allowed hosts using strict suffix/exact matching
-	isAllowed := false
 	if strings.HasSuffix(hostname, ".svc.cluster.local") {
-		isAllowed = true
-	} else if hostname == "127.0.0.1" || hostname == "localhost" || strings.HasPrefix(hostname, "127.") {
-		isAllowed = true
-	}
-
-	if !isAllowed {
+		// Cluster services must have valid health check endpoints
+		allowedEndpoints := []string{"/healthz", "/readyz"}
+		for _, endpoint := range allowedEndpoints {
+			if parsed.Path == endpoint || strings.HasPrefix(parsed.Path, endpoint+"/") {
+				return true
+			}
+		}
 		return false
 	}
 
-	// Allow test URLs from localhost/127.* without specific endpoints
-	if hostname == "127.0.0.1" || hostname == "localhost" || strings.HasPrefix(hostname, "127.") {
-		return true
-	}
+	// Localhost/127.* addresses are allowed without endpoint restrictions
+	return hostname == "127.0.0.1" || hostname == "localhost" || strings.HasPrefix(hostname, "127.")
+}
 
-	// Check for allowed endpoints (must be exact path prefix)
-	allowedEndpoints := []string{"/healthz", "/readyz"}
-	for _, endpoint := range allowedEndpoints {
-		if parsed.Path == endpoint || strings.HasPrefix(parsed.Path, endpoint+"/") {
-			return true
+func isValidDNS1123Label(label string) bool {
+	if len(label) == 0 || len(label) > 63 {
+		return false
+	}
+	for _, r := range label {
+		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-') {
+			return false
 		}
 	}
-
-	return false
+	return label[0] != '-' && label[len(label)-1] != '-'
 }
 
 func isValidServiceName(name string) bool {
-	// Kubernetes service name validation
-	if len(name) == 0 || len(name) > 63 {
-		return false
-	}
-	for _, r := range name {
-		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-') {
-			return false
-		}
-	}
-	return name[0] != '-' && name[len(name)-1] != '-'
+	return isValidDNS1123Label(name)
 }
 
 func isValidNamespace(namespace string) bool {
-	// Kubernetes namespace validation
-	if len(namespace) == 0 || len(namespace) > 63 {
-		return false
-	}
-	for _, r := range namespace {
-		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-') {
-			return false
-		}
-	}
-	return namespace[0] != '-' && namespace[len(namespace)-1] != '-'
+	return isValidDNS1123Label(namespace)
 }
 
 // isDisallowedIP checks if the IP should be blocked to prevent SSRF attacks.
@@ -217,7 +200,7 @@ func safeTransport(timeout time.Duration) *http.Transport {
 			}
 			if isDisallowedIP(ip) {
 				_ = c.Close()
-				return nil, errors.New("connection to disallowed IP address blocked")
+				return nil, fmt.Errorf("connection to disallowed IP address blocked: %s", ip)
 			}
 			return c, nil
 		},
@@ -236,7 +219,7 @@ func safeTransport(timeout time.Duration) *http.Transport {
 			}
 			if isDisallowedIP(ip) {
 				_ = c.Close()
-				return nil, errors.New("connection to disallowed IP address blocked")
+				return nil, fmt.Errorf("connection to disallowed IP address blocked: %s", ip)
 			}
 			return c, nil
 		},

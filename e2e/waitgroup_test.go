@@ -19,7 +19,10 @@ func waitForWaitGroupReady(k8sClient client.Client, wgName, namespace string) er
 	return wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
 		wg := &syncv1.WaitGroup{}
 		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: wgName, Namespace: namespace}, wg)
-		return err == nil, nil
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
 	})
 }
 
@@ -38,6 +41,14 @@ func TestE2EWaitGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create waitgroup: %v, output: %s", err, string(output))
 	}
+
+	// Cleanup
+	defer func() {
+		cmd := exec.Command("../bin/koncli", "waitgroup", "delete", wgName, "-n", namespace)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Logf("Cleanup failed: %v, output: %s", err, string(output))
+		}
+	}()
 
 	t.Logf("Created waitgroup: %s", string(output))
 
@@ -70,14 +81,6 @@ func TestE2EWaitGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to done: %v, output: %s", err, string(output))
 	}
-
-	// Cleanup
-	defer func() {
-		cmd := exec.Command("../bin/koncli", "waitgroup", "delete", wgName, "-n", namespace)
-		if output, err := cmd.CombinedOutput(); err != nil {
-			t.Logf("Cleanup failed: %v, output: %s", err, string(output))
-		}
-	}()
 }
 
 func TestE2EWaitGroupList(t *testing.T) {
@@ -96,6 +99,14 @@ func TestE2EWaitGroupList(t *testing.T) {
 		t.Fatalf("Failed to create waitgroup: %v, output: %s", err, string(output))
 	}
 
+	// Cleanup
+	defer func() {
+		cmd := exec.Command("../bin/koncli", "waitgroup", "delete", wgName, "-n", namespace)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Logf("Cleanup failed: %v, output: %s", err, string(output))
+		}
+	}()
+
 	// Wait for ready
 	if err := waitForWaitGroupReady(k8sClient, wgName, namespace); err != nil {
 		t.Fatalf("WaitGroup was not ready: %v", err)
@@ -109,12 +120,4 @@ func TestE2EWaitGroupList(t *testing.T) {
 	}
 
 	t.Logf("WaitGroup list: %s", string(output))
-
-	// Cleanup
-	defer func() {
-		cmd := exec.Command("../bin/koncli", "waitgroup", "delete", wgName, "-n", namespace)
-		if output, err := cmd.CombinedOutput(); err != nil {
-			t.Logf("Cleanup failed: %v, output: %s", err, string(output))
-		}
-	}()
 }

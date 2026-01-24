@@ -94,10 +94,10 @@ func (r *BarrierReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		requeueAfter := time.Until(timeoutAt)
 		if requeueAfter > time.Minute {
 			requeueAfter = time.Minute
-		} else if requeueAfter < 0 {
-			requeueAfter = 0
 		}
-		return ctrl.Result{RequeueAfter: requeueAfter}, nil
+		if requeueAfter > 0 {
+			return ctrl.Result{RequeueAfter: requeueAfter}, nil
+		}
 	}
 
 	return ctrl.Result{}, nil

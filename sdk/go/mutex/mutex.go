@@ -71,8 +71,7 @@ func Lock(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 
 	holder := options.Holder
 	if holder == "" {
-		holder = os.Getenv("HOSTNAME")
-		if holder == "" {
+		if holder = os.Getenv("HOSTNAME"); holder == "" {
 			holder = fmt.Sprintf("sdk-%d", time.Now().Unix())
 		}
 	}
@@ -178,8 +177,7 @@ func TryLock(c *konductor.Client, ctx context.Context, name string, opts ...kond
 
 	holder := options.Holder
 	if holder == "" {
-		holder = os.Getenv("HOSTNAME")
-		if holder == "" {
+		if holder = os.Getenv("HOSTNAME"); holder == "" {
 			holder = fmt.Sprintf("sdk-%d", time.Now().Unix())
 		}
 	}

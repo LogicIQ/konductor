@@ -34,6 +34,7 @@ jobs:
       env:
         VERSION: ${{ github.event.release.tag_name }}
       run: |
+        set -e
         LDFLAGS="-w -s -X main.version=${VERSION}"
         
         GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o koncli-linux-amd64 ./cli
@@ -43,6 +44,7 @@ jobs:
     
     - name: Upload binaries
       uses: softprops/action-gh-release@v1
+      if: success()
       with:
         files: |
           koncli-linux-amd64
@@ -61,11 +63,14 @@ jobs:
       with:
         context: .
         push: true
+        platforms: linux/amd64,linux/arm64
         tags: |
           logiciq/konductor:${{ github.event.release.tag_name }}
           logiciq/konductor:latest
         build-args: |
           VERSION=${{ github.event.release.tag_name }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
     
     - name: Build and push CLI
       uses: docker/build-push-action@v5
@@ -73,8 +78,11 @@ jobs:
         context: .
         file: ./cli/Dockerfile
         push: true
+        platforms: linux/amd64,linux/arm64
         tags: |
           logiciq/koncli:${{ github.event.release.tag_name }}
           logiciq/koncli:latest
         build-args: |
           VERSION=${{ github.event.release.tag_name }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

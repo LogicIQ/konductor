@@ -142,7 +142,7 @@ func RLock(c *konductor.Client, ctx context.Context, name string, opts ...konduc
 		}
 
 		if rw.Status.WriteHolder != "" {
-			return fmt.Errorf("timeout waiting for write lock to be released")
+			return fmt.Errorf("cannot acquire read lock: write lock is held")
 		}
 
 		rw.Status.Phase = syncv1.RWMutexPhaseReadLocked
@@ -162,7 +162,7 @@ func RLock(c *konductor.Client, ctx context.Context, name string, opts ...konduc
 	}, config)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("timeout acquiring read lock on %s: %w", name, err)
 	}
 
 	// Wait for confirmation

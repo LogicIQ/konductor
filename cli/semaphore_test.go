@@ -14,7 +14,7 @@ import (
 	syncv1 "github.com/LogicIQ/konductor/api/v1"
 )
 
-func _TestSemaphoreAcquireCmd(t *testing.T) {
+func TestSemaphoreAcquireCmd(t *testing.T) {
 	t.Skip("Skipping test that requires controller to grant permit")
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
@@ -50,7 +50,7 @@ func _TestSemaphoreAcquireCmd(t *testing.T) {
 	_ = buf.String()
 }
 
-func _TestSemaphoreAcquireCmd_NoPermits(t *testing.T) {
+func TestSemaphoreAcquireCmd_NoPermits(t *testing.T) {
 	t.Skip("Skipping test that requires controller to grant permit")
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
@@ -82,7 +82,7 @@ func _TestSemaphoreAcquireCmd_NoPermits(t *testing.T) {
 	assert.Contains(t, err.Error(), "no permits available")
 }
 
-func _TestSemaphoreReleaseCmd(t *testing.T) {
+func TestSemaphoreReleaseCmd(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, syncv1.AddToScheme(scheme))
 
@@ -90,6 +90,7 @@ func _TestSemaphoreReleaseCmd(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-sem-test-holder",
 			Namespace: "default",
+			Labels:    map[string]string{"semaphore": "test-sem"},
 		},
 		Spec: syncv1.PermitSpec{
 			Semaphore: "test-sem",

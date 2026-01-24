@@ -25,13 +25,15 @@ func Do(c *konductor.Client, ctx context.Context, name string, fn func() error, 
 
 	executor := options.Holder
 	if executor == "" {
-		executor = os.Getenv("HOSTNAME")
-		if executor == "" {
+		if hostname := os.Getenv("HOSTNAME"); hostname != "" {
+			executor = hostname
+		} else {
 			executor = fmt.Sprintf("sdk-%d", time.Now().Unix())
 		}
 	}
 
 	// Retry loop to handle race conditions
+	backoff := 100 * time.Millisecond
 	for retries := 0; retries < 5; retries++ {
 		var once syncv1.Once
 		if err := c.K8sClient().Get(ctx, types.NamespacedName{
@@ -58,8 +60,9 @@ func Do(c *konductor.Client, ctx context.Context, name string, fn func() error, 
 
 		if err := c.K8sClient().Status().Update(ctx, &once); err != nil {
 			if errors.IsConflict(err) {
-				// Retry on conflict
-				time.Sleep(time.Millisecond * 100)
+				// Retry on conflict with exponential backoff
+				time.Sleep(backoff)
+				backoff *= 2
 				continue
 			}
 			if errors.IsNotFound(err) {
@@ -71,6 +74,7 @@ func Do(c *konductor.Client, ctx context.Context, name string, fn func() error, 
 		// Execute the function
 		if err := fn(); err != nil {
 			// Rollback the execution status on failure with retry
+			rollbackBackoff := 100 * time.Millisecond
 			for rollbackRetries := 0; rollbackRetries < 3; rollbackRetries++ {
 				var rollbackOnce syncv1.Once
 				if getErr := c.K8sClient().Get(ctx, types.NamespacedName{
@@ -87,7 +91,8 @@ func Do(c *konductor.Client, ctx context.Context, name string, fn func() error, 
 
 				if rollbackErr := c.K8sClient().Status().Update(ctx, &rollbackOnce); rollbackErr != nil {
 					if errors.IsConflict(rollbackErr) {
-						time.Sleep(time.Millisecond * 100)
+						time.Sleep(rollbackBackoff)
+						rollbackBackoff *= 2
 						continue
 					}
 					return true, fmt.Errorf("execution failed and rollback failed: %w (rollback error: %v)", err, rollbackErr)

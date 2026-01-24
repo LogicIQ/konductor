@@ -98,6 +98,6 @@ func TestE2ESemaphore(t *testing.T) {
 	cmd = exec.Command(cliPath, "semaphore", "delete", semaphoreName, "-n", namespace)
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Failed to delete semaphore: %v, output: %s", err, string(output))
+		t.Errorf("Failed to delete semaphore: %v, output: %s", err, string(output))
 	}
 }

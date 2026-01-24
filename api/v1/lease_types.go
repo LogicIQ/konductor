@@ -33,8 +33,9 @@ type LeaseStatus struct {
 	// Phase represents the current state of the lease
 	Phase LeasePhase `json:"phase"`
 
-	// RenewCount tracks the number of renewals
-	RenewCount int32 `json:"renewCount,omitempty"`
+	// RenewCount tracks the number of times the lease has been renewed
+	// +optional
+	RenewCount int32 `json:"renewCount"`
 
 	// Conditions represent the latest available observations
 	Conditions []metav1.Condition `json:"conditions,omitempty"`

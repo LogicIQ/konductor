@@ -18,7 +18,7 @@ spec:
     - jsonPath: .status.phase
       name: Phase
       type: string
-    - jsonPath: .spec.conditions[0].name
+    - jsonPath: .spec.conditions[*].name
       name: Conditions
       type: string
     name: v1
@@ -108,13 +108,11 @@ spec:
                 type: array
               timeout:
                 description: Timeout for waiting for conditions
+                format: duration
                 type: string
             required:
             - conditions
             type: object
-            x-kubernetes-validations:
-            - message: timeout must be a valid duration (e.g., 30s, 5m, 1h)
-              rule: '!has(self.timeout) || self.timeout.matches(''^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$'')'
           status:
             description: GateStatus defines the observed state of Gate
             properties:

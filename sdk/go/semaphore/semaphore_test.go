@@ -16,7 +16,7 @@ import (
 	konductor "github.com/LogicIQ/konductor/sdk/go/client"
 )
 
-func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client {
+func setupSemaphoreTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	require.NoError(t, syncv1.AddToScheme(scheme))
@@ -45,7 +45,7 @@ func TestList(t *testing.T) {
 		},
 	}
 
-	client := setupTestClient(t, semaphore1)
+	client := setupSemaphoreTestClient(t, semaphore1)
 
 	semaphores, err := List(client, context.Background())
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestGet(t *testing.T) {
 		},
 	}
 
-	client := setupTestClient(t, semaphore)
+	client := setupSemaphoreTestClient(t, semaphore)
 
 	result, err := Get(client, context.Background(), "test-sem")
 	require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	client := setupTestClient(t)
+	client := setupSemaphoreTestClient(t)
 
 	err := Create(client, context.Background(), "test-sem", 5)
 	assert.NoError(t, err)
@@ -86,7 +86,7 @@ func TestDelete(t *testing.T) {
 			Namespace: "test-ns",
 		},
 	}
-	client := setupTestClient(t, semaphore)
+	client := setupSemaphoreTestClient(t, semaphore)
 
 	err := Delete(client, context.Background(), "test-sem")
 	assert.NoError(t, err)
@@ -102,7 +102,7 @@ func TestUpdate(t *testing.T) {
 			Permits: 5,
 		},
 	}
-	client := setupTestClient(t, semaphore)
+	client := setupSemaphoreTestClient(t, semaphore)
 
 	// Update permits
 	semaphore.Spec.Permits = 10

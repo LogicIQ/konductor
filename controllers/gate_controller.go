@@ -62,7 +62,13 @@ func (r *GateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		case "Job":
 			var job batchv1.Job
 			if err := r.Get(ctx, client.ObjectKey{Name: condition.Name, Namespace: namespace}, &job); err != nil {
-				status.Message = "Job not found"
+				if errors.IsNotFound(err) {
+					log.V(1).Info("Job not found for gate condition", "job", condition.Name, "namespace", namespace)
+					status.Message = "Job not found"
+				} else {
+					log.Error(err, "Failed to get Job for gate condition", "job", condition.Name, "namespace", namespace)
+					status.Message = "Failed to get Job"
+				}
 				allMet = false
 			} else {
 				if condition.State == "Complete" && job.Status.Succeeded > 0 {

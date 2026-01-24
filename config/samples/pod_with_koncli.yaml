@@ -1,3 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: koncli-cleanup-script
+  namespace: default
+data:
+  cleanup.sh: |
+    #!/bin/sh
+    # Shared cleanup function for Konductor resources
+    cleanup() {
+      if [ "$PERMIT_ACQUIRED" = "true" ]; then
+        echo "Cleaning up: releasing permit..."
+        if ! koncli semaphore release api-quota; then
+          echo "Warning: Failed to release semaphore permit" >&2
+        fi
+      fi
+    }
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -28,16 +46,7 @@ spec:
         - -c
         - |
           set -e
-          
-          # Set up cleanup function
-          cleanup() {
-            if [ "$PERMIT_ACQUIRED" = "true" ]; then
-              echo "Cleaning up: releasing permit..."
-              if ! koncli semaphore release api-quota; then
-                echo "Warning: Failed to release semaphore permit" >&2
-              fi
-            fi
-          }
+          . /scripts/cleanup.sh
           trap cleanup EXIT
           
           PERMIT_ACQUIRED=false
@@ -74,10 +83,16 @@ spec:
         - name: koncli
           mountPath: /usr/local/bin/koncli
           subPath: koncli
+        - name: cleanup-script
+          mountPath: /scripts
       volumes:
       - name: koncli
         configMap:
           name: koncli-binary
+          defaultMode: 0755
+      - name: cleanup-script
+        configMap:
+          name: koncli-cleanup-script
           defaultMode: 0755
       restartPolicy: Never
 ---
@@ -113,14 +128,7 @@ spec:
         - -c
         - |
           set -e
-          cleanup() {
-            if [ "$PERMIT_ACQUIRED" = "true" ]; then
-              echo "Cleaning up: releasing permit..."
-              if ! koncli semaphore release api-quota; then
-                echo "Warning: Failed to release permit" >&2
-              fi
-            fi
-          }
+          . /scripts/cleanup.sh
           trap cleanup EXIT
           
           PERMIT_ACQUIRED=false
@@ -137,6 +145,14 @@ spec:
             exit 1
           fi
           echo "Processing completed successfully"
+        volumeMounts:
+        - name: cleanup-script
+          mountPath: /scripts
+      volumes:
+      - name: cleanup-script
+        configMap:
+          name: koncli-cleanup-script
+          defaultMode: 0755
       restartPolicy: Never
 ---
 # ServiceAccount with proper RBAC

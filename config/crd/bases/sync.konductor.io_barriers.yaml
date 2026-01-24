@@ -70,7 +70,7 @@ spec:
             - message: quorum must not exceed expected
               rule: '!has(self.quorum) || self.quorum <= self.expected'
             - message: timeout must be a valid duration (e.g., 30s, 5m, 1h)
-              rule: '!has(self.timeout) || self.timeout.matches(''^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$'')'
+              rule: '!has(self.timeout) || self.timeout.matches(r''^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$'')'
           status:
             description: BarrierStatus defines the observed state of Barrier
             properties:

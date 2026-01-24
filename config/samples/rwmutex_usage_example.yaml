@@ -28,9 +28,13 @@ spec:
         - /bin/sh
         - -c
         - |
+          set -e
           if koncli rwmutex rlock cache-lock --holder $POD_NAME --timeout 30s; then
+            trap 'koncli rwmutex unlock cache-lock --holder $POD_NAME || echo "Warning: Failed to unlock" >&2' EXIT
             read-from-cache
-            koncli rwmutex unlock cache-lock --holder $POD_NAME
+          else
+            echo "Failed to acquire read lock" >&2
+            exit 1
           fi
 ---
 apiVersion: batch/v1

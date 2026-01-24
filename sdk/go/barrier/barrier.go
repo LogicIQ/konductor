@@ -53,7 +53,7 @@ func Wait(c *konductor.Client, ctx context.Context, name string, opts ...konduct
 	}, config)
 
 	if err != nil {
-		return err
+		return wrapError("wait", name, err)
 	}
 
 	// Check final state after wait completes
@@ -80,8 +80,9 @@ func Arrive(c *konductor.Client, ctx context.Context, name string, opts ...kondu
 
 	holder := options.Holder
 	if holder == "" {
-		holder = os.Getenv("HOSTNAME")
-		if holder == "" {
+		if hostname := os.Getenv("HOSTNAME"); hostname != "" {
+			holder = hostname
+		} else {
 			holder = fmt.Sprintf("sdk-%d", time.Now().Unix())
 		}
 	}

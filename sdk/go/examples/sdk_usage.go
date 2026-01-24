@@ -31,13 +31,19 @@ func demonstrateSemaphore(client *konductor.Client, ctx context.Context) {
 	fmt.Println("=== Semaphore Operations ===")
 
 	// Create semaphore
-	err := konductor.SemaphoreCreate(client, ctx, "demo-semaphore", 3,
-		konductor.WithTTL(10*time.Minute))
-	if err != nil {
+	if err := konductor.SemaphoreCreate(client, ctx, "demo-semaphore", 3,
+		konductor.WithTTL(10*time.Minute)); err != nil {
 		log.Printf("Create semaphore error: %v", err)
 		return
 	}
 	fmt.Println("✓ Created semaphore")
+	defer func() {
+		if err := konductor.SemaphoreDelete(client, ctx, "demo-semaphore"); err != nil {
+			log.Printf("Delete semaphore error: %v", err)
+		} else {
+			fmt.Println("✓ Deleted semaphore")
+		}
+	}()
 
 	// List semaphores
 	semaphores, err := konductor.SemaphoreList(client, ctx)
@@ -92,14 +98,6 @@ func demonstrateSemaphore(client *konductor.Client, ctx context.Context) {
 		fmt.Println("✓ Updated semaphore permits")
 	}
 
-	// Delete semaphore
-	err = konductor.SemaphoreDelete(client, ctx, "demo-semaphore")
-	if err != nil {
-		log.Printf("Delete semaphore error: %v", err)
-	} else {
-		fmt.Println("✓ Deleted semaphore")
-	}
-
 	fmt.Println()
 }
 
@@ -113,6 +111,13 @@ func demonstrateBarrier(client *konductor.Client, ctx context.Context) {
 		return
 	}
 	fmt.Println("✓ Created barrier expecting 2 arrivals")
+	defer func() {
+		if err := konductor.BarrierDelete(client, ctx, "demo-barrier"); err != nil {
+			log.Printf("Delete barrier error: %v", err)
+		} else {
+			fmt.Println("✓ Deleted barrier")
+		}
+	}()
 
 	// List barriers
 	barriers, err := konductor.BarrierList(client, ctx)
@@ -175,14 +180,6 @@ func demonstrateBarrier(client *konductor.Client, ctx context.Context) {
 		fmt.Println("✓ Updated barrier expected count")
 	}
 
-	// Delete barrier
-	err = konductor.BarrierDelete(client, ctx, "demo-barrier")
-	if err != nil {
-		log.Printf("Delete barrier error: %v", err)
-	} else {
-		fmt.Println("✓ Deleted barrier")
-	}
-
 	fmt.Println()
 }
 
@@ -196,6 +193,13 @@ func demonstrateGate(client *konductor.Client, ctx context.Context) {
 		return
 	}
 	fmt.Println("✓ Created gate")
+	defer func() {
+		if err := konductor.GateDelete(client, ctx, "demo-gate"); err != nil {
+			log.Printf("Delete gate error: %v", err)
+		} else {
+			fmt.Println("✓ Deleted gate")
+		}
+	}()
 
 	// List gates
 	gates, err := konductor.GateList(client, ctx)
@@ -264,14 +268,6 @@ func demonstrateGate(client *konductor.Client, ctx context.Context) {
 		fmt.Println("✓ Updated gate")
 	}
 
-	// Delete gate
-	err = konductor.GateDelete(client, ctx, "demo-gate")
-	if err != nil {
-		log.Printf("Delete gate error: %v", err)
-	} else {
-		fmt.Println("✓ Deleted gate")
-	}
-
 	fmt.Println()
 }
 
@@ -286,6 +282,13 @@ func demonstrateLease(client *konductor.Client, ctx context.Context) {
 		return
 	}
 	fmt.Println("✓ Created lease")
+	defer func() {
+		if err := konductor.LeaseDelete(client, ctx, "demo-lease"); err != nil {
+			log.Printf("Delete lease error: %v", err)
+		} else {
+			fmt.Println("✓ Deleted lease")
+		}
+	}()
 
 	// List leases
 	leases, err := konductor.LeaseList(client, ctx)

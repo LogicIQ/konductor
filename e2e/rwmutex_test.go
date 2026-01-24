@@ -24,14 +24,21 @@ func TestE2ERWMutex(t *testing.T) {
 	namespace := "default"
 	rwmutexName := fmt.Sprintf("e2e-test-rwmutex-%d", time.Now().Unix())
 
+	// Cleanup
+	defer func() {
+		cmd := exec.Command("../bin/koncli", "rwmutex", "delete", rwmutexName, "-n", namespace)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Logf("Cleanup failed: %v, output: %s", err, string(output))
+		}
+	}()
+
 	// Create rwmutex using CLI
 	cmd := exec.Command("../bin/koncli", "rwmutex", "create", rwmutexName, "-n", namespace)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create rwmutex: %v, output: %s", err, string(output))
+	} else {
+		t.Logf("Created rwmutex: %s", string(output))
 	}
-
-	t.Logf("Created rwmutex: %s", string(output))
 
 	// Wait for rwmutex to be ready
 	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
@@ -96,15 +103,6 @@ func TestE2ERWMutex(t *testing.T) {
 	if rwmutex.Status.Phase != syncv1.RWMutexPhaseUnlocked {
 		t.Errorf("Expected phase 'Unlocked', got '%s'", rwmutex.Status.Phase)
 	}
-
-	// Cleanup
-	cmd = exec.Command("../bin/koncli", "rwmutex", "delete", rwmutexName, "-n", namespace)
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to delete rwmutex: %v, output: %s", err, string(output))
-	}
-
-	t.Logf("Deleted rwmutex: %s", string(output))
 }
 
 func TestE2ERWMutexMultipleReaders(t *testing.T) {
@@ -124,12 +122,11 @@ func TestE2ERWMutexMultipleReaders(t *testing.T) {
 	}
 
 	// Wait for rwmutex to be ready
-	err = wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
+	if err := wait.PollImmediate(2*time.Second, 10*time.Second, func() (bool, error) {
 		rwmutex := &syncv1.RWMutex{}
 		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex)
 		return err == nil, nil
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatalf("RWMutex was not ready: %v", err)
 	}
 
@@ -146,8 +143,7 @@ func TestE2ERWMutexMultipleReaders(t *testing.T) {
 
 	// Verify all readers are present
 	rwmutex := &syncv1.RWMutex{}
-	err = k8sClient.Get(context.TODO(), client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex)
-	if err != nil {
+	if err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: rwmutexName, Namespace: namespace}, rwmutex); err != nil {
 		t.Fatalf("Failed to get rwmutex: %v", err)
 	}
 

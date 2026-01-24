@@ -16,6 +16,7 @@ type SemaphoreSpec struct {
 }
 
 // SemaphoreStatus defines the observed state of Semaphore
+// +kubebuilder:validation:XValidation:rule="self.inUse >= 0 && self.available >= 0",message="inUse and available must be non-negative"
 type SemaphoreStatus struct {
 	// InUse is the current number of permits in use
 	// +kubebuilder:validation:Minimum=0

@@ -194,6 +194,9 @@ func TestLeaseReconciler_Expiration(t *testing.T) {
 
 	_, err := reconciler.Reconcile(context.Background(), req)
 	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to reconcile: %v", err)
+	}
 
 	var updated syncv1.Lease
 	err = client.Get(context.Background(), req.NamespacedName, &updated)

@@ -75,7 +75,7 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			if leaseReq.Spec.Priority != nil {
 				priority = *leaseReq.Spec.Priority
 			}
-			if priority > highestPriority {
+			if bestRequest == nil || priority > highestPriority {
 				highestPriority = priority
 				bestRequest = leaseReq
 			}
@@ -86,7 +86,7 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			lease.Status.Phase = syncv1.LeasePhaseHeld
 			acquiredAt := metav1.Now()
 			lease.Status.AcquiredAt = &acquiredAt
-			if lease.Spec.TTL.Duration > 0 {
+			if lease.Spec.TTL != nil && lease.Spec.TTL.Duration > 0 {
 				expiresAt := metav1.NewTime(time.Now().Add(lease.Spec.TTL.Duration))
 				lease.Status.ExpiresAt = &expiresAt
 			}
@@ -101,6 +101,10 @@ func (r *LeaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	if err := r.Status().Update(ctx, &lease); err != nil {
+		if errors.IsConflict(err) {
+			log.V(1).Info("Lease update conflict, will retry", "name", lease.Name)
+			return ctrl.Result{Requeue: true}, nil
+		}
 		log.Error(err, "unable to update Lease status")
 		return ctrl.Result{}, err
 	}

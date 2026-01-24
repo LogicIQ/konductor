@@ -58,8 +58,7 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 
 	holder := options.Holder
 	if holder == "" {
-		holder = os.Getenv("HOSTNAME")
-		if holder == "" {
+		if holder = os.Getenv("HOSTNAME"); holder == "" {
 			holder = fmt.Sprintf("sdk-%d", time.Now().Unix())
 		}
 	}
@@ -137,7 +136,7 @@ func Acquire(c *konductor.Client, ctx context.Context, name string, opts ...kond
 	}, nil
 }
 
-func With(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) error {
+func With(c *konductor.Client, ctx context.Context, name string, fn func() error, opts ...konductor.Option) (err error) {
 	lease, err := Acquire(c, ctx, name, opts...)
 	if err != nil {
 		return err
@@ -145,6 +144,7 @@ func With(c *konductor.Client, ctx context.Context, name string, fn func() error
 	defer func() {
 		if releaseErr := lease.Release(ctx); releaseErr != nil {
 			if err == nil {
+				// amazonq-ignore-next-line
 				err = fmt.Errorf("failed to release lease: %w", releaseErr)
 			}
 		}

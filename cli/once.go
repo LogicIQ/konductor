@@ -34,6 +34,13 @@ func createOnceClient() (*konductor.Client, error) {
 	return konductor.NewFromClient(k8sClient, namespace), nil
 }
 
+func withTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout > 0 {
+		return context.WithTimeout(ctx, timeout)
+	}
+	return ctx, func() {}
+}
+
 func newOnceCheckCmd() *cobra.Command {
 	var timeout time.Duration
 
@@ -43,12 +50,8 @@ func newOnceCheckCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := cmd.Context()
-			if timeout > 0 {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithTimeout(ctx, timeout)
-				defer cancel()
-			}
+			ctx, cancel := withTimeout(cmd.Context(), timeout)
+			defer cancel()
 
 			client, err := createOnceClient()
 			if err != nil {
@@ -82,12 +85,8 @@ func newOnceListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List all onces",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			if timeout > 0 {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithTimeout(ctx, timeout)
-				defer cancel()
-			}
+			ctx, cancel := withTimeout(cmd.Context(), timeout)
+			defer cancel()
 
 			client, err := createOnceClient()
 			if err != nil {
@@ -145,12 +144,8 @@ func newOnceCreateCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := cmd.Context()
-			if timeout > 0 {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithTimeout(ctx, timeout)
-				defer cancel()
-			}
+			ctx, cancel := withTimeout(cmd.Context(), timeout)
+			defer cancel()
 
 			client, err := createOnceClient()
 			if err != nil {
@@ -185,12 +180,8 @@ func newOnceDeleteCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			ctx := cmd.Context()
-			if timeout > 0 {
-				var cancel context.CancelFunc
-				ctx, cancel = context.WithTimeout(ctx, timeout)
-				defer cancel()
-			}
+			ctx, cancel := withTimeout(cmd.Context(), timeout)
+			defer cancel()
 
 			client, err := createOnceClient()
 			if err != nil {

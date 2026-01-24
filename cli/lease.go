@@ -34,8 +34,7 @@ func createLeaseClient() *konductor.Client {
 
 func validateHolder(holder string) (string, error) {
 	if holder == "" {
-		holder = os.Getenv("HOSTNAME")
-		if holder == "" {
+		if holder = os.Getenv("HOSTNAME"); holder == "" {
 			return "", errors.New("holder must be specified or HOSTNAME must be set")
 		}
 	}

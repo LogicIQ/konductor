@@ -21,7 +21,7 @@ import (
 func TestBarrierReconciler_Reconcile(t *testing.T) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	require.NoError(t, syncv1.AddToScheme(scheme))
+	utilruntime.Must(syncv1.AddToScheme(scheme))
 
 	quorum := int32(2)
 

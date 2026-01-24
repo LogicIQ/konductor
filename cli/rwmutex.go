@@ -27,6 +27,34 @@ func newRWMutexCmd() *cobra.Command {
 	return cmd
 }
 
+func rwmutexLockHelper(cmd *cobra.Command, args []string, holder string, timeout time.Duration, lockFn func(*konductor.Client, interface{}, string, ...konductor.Option) (*rwmutex.RWMutex, error), logMsg string) error {
+	name := args[0]
+	ctx := cmd.Context()
+
+	var err error
+	holder, err = validateHolder(holder)
+	if err != nil {
+		return err
+	}
+
+	client := konductor.NewFromClient(k8sClient, namespace)
+
+	opts := []konductor.Option{
+		konductor.WithHolder(holder),
+	}
+	if timeout > 0 {
+		opts = append(opts, konductor.WithTimeout(timeout))
+	}
+
+	rwm, err := lockFn(client, ctx, name, opts...)
+	if err != nil {
+		return err
+	}
+
+	logger.Info(logMsg, zap.String("rwmutex", name), zap.String("holder", rwm.Holder()))
+	return nil
+}
+
 func newRWMutexRLockCmd() *cobra.Command {
 	var (
 		timeout time.Duration
@@ -38,31 +66,14 @@ func newRWMutexRLockCmd() *cobra.Command {
 		Short: "Acquire read lock",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
-			ctx := cmd.Context()
-
-			var err error
-			holder, err = validateHolder(holder)
-			if err != nil {
-				return err
-			}
-
-			client := konductor.NewFromClient(k8sClient, namespace)
-
-			opts := []konductor.Option{
-				konductor.WithHolder(holder),
-			}
-			if timeout > 0 {
-				opts = append(opts, konductor.WithTimeout(timeout))
-			}
-
-			rwm, err := rwmutex.RLock(client, ctx, name, opts...)
-			if err != nil {
-				return err
-			}
-
-			logger.Info("Acquired read lock", zap.String("rwmutex", name), zap.String("holder", rwm.Holder()))
-			return nil
+			return rwmutexLockHelper(cmd, args, holder, timeout, func(c *konductor.Client, ctx interface{}, name string, opts ...konductor.Option) (*rwmutex.RWMutex, error) {
+				return rwmutex.RLock(c, ctx.(interface {
+					Deadline() (time.Time, bool)
+					Done() <-chan struct{}
+					Err() error
+					Value(interface{}) interface{}
+				}), name, opts...)
+			}, "Acquired read lock")
 		},
 	}
 
@@ -83,31 +94,14 @@ func newRWMutexLockCmd() *cobra.Command {
 		Short: "Acquire write lock",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
-			ctx := cmd.Context()
-
-			var err error
-			holder, err = validateHolder(holder)
-			if err != nil {
-				return err
-			}
-
-			client := konductor.NewFromClient(k8sClient, namespace)
-
-			opts := []konductor.Option{
-				konductor.WithHolder(holder),
-			}
-			if timeout > 0 {
-				opts = append(opts, konductor.WithTimeout(timeout))
-			}
-
-			rwm, err := rwmutex.Lock(client, ctx, name, opts...)
-			if err != nil {
-				return err
-			}
-
-			logger.Info("Acquired write lock", zap.String("rwmutex", name), zap.String("holder", rwm.Holder()))
-			return nil
+			return rwmutexLockHelper(cmd, args, holder, timeout, func(c *konductor.Client, ctx interface{}, name string, opts ...konductor.Option) (*rwmutex.RWMutex, error) {
+				return rwmutex.Lock(c, ctx.(interface {
+					Deadline() (time.Time, bool)
+					Done() <-chan struct{}
+					Err() error
+					Value(interface{}) interface{}
+				}), name, opts...)
+			}, "Acquired write lock")
 		},
 	}
 

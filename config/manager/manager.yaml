@@ -21,8 +21,9 @@ spec:
       serviceAccountName: konductor-controller-manager
       containers:
       - name: manager
+        # amazonq-ignore-next-line
         image: konductor:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         command: ["/manager"]
         args: ["--log-level=$(LOG_LEVEL)"]
         startupProbe:

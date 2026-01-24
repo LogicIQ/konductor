@@ -9,12 +9,12 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func initTestLogger() *zap.Logger {
+func initTestLogger(t *testing.T) *zap.Logger {
 	config := zap.NewDevelopmentConfig()
 	config.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	testLogger, err := config.Build()
 	if err != nil {
-		panic("failed to build test logger: " + err.Error())
+		t.Fatal("failed to build test logger:", err)
 	}
 	return testLogger
 }
@@ -46,7 +46,6 @@ func executeCommandWithOutputAndLogs(t *testing.T, cmd *cobra.Command) (string, 
 		zapcore.AddSync(&logBuf),
 		zapcore.DebugLevel,
 	)
-	// Store original logger and restore after test
 	originalLogger := logger
 	logger = zap.New(core)
 	defer func() { logger = originalLogger }()

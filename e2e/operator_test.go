@@ -24,16 +24,10 @@ func TestE2EOperatorStatus(t *testing.T) {
 	t.Logf("Operator status: %s", outputStr)
 
 	// Verify output contains expected fields
-	if !strings.Contains(outputStr, "Operator Service:") {
-		t.Error("Expected output to contain 'Operator Service:'")
-	}
-	if !strings.Contains(outputStr, "Namespace:") {
-		t.Error("Expected output to contain 'Namespace:'")
-	}
-	if !strings.Contains(outputStr, "Health:") {
-		t.Error("Expected output to contain 'Health:'")
-	}
-	if !strings.Contains(outputStr, "Ready:") {
-		t.Error("Expected output to contain 'Ready:'")
+	expectedFields := []string{"Operator Service:", "Namespace:", "Health:", "Ready:"}
+	for _, field := range expectedFields {
+		if !strings.Contains(outputStr, field) {
+			t.Errorf("Expected output to contain '%s'", field)
+		}
 	}
 }

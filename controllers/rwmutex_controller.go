@@ -53,6 +53,16 @@ func (r *RWMutexReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			rwmutex.Status.Phase = syncv1.RWMutexPhaseUnlocked
 			updated = true
 		}
+	} else if rwmutex.Status.WriteHolder != "" {
+		if rwmutex.Status.Phase != syncv1.RWMutexPhaseWriteLocked {
+			rwmutex.Status.Phase = syncv1.RWMutexPhaseWriteLocked
+			updated = true
+		}
+	} else if len(rwmutex.Status.ReadHolders) > 0 {
+		if rwmutex.Status.Phase != syncv1.RWMutexPhaseReadLocked {
+			rwmutex.Status.Phase = syncv1.RWMutexPhaseReadLocked
+			updated = true
+		}
 	}
 
 	if updated {

@@ -33,7 +33,8 @@ func setupTestClient(t *testing.T, objects ...runtime.Object) *konductor.Client 
 func TestAdd_FromZero(t *testing.T) {
 	wg := &syncv1.WaitGroup{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-wg",
+			Name: "test-wg",
+			// amazonq-ignore-next-line
 			Namespace: "default",
 		},
 		Status: syncv1.WaitGroupStatus{
