@@ -50,9 +50,6 @@ spec:
                 description: TTL is the optional time-to-live for cleanup
                 type: string
             type: object
-            x-kubernetes-validations:
-            - message: ttl must be a valid duration (e.g., 30s, 5m, 1h)
-              rule: '!has(self.ttl) || self.ttl.matches(''^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$'')'
           status:
             description: WaitGroupStatus defines the observed state of WaitGroup
             properties:

@@ -5,7 +5,6 @@ import (
 )
 
 // PermitSpec defines the desired state of Permit
-// +kubebuilder:validation:XValidation:rule="!has(self.ttl) || self.ttl.matches('^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$')",message="ttl must be a valid duration (e.g., 30s, 5m, 1h)"
 type PermitSpec struct {
 	// Semaphore is the name of the semaphore this permit belongs to
 	// +kubebuilder:validation:Required
