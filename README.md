@@ -2,6 +2,8 @@
 
 ![Konductor](https://raw.githubusercontent.com/LogicIQ/konductor/main/docs/images/konductor.webp)
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/logicIQ/konductor)](https://goreportcard.com/report/github.com/logicIQ/konductor)
+
 Kubernetes operator for workflow coordination and job orchestration. Synchronize Kubernetes Jobs, coordinate multi-stage pipelines, and manage complex workflows in your cluster.
 
 🌐 **[Visit Project Page](https://logiciq.ca/konductor)**
